@@ -1,0 +1,32 @@
+# Walkthrough: [Phase 1] Test OpenRouter API Connection
+
+## สิ่งที่ได้ดำเนินการ (Accomplishments)
+ในงานนี้ ได้ทำการสร้างสคริปต์เพื่อทดสอบการเชื่อมต่อกับ **OpenRouter API** ตามข้อกำหนดใน [plan.md](file:///Users/oatrice/Software-projects/Akasa/docs/features/1_issue-1_phase-1-%E0%B8%AA%E0%B8%A1%E0%B8%84%E0%B8%A3-openrouter-%E0%B8%97%E0%B8%94%E0%B8%AA%E0%B8%AD%E0%B8%9A-api/plan.md) และ [spec.md](file:///Users/oatrice/Software-projects/Akasa/docs/features/1_issue-1_phase-1-%E0%B8%AA%E0%B8%A1%E0%B8%84%E0%B8%A3-openrouter-%E0%B8%97%E0%B8%94%E0%B8%AA%E0%B8%AD%E0%B8%9A-api/spec.md) โดยใช้แนวทางการพัฒนาแบบ **Test-Driven Development (TDD)**:
+
+1. **ตั้งค่าสภาพแวดล้อม:**
+   - สร้างไฟล์ [requirements.txt](file:///Users/oatrice/Software-projects/Akasa/requirements.txt) สำหรับติดตั้ง `requests`, `python-dotenv`, `pytest`, `responses`
+   - สร้างไฟล์ [.env.example](file:///Users/oatrice/Software-projects/Akasa/.env.example) เพื่อเป็นต้นแบบ
+   - เพิ่มไฟล์ [.gitignore](file:///Users/oatrice/Software-projects/Akasa/.gitignore) เพื่อป้องกันไม่ให้ข้อมูลความลับถูกอัพโหลดขึ้นฝั่ง Repository
+2. **สร้างสคริปต์ทดสอบอัตโนมัติ (Tests):**
+   - สร้างไฟล์ [tests/test_openrouter.py](file:///Users/oatrice/Software-projects/Akasa/tests/test_openrouter.py) สำหรับ Unit Test ฟอร์แมต HTTP request และ Response ด้วยไลบรารี `responses`
+   - ซึ่งรองรับ 2 Scenarios คือ: รันสำเร็จเมื่อใส่คีย์ถูก (200 OK) และล้มเหลวเมื่อใส่คีย์ผิด (401 Unauthorized)
+   - *RED Phase:* ทดสอบครั้งแรกล้มเหลวเนื่องจากยังไม่ได้สร้างโค้ดหลัก
+3. **กำหนดและเขียนสคริปต์การสื่อสาร (Code Implementation):**
+   - สร้างฟังก์ชัน [call_openrouter_api](file:///Users/oatrice/Software-projects/Akasa/scripts/test_openrouter.py#6-35) ในสคริปต์ [scripts/test_openrouter.py](file:///Users/oatrice/Software-projects/Akasa/scripts/test_openrouter.py) เพื่อติดต่อกับ OpenRouter รับ input `prompt` และ `model` รันด้วย `requests.post()`
+   - *GREEN Phase:* ทำการรัน `pytest tests/test_openrouter.py` ปรากฏว่าผ่านทั้ง 2 เคส
+4. **การตรวจสอบความถูกต้องด้วยตัวเอง (Manual Verification):**
+   - สร้างโครงสร้างไฟล์ที่ให้ผู้รันแบบ manual ผ่าน `python scripts/test_openrouter.py` สามารถเห็น Response แสดงผลออกมาหน้าจอได้อย่างสวยงามทั้งกรณียิง API ผ่านและพัง (Exception handler)
+
+## สิ่งที่ได้ทดสอบ (Validation Results)
+การทดสอบด้วย `pytest` เป็นไปตามเกณฑ์ทั้งหมด:
+- `tests/test_openrouter.py::test_call_openrouter_api_success` - ผ่าน (จำลอง Response HTTP 200 ยืนยัน Header ที่แนบ API Key)
+- `tests/test_openrouter.py::test_call_openrouter_api_unauthorized` - ผ่าน (จำลอง Response HTTP 401 Unauthorized)
+
+## ไฟล์ที่มีการเปลี่ยนแปลง / สร้างใหม่
+- [NEW] [requirements.txt](file:///Users/oatrice/Software-projects/Akasa/requirements.txt)
+- [NEW] [.env.example](file:///Users/oatrice/Software-projects/Akasa/.env.example)
+- [NEW] [.gitignore](file:///Users/oatrice/Software-projects/Akasa/.gitignore)
+- [NEW] [test_openrouter.py (Tests)](file:///Users/oatrice/Software-projects/Akasa/tests/test_openrouter.py)
+- [NEW] [test_openrouter.py (Script)](file:///Users/oatrice/Software-projects/Akasa/scripts/test_openrouter.py)
+
+คุณสามารถก๊อปปี้ไฟล์ [.env.example](file:///Users/oatrice/Software-projects/Akasa/.env.example) เป็นไฟล์ชื่อ `.env` ใส่คำสั่ง `OPENROUTER_API_KEY="ใส่คีย์จริงที่นี่"` และรัน `python scripts/test_openrouter.py` เพื่อทดสอบยิง API ของจริงได้ตั้งแต่นี้เป็นต้นไปครับ

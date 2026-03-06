@@ -1,0 +1,15 @@
+# Task List
+
+- [ ] Read and analyze requirements
+  - [x] Read markdown files in feature directory
+  - [ ] Read `prompt_*.txt` files
+- [ ] Ask clarifying questions to the user
+- [ ] Setup project
+  - [ ] Create `requirements.txt`
+  - [ ] Create `.env.example`
+  - [ ] Update `.gitignore`
+- [ ] Create API test script
+  - [ ] Write failing test (`tests/test_openrouter.py`)
+  - [ ] Implement `scripts/test_openrouter.py`
+  - [ ] Refactor code
+- [ ] Verify script functionality
