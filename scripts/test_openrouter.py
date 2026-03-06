@@ -31,7 +31,14 @@ def call_openrouter_api(prompt: str, model: str = "google/gemma-3-4b-it:free") -
     # Raise an exception for bad status codes
     response.raise_for_status()
     
-    return response.json()
+    result = response.json()
+    
+    # Validate response structure
+    choices = result.get("choices")
+    if not choices or not isinstance(choices, list) or len(choices) == 0:
+        raise ValueError("Invalid API response: 'choices' is empty or missing.")
+    
+    return result
 
 def main():
     try:

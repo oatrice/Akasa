@@ -76,3 +76,50 @@ def test_call_openrouter_api_unauthorized():
         call_openrouter_api(prompt="Test prompt", model="mistralai/mistral-7b-instruct:free")
         
     assert "401" in str(exc_info.value)
+
+def test_call_openrouter_api_missing_key():
+    """Test that ValueError is raised when API key is not set."""
+    # Remove the key from environment
+    os.environ.pop("OPENROUTER_API_KEY", None)
+    
+    # Patch load_dotenv to prevent loading real .env file
+    with patch("scripts.test_openrouter.load_dotenv"):
+        with pytest.raises(ValueError) as exc_info:
+            call_openrouter_api(prompt="Test prompt")
+    
+    assert "OPENROUTER_API_KEY" in str(exc_info.value)
+
+@responses.activate
+def test_call_openrouter_api_server_error():
+    """Test that server errors (500/503) are handled correctly."""
+    os.environ["OPENROUTER_API_KEY"] = "test_key"
+    
+    responses.add(
+        responses.POST,
+        "https://openrouter.ai/api/v1/chat/completions",
+        json={"error": {"message": "Internal Server Error"}},
+        status=500
+    )
+    
+    with pytest.raises(Exception) as exc_info:
+        call_openrouter_api(prompt="Test prompt")
+    
+    assert "500" in str(exc_info.value)
+
+@responses.activate
+def test_call_openrouter_api_malformed_response():
+    """Test that malformed JSON (empty choices) raises ValueError, not IndexError."""
+    os.environ["OPENROUTER_API_KEY"] = "test_key"
+    
+    # Response 200 OK but with empty choices list
+    responses.add(
+        responses.POST,
+        "https://openrouter.ai/api/v1/chat/completions",
+        json={"id": "gen-123", "choices": []},
+        status=200
+    )
+    
+    with pytest.raises(ValueError) as exc_info:
+        call_openrouter_api(prompt="Test prompt")
+    
+    assert "choices" in str(exc_info.value).lower() or "response" in str(exc_info.value).lower()
