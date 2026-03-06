@@ -3,7 +3,7 @@ import requests
 import json
 from dotenv import load_dotenv
 
-def call_openrouter_api(prompt: str, model: str = "mistralai/mistral-7b-instruct:free") -> dict:
+def call_openrouter_api(prompt: str, model: str = "google/gemma-3-4b-it:free") -> dict:
     """
     Calls the OpenRouter API with a given prompt and model.
     """
@@ -35,7 +35,7 @@ def call_openrouter_api(prompt: str, model: str = "mistralai/mistral-7b-instruct
 
 def main():
     try:
-        model = "mistralai/mistral-7b-instruct:free"
+        model = "google/gemma-3-4b-it:free"
         prompt = "What are the top 3 benefits of using Python?"
         print(f"Sending request to model: {model}...")
         
