@@ -137,7 +137,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ## 📋 Roadmap
 
 ### Phase 1: MVP 🎯 *(Current)*
-- [ ] สมัคร OpenRouter + ทดสอบ API
+- [x] สมัคร OpenRouter + ทดสอบ API
 - [ ] สร้าง FastAPI backend
 - [ ] สร้าง Telegram Bot + webhook
 - [ ] ส่งข้อความ → LLM → ตอบกลับ
