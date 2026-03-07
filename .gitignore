@@ -12,3 +12,7 @@ venv/
 # Luma CLI generated files
 prompt_*.txt
 .luma_state.json
+
+# Error Logs
+error.log
+.error.log
