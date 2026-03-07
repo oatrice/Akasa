@@ -2,252 +2,341 @@
 
 You are an AI assistant helping to create a Pull Request description.
     
-TASK: [Phase 1] สร้าง FastAPI backend
+TASK: [Phase 1] สร้าง Telegram Bot + webhook
 ISSUE: {
-  "title": "[Phase 1] \u0e2a\u0e23\u0e49\u0e32\u0e07 FastAPI backend",
-  "number": 2,
-  "body": "\u0e2a\u0e23\u0e49\u0e32\u0e07\u0e42\u0e04\u0e23\u0e07\u0e2a\u0e23\u0e49\u0e32\u0e07 Backend (Python + FastAPI)\n\n## \ud83e\udde0 AI Brain Context\n- [walkthrough.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/walkthrough.md.metadata.json)\n- [walkthrough.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/walkthrough.md.resolved)\n- [task.md.resolved.5](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.5)\n- [task.md.resolved.2](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.2)\n- [task.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.metadata.json)\n- [implementation_plan.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/implementation_plan.md.resolved.1)\n- [code_review_analysis.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/code_review_analysis.md.resolved.0)\n- [task.md.resolved.3](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.3)\n- [task.md.resolved.4](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.4)\n- [implementation_plan.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/implementation_plan.md.resolved.0)\n- [code_review_analysis.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/code_review_analysis.md.resolved)\n- [task.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved)\n- [implementation_plan.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/implementation_plan.md.metadata.json)\n- [analysis_results.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/analysis_results.md)\n- [implementation_plan.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/implementation_plan.md.resolved)\n- [code_review_analysis.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/code_review_analysis.md)\n- [task.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.1)\n- [analysis_results.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/analysis_results.md.resolved)\n- [task.md.resolved.6](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.6)\n- [task.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md)\n- [task.md.resolved.7](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.7)\n- [task.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/task.md.resolved.0)\n- [code_review_analysis.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/code_review_analysis.md.metadata.json)\n- [walkthrough.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/walkthrough.md)\n- [analysis_results.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/analysis_results.md.metadata.json)\n- [walkthrough.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/walkthrough.md.resolved.1)\n- [implementation_plan.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/implementation_plan.md)\n- [analysis_results.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/analysis_results.md.resolved.0)\n- [walkthrough.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/2-setup-fastapi-backend/docs/features/2_issue-2_phase-1-\u0e2a\u0e23\u0e32\u0e07-fastapi-backend/ai_brain/walkthrough.md.resolved.0)\n",
-  "url": "https://github.com/oatrice/Akasa/issues/2"
+  "title": "[Phase 1] \u0e2a\u0e23\u0e49\u0e32\u0e07 Telegram Bot + webhook",
+  "number": 3,
+  "body": "\u0e2a\u0e23\u0e49\u0e32\u0e07 Telegram Bot \u0e1c\u0e48\u0e32\u0e19 BotFather \u0e41\u0e25\u0e30\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21 webhook \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e23\u0e31\u0e1a\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\n\n## \ud83e\udde0 AI Brain Context\n- [walkthrough.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/walkthrough.md.metadata.json)\n- [walkthrough.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/walkthrough.md.resolved)\n- [task.md.resolved.5](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved.5)\n- [task.md.resolved.2](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved.2)\n- [task.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.metadata.json)\n- [task.md.resolved.3](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved.3)\n- [task.md.resolved.4](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved.4)\n- [implementation_plan.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/implementation_plan.md.resolved.0)\n- [task.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved)\n- [implementation_plan.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/implementation_plan.md.metadata.json)\n- [implementation_plan.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/implementation_plan.md.resolved)\n- [task.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved.1)\n- [task.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md)\n- [task.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/task.md.resolved.0)\n- [walkthrough.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/walkthrough.md)\n- [implementation_plan.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/implementation_plan.md)\n- [walkthrough.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/3-create-telegram-bot/docs/features/3_issue-3_phase-1-\u0e2a\u0e23\u0e32\u0e07-telegram-bot-webhook/ai_brain/walkthrough.md.resolved.0)\n",
+  "url": "https://github.com/oatrice/Akasa/issues/3"
 }
 
 GIT CONTEXT:
 COMMITS:
-5ec0699 feat: [Phase 1] สร้าง FastAPI backend...
-b4a9d59 docs: sync AI brain artifacts
-666685f test(issue-2): add tests for dependency failure, strict routing, and openapi tag
-a325cfc feat(issue-2): implement phase 1 fastapi backend foundation with TDD
-71e9e0c ci(release-please): change release type from python to simple
+4f4b604 docs: sync AI brain artifacts
+0d0151f fix(telegram): prevent auth bypass with empty webhook secret token
+35d24e9 feat: add Telegram bot webhook integration with configuration management
 
 STATS:
-.github/workflows/release-please.yml               |   2 +-
- .gitignore                                         |   1 +
- README.md                                          |   3 +-
- app/__init__.py                                    |   0
- app/main.py                                        |  18 ++
- app/models/__init__.py                             |   0
- app/routers/__init__.py                            |   0
- app/routers/health.py                              |  30 +++
- app/services/__init__.py                           |   0
- docs/ROADMAP.md                                    |   4 +-
- .../ai_brain/analysis_results.md"                  |  91 ++++++++
- .../ai_brain/analysis_results.md.metadata.json"    |   5 +
- .../ai_brain/analysis_results.md.resolved"         |  91 ++++++++
- .../ai_brain/analysis_results.md.resolved.0"       |  91 ++++++++
- .../ai_brain/code_review_analysis.md"              |  36 ++++
- .../code_review_analysis.md.metadata.json"         |   4 +
- .../ai_brain/code_review_analysis.md.resolved"     |  36 ++++
- .../ai_brain/code_review_analysis.md.resolved.0"   |  36 ++++
- .../ai_brain/implementation_plan.md"               | 165 ++++++++++++++
+.env.example                                       |   4 +
+ CHANGELOG.md                                       |  14 ++
+ README.md                                          |  21 +-
+ VERSION                                            |   2 +-
+ app/config.py                                      |  18 ++
+ app/main.py                                        |   3 +-
+ app/models/telegram.py                             |  37 +++
+ app/routers/telegram.py                            |  46 ++++
+ conftest.py                                        |   5 +
+ docs/ROADMAP.md                                    |   2 +-
+ .../ai_brain/implementation_plan.md"               |  58 +++++
  .../ai_brain/implementation_plan.md.metadata.json" |   5 +
- .../ai_brain/implementation_plan.md.resolved"      | 165 ++++++++++++++
- .../ai_brain/implementation_plan.md.resolved.0"    | 146 +++++++++++++
- .../ai_brain/implementation_plan.md.resolved.1"    | 165 ++++++++++++++
- .../ai_brain/task.md"                              |  32 +++
+ .../ai_brain/implementation_plan.md.resolved"      |  58 +++++
+ .../ai_brain/implementation_plan.md.resolved.0"    |  58 +++++
+ .../ai_brain/task.md"                              |  18 ++
  .../ai_brain/task.md.metadata.json"                |   5 +
- .../ai_brain/task.md.resolved"                     |  32 +++
- .../ai_brain/task.md.resolved.0"                   |  27 +++
- .../ai_brain/task.md.resolved.1"                   |  27 +++
- .../ai_brain/task.md.resolved.2"                   |  27 +++
- .../ai_brain/task.md.resolved.3"                   |  27 +++
- .../ai_brain/task.md.resolved.4"                   |  27 +++
- .../ai_brain/task.md.resolved.5"                   |  32 +++
- .../ai_brain/task.md.resolved.6"                   |  32 +++
- .../ai_brain/task.md.resolved.7"                   |  32 +++
- .../ai_brain/walkthrough.md"                       | 111 ++++++++++
+ .../ai_brain/task.md.resolved"                     |  18 ++
+ .../ai_brain/task.md.resolved.0"                   |   8 +
+ .../ai_brain/task.md.resolved.1"                   |   8 +
+ .../ai_brain/task.md.resolved.2"                   |   8 +
+ .../ai_brain/task.md.resolved.3"                   |   8 +
+ .../ai_brain/task.md.resolved.4"                   |  18 ++
+ .../ai_brain/task.md.resolved.5"                   |  18 ++
+ .../ai_brain/walkthrough.md"                       |  41 ++++
  .../ai_brain/walkthrough.md.metadata.json"         |   5 +
- .../ai_brain/walkthrough.md.resolved"              | 111 ++++++++++
- .../ai_brain/walkthrough.md.resolved.0"            | 105 +++++++++
- .../ai_brain/walkthrough.md.resolved.1"            | 111 ++++++++++
- .../analysis.md"                                   | 236 +++++++++++++++++++++
+ .../ai_brain/walkthrough.md.resolved"              |  41 ++++
+ .../ai_brain/walkthrough.md.resolved.0"            |  41 ++++
+ .../analysis.md"                                   | 266 +++++++++++++++++++++
  .../code_review.md"                                |  15 ++
- .../implementation_plan.md"                        | 165 ++++++++++++++
- .../plan.md"                                       | 128 +++++++++++
- .../sbe.md"                                        |  52 +++++
- .../spec.md"                                       |  76 +++++++
- .../task.md"                                       |  32 +++
- .../walkthrough.md"                                | 111 ++++++++++
- requirements.txt                                   |   3 +
- tests/test_main.py                                 |  99 +++++++++
- 49 files changed, 2750 insertions(+), 4 deletions(-)
+ .../implementation_plan.md"                        |  58 +++++
+ .../plan.md"                                       | 190 +++++++++++++++
+ .../sbe.md"                                        |  55 +++++
+ .../spec.md"                                       |  74 ++++++
+ .../task.md"                                       |  18 ++
+ .../walkthrough.md"                                |  41 ++++
+ requirements.txt                                   |   1 +
+ tests/__init__.py                                  |   0
+ tests/routers/__init__.py                          |   0
+ tests/routers/test_telegram.py                     | 118 +++++++++
+ 39 files changed, 1387 insertions(+), 17 deletions(-)
 
 KEY FILE DIFFS:
-diff --git a/app/__init__.py b/app/__init__.py
+diff --git a/app/config.py b/app/config.py
 new file mode 100644
-index 0000000..e69de29
-diff --git a/app/main.py b/app/main.py
-new file mode 100644
-index 0000000..967b93b
+index 0000000..e6df185
 --- /dev/null
-+++ b/app/main.py
++++ b/app/config.py
 @@ -0,0 +1,18 @@
 +"""
-+Akasa API — FastAPI Backend Entry Point
++Akasa Configuration — จัดการค่า settings จาก environment variables
 +
-+จุดเริ่มต้นของแอปพลิเคชัน Backend สำหรับโปรเจกต์ Akasa
++ใช้ pydantic-settings เพื่อโหลดค่าจากไฟล์ .env อัตโนมัติ
 +"""
 +
-+from fastapi import FastAPI
-+from app.routers import health
++from pydantic_settings import BaseSettings, SettingsConfigDict
 +
-+app = FastAPI(
-+    title="Akasa API",
-+    version="0.1.0",
-+)
 +
-+# บังคับ Strict Routing: /health จะไม่สนใจ /health/ และคืนค่า 404 แทนที่จะเป็น 307 Redirect
-+app.router.redirect_slashes = False
++class Settings(BaseSettings):
++    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 +
-+app.include_router(health.router)
-diff --git a/app/models/__init__.py b/app/models/__init__.py
++    TELEGRAM_BOT_TOKEN: str = ""
++    WEBHOOK_SECRET_TOKEN: str = ""
++    OPENROUTER_API_KEY: str = ""
++
++
++settings = Settings()
+diff --git a/app/main.py b/app/main.py
+index 967b93b..6395600 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -5,7 +5,7 @@ Akasa API — FastAPI Backend Entry Point
+ """
+ 
+ from fastapi import FastAPI
+-from app.routers import health
++from app.routers import health, telegram
+ 
+ app = FastAPI(
+     title="Akasa API",
+@@ -16,3 +16,4 @@ app = FastAPI(
+ app.router.redirect_slashes = False
+ 
+ app.include_router(health.router)
++app.include_router(telegram.router)
+diff --git a/app/models/telegram.py b/app/models/telegram.py
 new file mode 100644
-index 0000000..e69de29
-diff --git a/app/routers/__init__.py b/app/routers/__init__.py
-new file mode 100644
-index 0000000..e69de29
-diff --git a/app/routers/health.py b/app/routers/health.py
-new file mode 100644
-index 0000000..7abea0b
+index 0000000..9ef3e59
 --- /dev/null
-+++ b/app/routers/health.py
-@@ -0,0 +1,30 @@
++++ b/app/models/telegram.py
+@@ -0,0 +1,37 @@
 +"""
-+Health Check Router
++Telegram Pydantic Models — รองรับ Telegram Bot API Update object
 +
-+Router สำหรับ endpoint ดูสถานะระบบ
++ใช้สำหรับ deserialize ข้อมูลที่ Telegram ส่งมาผ่าน Webhook
 +"""
 +
-+from fastapi import APIRouter, Depends, HTTPException
++from pydantic import BaseModel, Field
++from typing import Optional
++
++
++class TelegramUser(BaseModel):
++    """ผู้ใช้ Telegram"""
++    id: int
++    is_bot: bool = False
++    first_name: str = ""
++
++
++class Chat(BaseModel):
++    """Chat ที่ข้อความถูกส่งมา"""
++    id: int
++    type: str
++
++
++class Message(BaseModel):
++    """ข้อความจาก Telegram"""
++    message_id: int
++    chat: Chat
++    from_user: Optional[TelegramUser] = Field(None, alias="from")
++    date: int = 0
++    text: Optional[str] = None
++
++
++class Update(BaseModel):
++    """Telegram Update object — payload หลักที่ส่งมาทาง Webhook"""
++    update_id: int
++    message: Optional[Message] = None
++    edited_message: Optional[Message] = None
+diff --git a/app/routers/telegram.py b/app/routers/telegram.py
+new file mode 100644
+index 0000000..7b45cbf
+--- /dev/null
++++ b/app/routers/telegram.py
+@@ -0,0 +1,46 @@
++"""
++Telegram Webhook Router — รับ Webhook จาก Telegram Bot API
++
++Endpoint: POST /api/v1/telegram/webhook
++- ตรวจสอบ Secret Token จาก Header
++- รับ Update object จาก Telegram
++- ในเฟสนี้แค่ log ยังไม่ประมวลผล
++"""
++
 +import logging
++from fastapi import APIRouter, Depends, Header, HTTPException, status
 +
-+# กำหนด redirect_slashes=False เพื่อ Strict Routing (ใส่ / ตอบกลับ 404 แทน 307)
-+router = APIRouter(tags=["Monitoring"], redirect_slashes=False)
++from app.config import settings
++from app.models.telegram import Update
 +
-+def check_database() -> bool:
-+    """Dummy dependency จำลองเช็ค database connection"""
-+    # ในอนาคตจะเชื่อมต่อกับ DB จริง เช่น yield DB session
-+    return True
++logger = logging.getLogger(__name__)
 +
-+@router.get("/health")
-+def health_check(db_ok: bool = Depends(check_database)) -> dict:
++router = APIRouter(prefix="/api/v1/telegram", tags=["Telegram"])
++
++
++async def verify_secret_token(
++    x_telegram_bot_api_secret_token: str = Header(None),
++):
++    """Dependency สำหรับตรวจสอบ Secret Token ที่ Telegram ส่งมาใน Header"""
++    if x_telegram_bot_api_secret_token is None:
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN,
++            detail="Secret token missing",
++        )
++    if not settings.WEBHOOK_SECRET_TOKEN or x_telegram_bot_api_secret_token != settings.WEBHOOK_SECRET_TOKEN:
++        raise HTTPException(
++            status_code=status.HTTP_403_FORBIDDEN,
++            detail="Invalid secret token",
++        )
++
++
++@router.post("/webhook", dependencies=[Depends(verify_secret_token)])
++async def telegram_webhook(update: Update):
 +    """
-+    Endpoint สำหรับตรวจสอบสถานะของระบบ (Health Check)
++    รับ updates จาก Telegram Bot API
++
++    ในเฟสนี้แค่ log ข้อมูลที่ได้รับ
++    ยังไม่ประมวลผลหรือตอบกลับผู้ใช้
 +    """
-+    try:
-+        if db_ok:
-+            return {"status": "ok"}
-+    except Exception as e:
-+        # ถ้าพังให้พ่นหน้า Server Error 503 กลับไป แทนที่จะเป็น Internal Server Error ทั่วไป
-+        logging.error(f"Health check failed: {str(e)}")
-+        
-+    raise HTTPException(status_code=503, detail="Service Unavailable")
-diff --git a/app/services/__init__.py b/app/services/__init__.py
++    logger.info("Received Telegram update: %s", update.model_dump_json(indent=2))
++    return {"status": "ok"}
+diff --git a/conftest.py b/conftest.py
+new file mode 100644
+index 0000000..40f64b0
+--- /dev/null
++++ b/conftest.py
+@@ -0,0 +1,5 @@
++import sys
++import os
++
++# เพิ่ม project root เข้า sys.path เพื่อให้ pytest หา module 'app' ได้
++sys.path.insert(0, os.path.dirname(__file__))
+diff --git a/tests/__init__.py b/tests/__init__.py
 new file mode 100644
 index 0000000..e69de29
-diff --git a/tests/test_main.py b/tests/test_main.py
+diff --git a/tests/routers/__init__.py b/tests/routers/__init__.py
 new file mode 100644
-index 0000000..38fdf87
+index 0000000..e69de29
+diff --git a/tests/routers/test_telegram.py b/tests/routers/test_telegram.py
+new file mode 100644
+index 0000000..6287716
 --- /dev/null
-+++ b/tests/test_main.py
-@@ -0,0 +1,99 @@
++++ b/tests/routers/test_telegram.py
+@@ -0,0 +1,118 @@
 +"""
-+🟥 TDD RED Phase: Failing Tests สำหรับ FastAPI Health Check
++Tests สำหรับ Telegram Webhook Router
 +
-+Test cases ตาม SBE (Specification by Example):
-+- Scenario 1: GET /health → 200 OK + {"status": "ok"}
-+- Scenario 2: GET /nonexistent → 404 Not Found
-+- Scenario 3: POST /health → 405 Method Not Allowed
++ครอบคลุม:
++- Happy path: token ถูกต้อง → 200
++- Invalid token → 403
++- Missing token → 403
++- Unsupported HTTP method → 405
 +"""
++
++from unittest.mock import patch
 +
 +from fastapi.testclient import TestClient
++
 +from app.main import app
 +
 +client = TestClient(app)
++WEBHOOK_URL = "/api/v1/telegram/webhook"
++TEST_SECRET_TOKEN = "a_very_secret_string_123"
++
++VALID_PAYLOAD = {
++    "update_id": 1,
++    "message": {
++        "message_id": 1,
++        "chat": {"id": 1, "type": "private"},
++        "date": 1678886400,
++        "text": "hello",
++    },
++}
 +
 +
-+def test_health_check_success():
-+    """
-+    GIVEN Backend application ทำงานอยู่
-+    WHEN ส่ง GET request ไปยัง /health
-+    THEN ตอบกลับ 200 OK พร้อม {"status": "ok"}
-+    """
-+    response = client.get("/health")
++def test_webhook_success_valid_token():
++    """ส่ง request พร้อม Secret Token ที่ถูกต้อง → ต้องได้ 200 OK"""
++    with patch("app.routers.telegram.settings") as mock_settings:
++        mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
++        response = client.post(
++            WEBHOOK_URL,
++            headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
++            json=VALID_PAYLOAD,
++        )
 +    assert response.status_code == 200
 +    assert response.json() == {"status": "ok"}
 +
 +
-+def test_route_not_found():
-+    """
-+    GIVEN Backend application ทำงานอยู่
-+    WHEN ส่ง GET request ไปยัง endpoint ที่ไม่มีอยู่
-+    THEN ตอบกลับ 404 Not Found
-+    """
-+    response = client.get("/this-route-does-not-exist")
-+    assert response.status_code == 404
-+    assert response.json() == {"detail": "Not Found"}
++def test_webhook_fail_invalid_token():
++    """ส่ง request พร้อม Secret Token ที่ผิด → ต้องได้ 403"""
++    with patch("app.routers.telegram.settings") as mock_settings:
++        mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
++        response = client.post(
++            WEBHOOK_URL,
++            headers={"X-Telegram-Bot-Api-Secret-Token": "this_is_a_wrong_token"},
++            json=VALID_PAYLOAD,
++        )
++    assert response.status_code == 403
++    assert response.json() == {"detail": "Invalid secret token"}
 +
 +
-+def test_method_not_allowed():
-+    """
-+    GIVEN Backend application ทำงานอยู่
-+    WHEN ส่ง POST request ไปยัง /health (ซึ่งรองรับแค่ GET)
-+    THEN ตอบกลับ 405 Method Not Allowed
-+    """
-+    response = client.post("/health")
++def test_webhook_fail_missing_token():
++    """ส่ง request โดยไม่มี Secret Token Header → ต้องได้ 403"""
++    response = client.post(WEBHOOK_URL, json=VALID_PAYLOAD)
++    assert response.status_code == 403
++    assert response.json() == {"detail": "Secret token missing"}
++
++
++def test_webhook_fail_unsupported_method():
++    """ใช้ GET method แทน POST → ต้องได้ 405"""
++    response = client.get(WEBHOOK_URL)
 +    assert response.status_code == 405
-+    assert response.json() == {"detail": "Method Not Allowed"}
 +
 +
-+def test_health_check_dependency_failure():
-+    """
-+    GIVEN Backend application มีการใช้งาน Service ภายใน (Dependency)
-+    WHEN Service ภายในเกิดทำงานล้มเหลว (Raise Exception) ตอนเรียก /health
-+    THEN ตอบกลับ 503 Service Unavailable แทนที่จะเป็น 200 OK
-+    """
-+    # จำลอง (Mock) ว่า dependency `check_database` ล้มเหลว
-+    from app.routers.health import check_database
-+    
-+    def override_check_database():
-+        # จำลองว่าระบบฐานข้อมูลทำงานผิดปกติและส่งค่า False กลับไป
-+        return False
-+        
-+    app.dependency_overrides[check_database] = override_check_database
-+    
-+    try:
-+        response = client.get("/health")
-+        assert response.status_code == 503
-+        assert response.json() == {"detail": "Service Unavailable"}
-+    finally:
-+        # ล้าง override ออก เพื่อไม่ให้ส่งผลกับ test ถัดไป (สำคัญมาก เพราะถ้าแอพ exception ขัดมันจะข้ามบรรทัดนี้ในโค้ดเดิม)
-+        app.dependency_overrides.clear()
++# === Code Review #3 — Test Suggestions ===
 +
 +
-+def test_health_check_trailing_slash():
-+    """
-+    GIVEN Backend application มี Endpoint /health
-+    WHEN ส่ง request ไปยัง /health/ (มี trailing slash)
-+    THEN ตอบกลับ 404 Not Found (Strict routing)
-+    """
-+    response = client.get("/health/")
-+    assert response.status_code == 404
++def test_webhook_fail_malformed_payload():
++    """ส่ง JSON ที่โครงสร้างไม่ตรงกับ Update model → ต้องได้ 422"""
++    with patch("app.routers.telegram.settings") as mock_settings:
++        mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
++        response = client.post(
++            WEBHOOK_URL,
++            headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
++            json={"invalid_field": "not an update"},
++        )
++    assert response.status_code == 422
 +
 +
-+def test_openapi_schema_validation():
-+    """
-+    GIVEN Backend application ทำงานอยู่
-+    WHEN ดึงข้อมูล OpenAPI schema จาก /openapi.json
-+    THEN Endpoint /health ต้องมี tag "Monitoring"
-+    """
-+    response = client.get("/openapi.json")
++def test_webhook_fail_empty_secret_token_bypass():
++    """ป้องกัน auth bypass: ถ้า WEBHOOK_SECRET_TOKEN เป็น '' และ header ก็เป็น '' → ต้องได้ 403"""
++    with patch("app.routers.telegram.settings") as mock_settings:
++        mock_settings.WEBHOOK_SECRET_TOKEN = ""  # ค่าว่าง — ไม่ได้ตั้งค่า
++        response = client.post(
++            WEBHOOK_URL,
++            headers={"X-Telegram-Bot-Api-Secret-Token": ""},
++            json=VALID_PAYLOAD,
++        )
++    assert response.status_code == 403
++    assert response.json() == {"detail": "Invalid secret token"}
++
++
++def test_webhook_success_edited_message():
++    """ส่ง payload เป็น edited_message แทน message → ต้อง parse ได้ 200 OK"""
++    edited_message_payload = {
++        "update_id": 99,
++        "edited_message": {
++            "message_id": 5,
++            "chat": {"id": 1, "type": "private"},
++            "date": 1678886400,
++            "text": "edited text",
++        },
++    }
++    with patch("app.routers.telegram.settings") as mock_settings:
++        mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
++        response = client.post(
++            WEBHOOK_URL,
++            headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
++            json=edited_message_payload,
++        )
 +    assert response.status_code == 200
-+    
-+    schema = response.json()
-+    paths = schema.get("paths", {})
-+    health_path = paths.get("/health", {})
-+    health_get = health_path.get("get", {})
-+    tags = health_get.get("tags", [])
-+    
-+    assert "Monitoring" in tags
-+
++    assert response.json() == {"status": "ok"}
 
 
 PR TEMPLATE:
@@ -259,4 +348,4 @@ INSTRUCTIONS:
 3. If no template, use a standard structure: Summary, Changes, Impact.
 4. Focus on 'Why' and 'What'.
 5. Do not include 'Here is the PR description' preamble. Just the body.
-6. IMPORTANT: Always use the exact FULL URL for closing issues. You must write `Closes https://github.com/oatrice/Akasa/issues/2`. Do NOT use short syntax (e.g., #123) and do not invent an owner/repo.
+6. IMPORTANT: Always use the exact FULL URL for closing issues. You must write `Closes https://github.com/oatrice/Akasa/issues/3`. Do NOT use short syntax (e.g., #123) and do not invent an owner/repo.
