@@ -1,0 +1,48 @@
+# Walkthrough: Issue #6 — Conversation History with Redis
+
+## สรุปสิ่งที่ทำ
+
+ยกระดับ Akasa Chatbot จาก **stateless** → **stateful** ด้วย Redis เก็บประวัติสนทนาแยก `chat_id` พร้อม graceful degradation ถ้า Redis ล่ม
+
+## ไฟล์ที่เปลี่ยนแปลง
+
+### ไฟล์ใหม่ (3)
+| ไฟล์ | หน้าที่ |
+|---|---|
+| [redis_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/redis_service.py) | [get_chat_history()](file:///Users/oatrice/Software-projects/Akasa/app/services/redis_service.py#16-22), [add_message_to_history()](file:///Users/oatrice/Software-projects/Akasa/app/services/redis_service.py#24-34) — LPUSH/LRANGE/LTRIM/EXPIRE |
+| [test_redis_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_redis_service.py) | 6 unit tests ด้วย `fakeredis` |
+| [test_redis_integration.py](file:///Users/oatrice/Software-projects/Akasa/tests/integration/test_redis_integration.py) | 4 integration tests ด้วย Redis จริง (auto-skip ถ้าไม่มี Redis) |
+
+### ไฟล์ที่แก้ไข (5)
+| ไฟล์ | การเปลี่ยนแปลง |
+|---|---|
+| [llm_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/llm_service.py) | Signature: `prompt: str` → `messages: list[dict]` |
+| [chat_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/chat_service.py) | เพิ่ม Redis integration + graceful degradation |
+| [config.py](file:///Users/oatrice/Software-projects/Akasa/app/config.py) | เพิ่ม `REDIS_URL`, `REDIS_HISTORY_LIMIT`, `REDIS_TTL_SECONDS` |
+| [requirements.txt](file:///Users/oatrice/Software-projects/Akasa/requirements.txt) | เพิ่ม [redis](file:///Users/oatrice/Software-projects/Akasa/docs/features/5_issue-6_phase-2-conversation-history-redis), `fakeredis` |
+| [python-tests.yml](file:///Users/oatrice/Software-projects/Akasa/.github/workflows/python-tests.yml) | เพิ่ม Redis service container + แยก unit/integration tests |
+
+## Test Results
+
+```
+=================== 38 passed, 4 skipped, 1 warning in 3.85s ===================
+```
+
+| Test Suite | จำนวน | ผลลัพธ์ |
+|---|---|---|
+| [test_redis_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_redis_service.py) | 6 | ✅ PASSED |
+| [test_llm_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_llm_service.py) | 3 | ✅ PASSED |
+| [test_chat_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_chat_service.py) | 8 | ✅ PASSED |
+| [test_redis_integration.py](file:///Users/oatrice/Software-projects/Akasa/tests/integration/test_redis_integration.py) | 4 | ⏭ SKIPPED (ไม่มี Redis local) |
+| Other existing tests | 17 | ✅ PASSED |
+
+## CI/CD (2-tier Strategy)
+
+```yaml
+services:
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+```
+- **Unit tests**: `fakeredis` mock → เร็ว, test logic
+- **Integration tests**: Redis service container จริง → ใกล้เคียง production

@@ -1,0 +1,42 @@
+# Issue #6 Phase 2: Conversation History with Redis
+
+## Step 1: Project Setup
+- [x] เพิ่ม [redis](file:///Users/oatrice/Software-projects/Akasa/docs/features/5_issue-6_phase-2-conversation-history-redis) และ `fakeredis` ใน [requirements.txt](file:///Users/oatrice/Software-projects/Akasa/requirements.txt)
+- [x] เพิ่ม `REDIS_URL` ใน [app/config.py](file:///Users/oatrice/Software-projects/Akasa/app/config.py) และ [.env.example](file:///Users/oatrice/Software-projects/Akasa/.env.example)
+
+## Step 2: สร้าง Redis Service (TDD)
+- [x] 🟥 เขียน Failing Tests สำหรับ [redis_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/redis_service.py)
+- [x] 🟢 Implement [app/services/redis_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/redis_service.py)
+- [x] ✨ Refactor ถ้าจำเป็น
+
+## Step 3: แก้ไข LLM Service (TDD)
+- [x] 🟥 แก้ไข Tests ใน [test_llm_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_llm_service.py) ให้ test signature ใหม่ `messages: list[dict]`
+- [x] 🟢 แก้ไข [app/services/llm_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/llm_service.py)
+- [x] ✨ Refactor ถ้าจำเป็น
+
+## Step 4: แก้ไข Chat Service (TDD)
+- [x] 🟥 แก้ไข Tests ใน [test_chat_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_chat_service.py) เพิ่ม mock redis_service + test Redis failure
+- [x] 🟢 แก้ไข [app/services/chat_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/chat_service.py)
+- [x] ✨ Refactor ถ้าจำเป็น
+
+## Step 5: CI/CD & Integration Tests
+- [x] เพิ่ม Redis service container ใน [python-tests.yml](file:///Users/oatrice/Software-projects/Akasa/.github/workflows/python-tests.yml)
+- [x] สร้าง [tests/integration/test_redis_integration.py](file:///Users/oatrice/Software-projects/Akasa/tests/integration/test_redis_integration.py) (ทดสอบกับ Redis จริง)
+
+## Step 6: Verification
+- [x] รัน `pytest -v` ผ่านทั้งหมด — **38 passed, 4 skipped**
+- [x] ทดสอบ manual กับ Telegram Bot (ถ้า Redis พร้อม)
+
+## Step 7: Issue #4 Test Suggestions (Error Handling)
+- [x] 🟥 เขียน Failing Tests [tests/services/test_chat_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_chat_service.py) (Telegram Error, LLM Timeout, LLM Malformed Data)
+- [x] 🟢 แก้ไข [app/services/chat_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/chat_service.py) ดัก TimeoutException, HTTPStatusError, ValueError
+- [x] ✨ Refactor
+
+## Step 8: Issue #6 Test Suggestions (Redis Edge Cases)
+- [x] 🟥 เขียน Failing Tests [tests/services/test_redis_service.py](file:///Users/oatrice/Software-projects/Akasa/tests/services/test_redis_service.py) (Corrupted JSON, History Limit 0)
+- [x] 🟥 เขียน Failing Tests [tests/integration/test_redis_integration.py](file:///Users/oatrice/Software-projects/Akasa/tests/integration/test_redis_integration.py) (TTL Short Sleep)
+- [x] 🟢 แก้ไข [app/services/redis_service.py](file:///Users/oatrice/Software-projects/Akasa/app/services/redis_service.py) ดัก JSONDecodeError, จัดการ Limit 0
+- [x] ✨ Refactor
+
+## Step 9: Final Verification
+- [x] รัน `pytest -v` ผ่านทั้งหมด
