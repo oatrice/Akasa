@@ -1,6 +1,8 @@
 requests
 python-dotenv
 pytest
+pytest-asyncio
+respx
 responses
 fastapi
 uvicorn[standard]
