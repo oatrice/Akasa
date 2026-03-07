@@ -1,0 +1,27 @@
+# Task: Phase 1 - FastAPI Backend Foundation (Issue #2)
+
+## สร้างโครงสร้าง Backend
+- [x] สร้าง directory `app/` พร้อม subdirectories (`routers/`, `services/`, `models/`)
+- [x] สร้าง [app/__init__.py](file:///Users/oatrice/Software-projects/Akasa/app/__init__.py), [app/routers/__init__.py](file:///Users/oatrice/Software-projects/Akasa/app/routers/__init__.py), [app/services/__init__.py](file:///Users/oatrice/Software-projects/Akasa/app/services/__init__.py), [app/models/__init__.py](file:///Users/oatrice/Software-projects/Akasa/app/models/__init__.py)
+- [x] อัปเดต [requirements.txt](file:///Users/oatrice/Software-projects/Akasa/requirements.txt) เพิ่ม `fastapi`, `uvicorn[standard]`, `httpx`
+- [x] ติดตั้ง dependencies
+
+## TDD: เขียน Test ก่อน (🟥 RED)
+- [/] สร้าง [tests/test_main.py](file:///Users/oatrice/Software-projects/Akasa/tests/test_main.py)
+- [x] เขียน test: [test_health_check_success](file:///Users/oatrice/Software-projects/Akasa/tests/test_main.py#16-25) → GET /health → 200 + {"status": "ok"}
+- [x] เขียน test: [test_route_not_found](file:///Users/oatrice/Software-projects/Akasa/tests/test_main.py#27-36) → GET /nonexistent → 404
+- [x] เขียน test: [test_method_not_allowed](file:///Users/oatrice/Software-projects/Akasa/tests/test_main.py#38-47) → POST /health → 405
+- [x] รัน pytest → ต้อง **FAIL** ทั้งหมด
+
+## TDD: เขียน Production Code (🟢 GREEN)
+- [x] สร้าง [app/main.py](file:///Users/oatrice/Software-projects/Akasa/app/main.py) พร้อม FastAPI app + `/health` endpoint
+- [x] รัน pytest → ต้อง **PASS** ทั้งหมด
+
+## TDD: Refactor (✨ REFACTOR)
+- [x] ย้าย health route ไปอยู่ใน [app/routers/health.py](file:///Users/oatrice/Software-projects/Akasa/app/routers/health.py) (ถ้าเหมาะสม)
+- [x] รัน pytest → ต้อง **PASS** ทั้งหมด
+
+## Verification
+- [x] รัน pytest สำเร็จ
+- [x] รัน server + curl /health ได้ผลลัพธ์ถูกต้อง
+- [x] ตรวจ Swagger UI ที่ /docs

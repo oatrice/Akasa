@@ -1,0 +1,27 @@
+# Task: Phase 1 - FastAPI Backend Foundation (Issue #2)
+
+## สร้างโครงสร้าง Backend
+- [/] สร้าง directory `app/` พร้อม subdirectories (`routers/`, `services/`, `models/`)
+- [ ] สร้าง `app/__init__.py`, `app/routers/__init__.py`, `app/services/__init__.py`, `app/models/__init__.py`
+- [/] อัปเดต [requirements.txt](file:///Users/oatrice/Software-projects/Akasa/requirements.txt) เพิ่ม `fastapi`, `uvicorn[standard]`, `httpx`
+- [ ] ติดตั้ง dependencies
+
+## TDD: เขียน Test ก่อน (🟥 RED)
+- [ ] สร้าง `tests/test_main.py`
+- [ ] เขียน test: `test_health_check_success` → GET /health → 200 + {"status": "ok"}
+- [ ] เขียน test: `test_route_not_found` → GET /nonexistent → 404
+- [ ] เขียน test: `test_method_not_allowed` → POST /health → 405
+- [ ] รัน pytest → ต้อง **FAIL** ทั้งหมด
+
+## TDD: เขียน Production Code (🟢 GREEN)
+- [ ] สร้าง `app/main.py` พร้อม FastAPI app + `/health` endpoint
+- [ ] รัน pytest → ต้อง **PASS** ทั้งหมด
+
+## TDD: Refactor (✨ REFACTOR)
+- [ ] ย้าย health route ไปอยู่ใน `app/routers/health.py` (ถ้าเหมาะสม)
+- [ ] รัน pytest → ต้อง **PASS** ทั้งหมด
+
+## Verification
+- [ ] รัน pytest สำเร็จ
+- [ ] รัน server + curl /health ได้ผลลัพธ์ถูกต้อง
+- [ ] ตรวจ Swagger UI ที่ /docs
