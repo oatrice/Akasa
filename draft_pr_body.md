@@ -1,38 +1,42 @@
-## 🎯 [Phase 1] สมัคร OpenRouter + ทดสอบ API
+## 🎯 [Phase 1] สร้าง Telegram Bot + webhook
 
-Closes https://github.com/oatrice/Akasa/issues/1
+Closes https://github.com/oatrice/Akasa/issues/3
 
 ### 📝 Summary
 
-This PR introduces the foundational step for the Akasa project by establishing a connection to the **OpenRouter API**. It serves as a technical proof-of-concept to ensure we can successfully authenticate and interact with a free-tier Large Language Model (LLM).
+This PR integrates the Akasa backend with the **Telegram Bot API** by implementing a secure webhook endpoint. The system can now receive real-time messages from Telegram users, which is the foundation for building the AI Coding Assistant chatbot.
 
-This work was developed following a strict Test-Driven Development (TDD) cycle, starting with failing tests and progressively implementing the code to make them pass.
+All work was developed following a strict **TDD (Test-Driven Development)** cycle.
 
 ### ✨ Changes Implemented
 
-1.  **Project Configuration:**
-    *   Added `.env.example` to define the required `OPENROUTER_API_KEY` environment variable.
-    *   Updated `.gitignore` to secure the `.env` file and exclude Python cache directories.
-    *   Created `requirements.txt` with necessary dependencies: `requests`, `python-dotenv`, `pytest`, and `responses`.
+1.  **Configuration Management (`app/config.py`):**
+    *   Created a centralized `Settings` class using `pydantic-settings` to securely load environment variables (`TELEGRAM_BOT_TOKEN`, `WEBHOOK_SECRET_TOKEN`) from the `.env` file.
 
-2.  **API Test Script (`scripts/test_openrouter.py`):**
-    *   A standalone Python script to test the OpenRouter connection.
-    *   It securely loads the API key from environment variables.
-    *   Sends a request to a free model (`google/gemma-3-4b-it:free`) and prints the AI's response upon success.
-    *   Includes robust error handling for HTTP errors (e.g., 401, 500).
+2.  **Telegram Pydantic Models (`app/models/telegram.py`):**
+    *   Defined `Update`, `Message`, `Chat`, and `TelegramUser` models to deserialize incoming Telegram payloads with type safety.
+    *   Supports both `message` and `edited_message` update types.
 
-3.  **Comprehensive Unit Tests (`tests/test_openrouter.py`):**
-    *   A full test suite for the `call_openrouter_api` function using `pytest` and the `responses` library for mocking.
-    *   **Test coverage includes:**
-        *   ✅ Happy Path (Successful API call).
-        *   ❌ Unauthorized (Invalid API Key).
-        *   ❌ Missing API Key (`ValueError`).
-        *   ❌ Server-side errors (HTTP 500).
-        *   ❌ Malformed API response (e.g., empty `choices` list).
+3.  **Webhook Endpoint (`app/routers/telegram.py`):**
+    *   New endpoint: `POST /api/v1/telegram/webhook`.
+    *   **Security:** Validates `X-Telegram-Bot-Api-Secret-Token` header via FastAPI dependency injection. Rejects requests with invalid, missing, or empty tokens (403 Forbidden).
+    *   Prevents authentication bypass when `WEBHOOK_SECRET_TOKEN` is an empty string.
+    *   Logs received updates for debugging (processing logic deferred to Phase 2).
 
-4.  **Documentation & Process:**
-    *   Added detailed planning documents (`analysis.md`, `spec.md`, `plan.md`, `sbe.md`) to formalize the feature development process.
-    *   Updated the `README.md` roadmap to mark this task as complete.
+4.  **Comprehensive Test Suite (`tests/routers/test_telegram.py`):**
+    *   7 test cases covering:
+        *   ✅ Valid token → 200 OK
+        *   ❌ Invalid token → 403
+        *   ❌ Missing token → 403
+        *   ❌ Unsupported HTTP method → 405
+        *   ❌ Malformed payload → 422
+        *   ❌ Empty token bypass prevention → 403
+        *   ✅ Alternative update types (edited_message) → 200
+
+5.  **Project Configuration:**
+    *   Updated `.env.example` with `TELEGRAM_BOT_TOKEN` and `WEBHOOK_SECRET_TOKEN`.
+    *   Added `pydantic-settings` to `requirements.txt`.
+    *   Updated `app/main.py` to include the Telegram router.
 
 ### 🧪 How to Manually Verify
 
@@ -42,17 +46,17 @@ This work was developed following a strict Test-Driven Development (TDD) cycle, 
     ```
 
 2.  **Set up environment:**
-    *   Copy `.env.example` to `.env`.
-    *   Add your valid `OPENROUTER_API_KEY` to the `.env` file.
+    *   Copy `.env.example` to `.env` and add your Telegram Bot Token (from BotFather) and a strong random secret.
 
-3.  **Run the test script:**
+3.  **Run automated tests:**
     ```bash
-    python scripts/test_openrouter.py
+    pytest -v
     ```
-    *   You should see a successful API response printed to the console.
+    *   All 18 tests should pass.
 
-4.  **Run automated tests:**
+4.  **Test with real Telegram webhook:**
     ```bash
-    pytest
+    ngrok http 8000
+    curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=<NGROK_URL>/api/v1/telegram/webhook&secret_token=<SECRET>"
     ```
-    *   All tests should pass.
+    *   Send a message to your bot in Telegram — observe `200 OK` in the server logs.
