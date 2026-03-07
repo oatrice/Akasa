@@ -65,13 +65,14 @@ akasa/
 │   └── services/             # Business logic
 │       ├── chat_service.py     # Chat orchestration
 │       ├── llm_service.py      # LLM provider integration
-│       └── telegram_service.py # Telegram API communication
+│       ├── telegram_service.py # Telegram API communication
+│       └── redis_service.py    # Conversation history management
 ├── tests/
-│   ├── test_main.py
-│   └── services/
+│   ├── integration/          # Integration tests
+│   │   └── test_redis_integration.py
+│   └── services/             # Service layer unit tests
 │       ├── test_chat_service.py
-│       ├── test_llm_service.py
-│       └── test_telegram_service.py
+│       └── ...
 ├── docs/
 │   └── akasa_analysis.md     # Project analysis
 ├── .env.example
@@ -88,6 +89,7 @@ akasa/
 ### Prerequisites
 
 - Python 3.11+
+- [Docker](https://www.docker.com/) (to run Redis locally)
 - OpenRouter API Key ([สมัครที่นี่](https://openrouter.ai))
 - Telegram Bot Token ([สร้างที่ BotFather](https://t.me/BotFather))
 - [ngrok](https://ngrok.com/download) for local testing.
@@ -128,13 +130,14 @@ DATABASE_URL=postgresql://localhost:5432/akasa
 This is the recommended way to run the bot locally. The script will start `ngrok`, get a public URL, and automatically set the Telegram webhook for you.
 
 ```bash
-# Make the script executable
-chmod +x setup_local_bot.sh
+# In one terminal, start Redis
+docker run -d -p 6379:6379 redis
 
-# Run the server in one terminal
+# In a second terminal, run the server
 uvicorn app.main:app --reload --port 8000
 
-# In a second terminal, run the setup script
+# In a third terminal, run the setup script
+chmod +x setup_local_bot.sh
 ./setup_local_bot.sh
 ```
 After the script runs successfully, you can send messages to your bot in the Telegram app.
@@ -157,7 +160,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - [ ] Deploy (local / Railway)
 
 ### Phase 2: Memory & Multi-Platform
-- [ ] Conversation history (Redis)
+- [x] Conversation history (Redis)
 - [ ] Code formatting ใน chat
 - [ ] System prompt สำหรับ coding assistant
 - [ ] เพิ่ม LINE Bot

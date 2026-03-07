@@ -20,7 +20,7 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#6](https://github.com/oatrice/Akasa/issues/6) | Conversation history (Redis) | 🔲 Todo |
+| [#6](https://github.com/oatrice/Akasa/issues/6) | Conversation history (Redis) | ✅ Complete |
 | [#7](https://github.com/oatrice/Akasa/issues/7) | Code formatting ใน chat | 🔲 Todo |
 | [#8](https://github.com/oatrice/Akasa/issues/8) | System prompt สำหรับ coding assistant | 🔲 Todo |
 | [#9](https://github.com/oatrice/Akasa/issues/9) | เพิ่ม LINE Bot | 🔲 Todo |

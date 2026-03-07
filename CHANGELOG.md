@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0] - 2026-03-07
+
+### Added
+- **Conversation Memory**: Implemented Redis-backed chat history, enabling the bot to remember the context of recent messages and understand follow-up questions.
+- **Redis Service**: Created a new, dedicated service (`redis_service.py`) to manage all interactions with Redis, including storing, retrieving, and trimming conversation history to a fixed size.
+- **Integration Tests**: Added a new integration testing suite (`tests/integration`) to validate the Redis service against a live Redis instance.
+
+### Changed
+- **Chat Logic**: The `ChatService` has been updated to fetch conversation history from Redis before calling the LLM and to save the new user message and AI reply back to Redis.
+- **Fault Tolerance**: The `ChatService` now gracefully degrades to a stateless (memory-less) mode if the Redis service is unavailable, ensuring the bot remains functional.
+- **LLM Service**: The `LLMService` now accepts a list of message objects to support conversational context, instead of a single prompt string.
+- **CI Pipeline**: The GitHub Actions workflow (`python-tests.yml`) has been updated to spin up a Redis service, allowing integration tests to run in the CI environment.
+
 ## [0.3.0] - 2026-03-07
 
 ### Added

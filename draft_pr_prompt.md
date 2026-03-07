@@ -2,540 +2,605 @@
 
 You are an AI assistant helping to create a Pull Request description.
     
-TASK: [Phase 1] ส่งข้อความ ➡️ LLM ➡️ ตอบกลับ
+TASK: [Phase 2] Conversation history (Redis)
 ISSUE: {
-  "title": "[Phase 1] \u0e2a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21 \u27a1\ufe0f LLM \u27a1\ufe0f \u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e31\u0e1a",
-  "number": 4,
-  "body": "\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d Telegram Webhook \u0e40\u0e02\u0e49\u0e32\u0e01\u0e31\u0e1a OpenRouter API \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e42\u0e15\u0e49\u0e15\u0e2d\u0e1a\u0e44\u0e14\u0e49\n\n## \ud83e\udde0 AI Brain Context\n- [walkthrough.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/walkthrough.md.metadata.json)\n- [walkthrough.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/walkthrough.md.resolved)\n- [task.md.resolved.10](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.10)\n- [task.md.resolved.5](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.5)\n- [task.md.resolved.2](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.2)\n- [task.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.metadata.json)\n- [task.md.resolved.3](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.3)\n- [task.md.resolved.4](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.4)\n- [task.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved)\n- [task.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.1)\n- [task.md.resolved.6](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.6)\n- [task.md.resolved.8](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.8)\n- [task.md.resolved.9](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.9)\n- [task.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md)\n- [task.md.resolved.7](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.7)\n- [task.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/task.md.resolved.0)\n- [walkthrough.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/walkthrough.md)\n- [walkthrough.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/walkthrough.md.resolved.1)\n- [walkthrough.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/4-telegram-llm-reply/docs/features/4_issue-4_phase-1-\u0e2a\u0e07\u0e02\u0e2d\u0e04\u0e27\u0e32\u0e21-llm-\u0e15\u0e2d\u0e1a\u0e01\u0e25\u0e1a/ai_brain/walkthrough.md.resolved.0)\n",
-  "url": "https://github.com/oatrice/Akasa/issues/4"
+  "title": "[Phase 2] Conversation history (Redis)",
+  "number": 6,
+  "body": "\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e23\u0e30\u0e1a\u0e1a\u0e04\u0e27\u0e32\u0e21\u0e08\u0e33 (Context Memory) \u0e42\u0e14\u0e22\u0e43\u0e0a\u0e49 Redis \u0e40\u0e1b\u0e47\u0e19\u0e2a\u0e37\u0e48\u0e2d\u0e01\u0e25\u0e32\u0e07\n\n## \ud83e\udde0 AI Brain Context\n- [walkthrough.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md.metadata.json)\n- [task.md.resolved.11](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.11)\n- [task.md.resolved.16](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.16)\n- [task.md.resolved.20](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.20)\n- [walkthrough.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md.resolved)\n- [task.md.resolved.18](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.18)\n- [task.md.resolved.19](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.19)\n- [task.md.resolved.21](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.21)\n- [task.md.resolved.17](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.17)\n- [task.md.resolved.10](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.10)\n- [task.md.resolved.5](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.5)\n- [task.md.resolved.2](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.2)\n- [task.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.metadata.json)\n- [implementation_plan.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/implementation_plan.md.resolved.1)\n- [task.md.resolved.3](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.3)\n- [task.md.resolved.4](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.4)\n- [implementation_plan.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/implementation_plan.md.resolved.0)\n- [walkthrough.md.resolved.2](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md.resolved.2)\n- [task.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved)\n- [implementation_plan.md.metadata.json](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/implementation_plan.md.metadata.json)\n- [walkthrough.md.resolved.3](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md.resolved.3)\n- [implementation_plan.md.resolved](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/implementation_plan.md.resolved)\n- [task.md.resolved.15](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.15)\n- [task.md.resolved.12](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.12)\n- [task.md.resolved.13](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.13)\n- [task.md.resolved.14](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.14)\n- [implementation_plan.md.resolved.2](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/implementation_plan.md.resolved.2)\n- [task.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.1)\n- [task.md.resolved.6](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.6)\n- [task.md.resolved.8](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.8)\n- [task.md.resolved.9](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.9)\n- [task.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md)\n- [task.md.resolved.7](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.7)\n- [task.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/task.md.resolved.0)\n- [walkthrough.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md)\n- [walkthrough.md.resolved.1](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md.resolved.1)\n- [implementation_plan.md](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/implementation_plan.md)\n- [walkthrough.md.resolved.0](https://raw.githubusercontent.com/oatrice/Akasa/feat/6-redis-conversation-history/docs/features/5_issue-6_phase-2-conversation-history-redis/ai_brain/walkthrough.md.resolved.0)\n",
+  "url": "https://github.com/oatrice/Akasa/issues/6"
 }
 
 GIT CONTEXT:
 COMMITS:
-b432ef7 feat: [Phase 1] ส่งข้อความ ➡️ LLM ➡️ ตอบกลับ...
-6e07bec docs: sync AI brain artifacts
-ef4a73e docs: mark Issue #4 as complete in roadmap
-f7be4ad feat: add local dev setup script, enhance debugging, and upgrade LLM
-dc60a99 feat: implement async chat processing with OpenRouter LLM integration
+cb0badf feat: [Phase 2] Conversation history (Redis)...
+3564a4a docs: sync AI brain artifacts
+ee95d03 feat: add Redis-backed conversation memory with fault tolerance
+a4df2a7 refactor(services): add granular error handling and Redis validation
+8413df0 feat(chat): add Redis-backed chat history with graceful degradation
+4186826 docs: add analysis for Issue #6 Phase 2 Redis conversation history
 
 STATS:
-CHANGELOG.md                                       |  13 +
- README.md                                          |  29 ++-
+.env.example                                       |   3 +
+ .github/workflows/python-tests.yml                 |  25 +-
+ CHANGELOG.md                                       |  13 +
+ README.md                                          |  23 +-
  VERSION                                            |   2 +-
- app/routers/telegram.py                            |  15 +-
- app/services/chat_service.py                       |  34 +++
- app/services/llm_service.py                        |  30 +++
- app/services/telegram_service.py                   |  21 ++
+ app/config.py                                      |   3 +
+ app/services/chat_service.py                       |  58 ++++-
+ app/services/llm_service.py                        |  26 +-
+ app/services/redis_service.py                      |  51 ++++
  docs/ROADMAP.md                                    |   2 +-
- .../ai_brain/task.md"                              |  17 ++
- .../ai_brain/task.md.metadata.json"                |   6 +
- .../ai_brain/task.md.resolved"                     |  17 ++
- .../ai_brain/task.md.resolved.0"                   |  10 +
- .../ai_brain/task.md.resolved.1"                   |  10 +
- .../ai_brain/task.md.resolved.10"                  |  17 ++
- .../ai_brain/task.md.resolved.2"                   |  10 +
- .../ai_brain/task.md.resolved.3"                   |  10 +
- .../ai_brain/task.md.resolved.4"                   |  10 +
- .../ai_brain/task.md.resolved.5"                   |  10 +
- .../ai_brain/task.md.resolved.6"                   |  10 +
- .../ai_brain/task.md.resolved.7"                   |  12 +
- .../ai_brain/task.md.resolved.8"                   |  12 +
- .../ai_brain/task.md.resolved.9"                   |  17 ++
- .../ai_brain/walkthrough.md"                       |  38 +++
- .../ai_brain/walkthrough.md.metadata.json"         |   6 +
- .../ai_brain/walkthrough.md.resolved"              |  38 +++
- .../ai_brain/walkthrough.md.resolved.0"            |  25 ++
- .../ai_brain/walkthrough.md.resolved.1"            |  38 +++
- .../analysis.md"                                   | 273 +++++++++++++++++++++
- .../code_review.md"                                |  15 ++
- .../plan.md"                                       | 159 ++++++++++++
- .../sbe.md"                                        |  55 +++++
- .../spec.md"                                       |  73 ++++++
- .../task.md"                                       |  17 ++
- .../walkthrough.md"                                |  38 +++
- error.log                                          |  68 +++++
- setup_local_bot.sh                                 |  56 +++++
- test_env.py                                        |   3 +
- test_llm_service.py                                |  13 +
- test_model.py                                      |  15 ++
- test_telegram_send.py                              |  24 ++
- test_webhook.sh                                    |  19 ++
- tests/routers/test_telegram.py                     |  13 +
- tests/services/test_chat_service.py                | 115 +++++++++
- tests/services/test_llm_service.py                 |  52 ++++
- tests/services/test_telegram_service.py            |  44 ++++
- 45 files changed, 1498 insertions(+), 13 deletions(-)
+ .../ai_brain/task.md.metadata.json"                |   6 -
+ .../ai_brain/task.md.resolved"                     |  17 --
+ .../ai_brain/walkthrough.md.metadata.json"         |   6 -
+ .../ai_brain/walkthrough.md.resolved"              |  38 ---
+ .../ai_brain/implementation_plan.md                | 124 ++++++++++
+ .../ai_brain/implementation_plan.md.metadata.json  |   6 +
+ .../ai_brain/implementation_plan.md.resolved       | 124 ++++++++++
+ .../ai_brain/implementation_plan.md.resolved.0     |  76 ++++++
+ .../ai_brain/implementation_plan.md.resolved.1     | 100 ++++++++
+ .../ai_brain/implementation_plan.md.resolved.2     | 124 ++++++++++
+ .../ai_brain/task.md                               |  42 ++++
+ .../ai_brain/task.md.metadata.json                 |   6 +
+ .../ai_brain/task.md.resolved                      |  42 ++++
+ .../ai_brain/task.md.resolved.0                    |   0
+ .../ai_brain/task.md.resolved.1                    |   0
+ .../ai_brain/task.md.resolved.10                   |   0
+ .../ai_brain/task.md.resolved.11                   |  24 ++
+ .../ai_brain/task.md.resolved.12                   |  28 +++
+ .../ai_brain/task.md.resolved.13                   |  28 +++
+ .../ai_brain/task.md.resolved.14                   |  28 +++
+ .../ai_brain/task.md.resolved.15                   |  28 +++
+ .../ai_brain/task.md.resolved.16                   |  28 +++
+ .../ai_brain/task.md.resolved.17                   |  28 +++
+ .../ai_brain/task.md.resolved.18                   |  42 ++++
+ .../ai_brain/task.md.resolved.19                   |  42 ++++
+ .../ai_brain/task.md.resolved.2                    |   0
+ .../ai_brain/task.md.resolved.20                   |  42 ++++
+ .../ai_brain/task.md.resolved.21                   |  42 ++++
+ .../ai_brain/task.md.resolved.3                    |   0
+ .../ai_brain/task.md.resolved.4                    |   0
+ .../ai_brain/task.md.resolved.5                    |   0
+ .../ai_brain/task.md.resolved.6                    |   0
+ .../ai_brain/task.md.resolved.7                    |   0
+ .../ai_brain/task.md.resolved.8                    |   0
+ .../ai_brain/task.md.resolved.9                    |   0
+ .../ai_brain/walkthrough.md                        |  42 ++++
+ .../ai_brain/walkthrough.md.metadata.json          |   6 +
+ .../ai_brain/walkthrough.md.resolved               |  42 ++++
+ .../ai_brain/walkthrough.md.resolved.0             |   0
+ .../ai_brain/walkthrough.md.resolved.1             |   0
+ .../ai_brain/walkthrough.md.resolved.2             |  48 ++++
+ .../ai_brain/walkthrough.md.resolved.3             |  42 ++++
+ .../analysis.md                                    | 272 +++++++++++++++++++++
+ .../code_review.md                                 |  15 ++
+ .../implementation_plan.md                         | 124 ++++++++++
+ .../plan.md                                        | 177 ++++++++++++++
+ .../sbe.md                                         |  53 ++++
+ .../spec.md                                        |  73 ++++++
+ .../task.md                                        |  42 ++++
+ .../walkthrough.md                                 |  42 ++++
+ error.log                                          | 126 +---------
+ pyproject.toml                                     |   3 +
+ requirements.txt                                   |   2 +
+ tests/integration/__init__.py                      |   1 +
+ tests/integration/test_redis_integration.py        | 132 ++++++++++
+ tests/services/test_chat_service.py                | 154 +++++++++---
+ tests/services/test_llm_service.py                 |  42 +++-
+ tests/services/test_redis_service.py               | 154 ++++++++++++
+ 68 files changed, 2600 insertions(+), 269 deletions(-)
 
 KEY FILE DIFFS:
-diff --git a/app/routers/telegram.py b/app/routers/telegram.py
-index 7b45cbf..cafe02c 100644
---- a/app/routers/telegram.py
-+++ b/app/routers/telegram.py
-@@ -8,10 +8,11 @@ Endpoint: POST /api/v1/telegram/webhook
- """
- 
- import logging
--from fastapi import APIRouter, Depends, Header, HTTPException, status
-+from fastapi import APIRouter, Depends, Header, HTTPException, status, BackgroundTasks
- 
- from app.config import settings
- from app.models.telegram import Update
-+from app.services.chat_service import handle_chat_message
- 
- logger = logging.getLogger(__name__)
- 
-@@ -35,12 +36,14 @@ async def verify_secret_token(
+diff --git a/app/config.py b/app/config.py
+index e6df185..75f1a25 100644
+--- a/app/config.py
++++ b/app/config.py
+@@ -13,6 +13,9 @@ class Settings(BaseSettings):
+     TELEGRAM_BOT_TOKEN: str = ""
+     WEBHOOK_SECRET_TOKEN: str = ""
+     OPENROUTER_API_KEY: str = ""
++    REDIS_URL: str = "redis://localhost:6379"
++    REDIS_HISTORY_LIMIT: int = 10
++    REDIS_TTL_SECONDS: int = 86400  # 24 hours
  
  
- @router.post("/webhook", dependencies=[Depends(verify_secret_token)])
--async def telegram_webhook(update: Update):
-+async def telegram_webhook(update: Update, background_tasks: BackgroundTasks):
-     """
-     รับ updates จาก Telegram Bot API
--
--    ในเฟสนี้แค่ log ข้อมูลที่ได้รับ
--    ยังไม่ประมวลผลหรือตอบกลับผู้ใช้
-+    ส่งงานการประมวลผลข้อความและตอบกลับไปที่ BackgroundTasks
-+    เพื่อตอบ 200 OK ให้ Telegram ทันที
-     """
--    logger.info("Received Telegram update: %s", update.model_dump_json(indent=2))
-+    print(f"--- [WEBHOOK RAW UPDATE] ---\n{update.model_dump_json(indent=2)}\n----------------------------")
-+    # Schedule the chat processing in the background
-+    background_tasks.add_task(handle_chat_message, update)
-+    
-     return {"status": "ok"}
+ settings = Settings()
 diff --git a/app/services/chat_service.py b/app/services/chat_service.py
-new file mode 100644
-index 0000000..b6a1b15
---- /dev/null
+index b6a1b15..cf07af5 100644
+--- a/app/services/chat_service.py
 +++ b/app/services/chat_service.py
-@@ -0,0 +1,34 @@
-+from app.models.telegram import Update
-+from app.services import llm_service, telegram_service
-+import httpx
+@@ -1,5 +1,12 @@
++"""
++Chat Service — ประสานงานระหว่าง Telegram, Redis, และ LLM
++
++Flow: Telegram → ดึง history จาก Redis → สร้าง messages context → LLM → บันทึก history → ส่งกลับ Telegram
++Graceful degradation: ถ้า Redis ล่ม ยังทำงานได้เป็น stateless
++"""
++
+ from app.models.telegram import Update
+-from app.services import llm_service, telegram_service
++from app.services import llm_service, telegram_service, redis_service
+ import httpx
+ import logging
+ 
+@@ -8,27 +15,54 @@ logger = logging.getLogger(__name__)
+ async def handle_chat_message(update: Update) -> None:
+     """
+     Processes an incoming Telegram update.
+-    Extracts text, sends to LLM, and sends the reply back to the user.
++    ดึง history จาก Redis, ส่งพร้อม prompt ไปให้ LLM, บันทึก history กลับ Redis
+     """
+     if not update.message or not update.message.text:
+-        # Ignore updates that are not text messages (e.g., edited messages, stickers)
+         return
+ 
+     chat_id = update.message.chat.id
+     prompt = update.message.text
+     print(f"--- [DEBUG] Processing message from {chat_id}: {prompt} ---")
+ 
++    # ดึง history จาก Redis (graceful: ถ้า Redis ล่ม → ใช้ list ว่าง)
+     try:
+-        reply = await llm_service.get_llm_reply(prompt)
++        history = await redis_service.get_chat_history(chat_id)
++    except Exception as e:
++        logger.warning(f"Redis get_chat_history failed for {chat_id}: {e}")
++        history = []
++
++    # สร้าง messages context: history + ข้อความใหม่ของ user
++    messages = history + [{"role": "user", "content": prompt}]
++
++    reply = ""
++    try:
++        reply = await llm_service.get_llm_reply(messages)
+         print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
++    except (httpx.TimeoutException, httpx.HTTPError) as e:
++        logger.error(f"API Error getting LLM reply for {chat_id}: {e}")
++        await telegram_service.send_message(chat_id, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
++        return
++    except (ValueError, KeyError, TypeError) as e:
++        logger.error(f"Malformed LLM response for {chat_id}: {e}")
++        await telegram_service.send_message(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
++        return
++    except Exception as e:
++        logger.error(f"Unexpected error getting LLM reply for {chat_id}: {e}")
++        return
++
++    try:
+         await telegram_service.send_message(chat_id, reply)
+         print(f"--- [DEBUG] Message successfully sent to Telegram chat {chat_id} ---")
+-    except httpx.HTTPError as e:
+-        import traceback
+-        err_msg = f"Error communicating with external API: {e}\n{traceback.format_exc()}"
+-        logger.error(err_msg)
+-        with open("error.log", "a") as f:
+-            f.write(err_msg + "\n")
+-        # await telegram_service.send_message(chat_id, "Sorry, I am having trouble connecting to my brain right now.")
++    except httpx.HTTPStatusError as e:
++        logger.error(f"Failed to send message to Telegram for {chat_id}. HTTP Status Error: {e}")
++        return
++    except Exception as e:
++        logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
++        return
++
++    # บันทึก user message + assistant reply ลง Redis
++    try:
++        await redis_service.add_message_to_history(chat_id, "user", prompt)
++        await redis_service.add_message_to_history(chat_id, "assistant", reply)
+     except Exception as e:
+-        logger.error(f"Unexpected error in handle_chat_message: {e}")
++        logger.warning(f"Redis add_message_to_history failed for {chat_id}: {e}")
+diff --git a/app/services/llm_service.py b/app/services/llm_service.py
+index 371530a..b909570 100644
+--- a/app/services/llm_service.py
++++ b/app/services/llm_service.py
+@@ -1,20 +1,28 @@
++"""
++LLM Service — ส่ง messages ไปยัง OpenRouter API และรับคำตอบกลับมา
++
++รองรับการส่ง conversation history เป็น list ของ message dictionaries
++"""
++
+ import httpx
+ from app.config import settings
+ 
+-async def get_llm_reply(prompt: str) -> str:
++
++async def get_llm_reply(messages: list[dict]) -> str:
+     """
+-    Sends a prompt to the OpenRouter API and returns the generated reply.
++    Sends a list of messages to the OpenRouter API and returns the generated reply.
++
++    Args:
++        messages: list ของ message dicts รูปแบบ [{"role": "user/assistant", "content": "..."}]
+     """
+     headers = {
+         "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+         "Content-Type": "application/json"
+     }
+-    
++
+     payload = {
+         "model": "google/gemma-3-4b-it:free",
+-        "messages": [
+-            {"role": "user", "content": prompt}
+-        ]
++        "messages": messages
+     }
+ 
+     async with httpx.AsyncClient() as client:
+@@ -22,9 +30,9 @@ async def get_llm_reply(prompt: str) -> str:
+             "https://openrouter.ai/api/v1/chat/completions",
+             headers=headers,
+             json=payload,
+-            timeout=30.0 # Add a timeout for good measure
++            timeout=30.0
+         )
+-        response.raise_for_status() # Raise exception for 4xx/5xx errors
+-        
++        response.raise_for_status()
++
+         data = response.json()
+         return data["choices"][0]["message"]["content"]
+diff --git a/app/services/redis_service.py b/app/services/redis_service.py
+new file mode 100644
+index 0000000..79e9693
+--- /dev/null
++++ b/app/services/redis_service.py
+@@ -0,0 +1,51 @@
++"""
++Redis Service — จัดการประวัติการสนทนาใน Redis
++
++ใช้ Redis LIST เก็บ messages แบบ LIFO (LPUSH) แล้ว reverse ตอนดึง
++เพื่อให้ได้ลำดับเวลาถูกต้อง (เก่าสุด → ใหม่สุด)
++"""
++
++import redis.asyncio as redis
++import json
 +import logging
++from app.config import settings
 +
 +logger = logging.getLogger(__name__)
 +
-+async def handle_chat_message(update: Update) -> None:
-+    """
-+    Processes an incoming Telegram update.
-+    Extracts text, sends to LLM, and sends the reply back to the user.
-+    """
-+    if not update.message or not update.message.text:
-+        # Ignore updates that are not text messages (e.g., edited messages, stickers)
++# Connection pool — reuse connection ตลอด application lifetime
++redis_pool = redis.from_url(settings.REDIS_URL, decode_responses=True)
++
++
++async def get_chat_history(chat_id: int) -> list[dict]:
++    """ดึงประวัติการสนทนาล่าสุดสำหรับ chat_id ในลำดับเวลา"""
++    if settings.REDIS_HISTORY_LIMIT <= 0:
++        return []
++
++    history_key = f"chat_history:{chat_id}"
++    raw_history = await redis_pool.lrange(history_key, 0, settings.REDIS_HISTORY_LIMIT - 1)
++    
++    # LPUSH เก็บแบบ LIFO → reverse เพื่อให้ได้ chronological order
++    history = []
++    for msg in reversed(raw_history):
++        try:
++            history.append(json.loads(msg))
++        except json.JSONDecodeError as e:
++            logger.warning(f"Skipping corrupted JSON in Redis for {chat_id}: {msg} - Error: {e}")
++            continue
++            
++    return history
++
++
++async def add_message_to_history(chat_id: int, role: str, content: str):
++    """เพิ่มข้อความลงในประวัติการสนทนาของ chat_id"""
++    if settings.REDIS_HISTORY_LIMIT <= 0:
 +        return
 +
-+    chat_id = update.message.chat.id
-+    prompt = update.message.text
-+    print(f"--- [DEBUG] Processing message from {chat_id}: {prompt} ---")
-+
-+    try:
-+        reply = await llm_service.get_llm_reply(prompt)
-+        print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
-+        await telegram_service.send_message(chat_id, reply)
-+        print(f"--- [DEBUG] Message successfully sent to Telegram chat {chat_id} ---")
-+    except httpx.HTTPError as e:
-+        import traceback
-+        err_msg = f"Error communicating with external API: {e}\n{traceback.format_exc()}"
-+        logger.error(err_msg)
-+        with open("error.log", "a") as f:
-+            f.write(err_msg + "\n")
-+        # await telegram_service.send_message(chat_id, "Sorry, I am having trouble connecting to my brain right now.")
-+    except Exception as e:
-+        logger.error(f"Unexpected error in handle_chat_message: {e}")
-diff --git a/app/services/llm_service.py b/app/services/llm_service.py
++    history_key = f"chat_history:{chat_id}"
++    message = json.dumps({"role": role, "content": content})
++    # Push ข้อความใหม่ไปที่หัว list
++    await redis_pool.lpush(history_key, message)
++    # ตัด list ให้เหลือไม่เกิน limit
++    await redis_pool.ltrim(history_key, 0, settings.REDIS_HISTORY_LIMIT - 1)
++    # ตั้ง TTL เพื่อให้ key หมดอายุอัตโนมัติ (รีเซ็ตทุกครั้งที่มีข้อความใหม่)
++    await redis_pool.expire(history_key, settings.REDIS_TTL_SECONDS)
+diff --git a/pyproject.toml b/pyproject.toml
+index 7831e84..3e0335b 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,2 +1,5 @@
+ [tool.pytest.ini_options]
+ asyncio_mode = "strict"
++markers = [
++"integration: integration tests ที่ต้องใช้ Redis จริง",
++]
+diff --git a/tests/integration/__init__.py b/tests/integration/__init__.py
 new file mode 100644
-index 0000000..371530a
+index 0000000..431cc74
 --- /dev/null
-+++ b/app/services/llm_service.py
-@@ -0,0 +1,30 @@
-+import httpx
-+from app.config import settings
-+
-+async def get_llm_reply(prompt: str) -> str:
-+    """
-+    Sends a prompt to the OpenRouter API and returns the generated reply.
-+    """
-+    headers = {
-+        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-+        "Content-Type": "application/json"
-+    }
-+    
-+    payload = {
-+        "model": "google/gemma-3-4b-it:free",
-+        "messages": [
-+            {"role": "user", "content": prompt}
-+        ]
-+    }
-+
-+    async with httpx.AsyncClient() as client:
-+        response = await client.post(
-+            "https://openrouter.ai/api/v1/chat/completions",
-+            headers=headers,
-+            json=payload,
-+            timeout=30.0 # Add a timeout for good measure
-+        )
-+        response.raise_for_status() # Raise exception for 4xx/5xx errors
-+        
-+        data = response.json()
-+        return data["choices"][0]["message"]["content"]
-diff --git a/app/services/telegram_service.py b/app/services/telegram_service.py
++++ b/tests/integration/__init__.py
+@@ -0,0 +1 @@
++# tests/integration/__init__.py
+diff --git a/tests/integration/test_redis_integration.py b/tests/integration/test_redis_integration.py
 new file mode 100644
-index 0000000..37439d5
+index 0000000..421bf5d
 --- /dev/null
-+++ b/app/services/telegram_service.py
-@@ -0,0 +1,21 @@
-+import httpx
-+from app.config import settings
++++ b/tests/integration/test_redis_integration.py
+@@ -0,0 +1,132 @@
++"""
++Integration Tests สำหรับ Redis Service
++ทดสอบกับ Redis จริง (ไม่ใช่ fakeredis) เพื่อให้ใกล้เคียง production
 +
-+async def send_message(chat_id: int, text: str) -> None:
-+    """
-+    Sends a text message to a specific chat using the Telegram Bot API.
-+    """
-+    api_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-+    
-+    payload = {
-+        "chat_id": chat_id,
-+        "text": text
-+    }
++ถ้าไม่มี Redis → skip ตัวเองอัตโนมัติ
++"""
 +
-+    async with httpx.AsyncClient() as client:
-+        response = await client.post(
-+            api_url,
-+            json=payload,
-+            timeout=10.0
-+        )
-+        response.raise_for_status()
-diff --git a/test_env.py b/test_env.py
-new file mode 100644
-index 0000000..62964e9
---- /dev/null
-+++ b/test_env.py
-@@ -0,0 +1,3 @@
-+from app.config import settings
-+print("OPENROUTER:", bool(settings.OPENROUTER_API_KEY))
-+print("TELEGRAM:", bool(settings.TELEGRAM_BOT_TOKEN))
-diff --git a/test_llm_service.py b/test_llm_service.py
-new file mode 100644
-index 0000000..a6a8216
---- /dev/null
-+++ b/test_llm_service.py
-@@ -0,0 +1,13 @@
-+import asyncio
-+from app.services.llm_service import get_llm_reply
-+
-+async def main():
-+    try:
-+        reply = await get_llm_reply("hello testing")
-+        print("REPLY:", reply)
-+    except Exception as e:
-+        print("ERROR:", str(e))
-+        import traceback
-+        traceback.print_exc()
-+
-+asyncio.run(main())
-diff --git a/test_model.py b/test_model.py
-new file mode 100644
-index 0000000..2f616e3
---- /dev/null
-+++ b/test_model.py
-@@ -0,0 +1,15 @@
-+import asyncio
-+import httpx
-+from app.config import settings
-+async def main():
-+    payload = {"model": "google/gemma-2-9b-it:free", "messages": [{"role": "user", "content": "hi"}]}
-+    async with httpx.AsyncClient() as client:
-+        resp = await client.post("https://openrouter.ai/api/v1/chat/completions", headers={"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}"}, json=payload)
-+        print("gemma-2-9b-it", resp.status_code, resp.text)
-+    
-+    payload["model"] = "google/gemma-3-4b-it:free"
-+    async with httpx.AsyncClient() as client:
-+        resp = await client.post("https://openrouter.ai/api/v1/chat/completions", headers={"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}"}, json=payload)
-+        print("gemma-3-4b-it", resp.status_code, resp.text)
-+
-+asyncio.run(main())
-diff --git a/test_telegram_send.py b/test_telegram_send.py
-new file mode 100644
-index 0000000..4059c07
---- /dev/null
-+++ b/test_telegram_send.py
-@@ -0,0 +1,24 @@
-+import asyncio
-+from app.config import settings
-+from app.services.telegram_service import send_message
-+
-+async def main():
-+    try:
-+        # User's chat_id can be seen from previous test: 1111111 was mock, maybe let's getUpdates
-+        import httpx
-+        async with httpx.AsyncClient() as client:
-+            resp = await client.get(f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getUpdates")
-+            data = resp.json()
-+            print("Updates:", data)
-+            if data["ok"] and data["result"]:
-+                chat_id = data["result"][0]["message"]["chat"]["id"]
-+                print("Found chat_id:", chat_id)
-+                await send_message(chat_id, "Test from script")
-+                print("Sent successfully!")
-+            else:
-+                print("No updates found or error.")
-+    except Exception as e:
-+        import traceback
-+        traceback.print_exc()
-+
-+asyncio.run(main())
-diff --git a/tests/routers/test_telegram.py b/tests/routers/test_telegram.py
-index 6287716..6d3d8af 100644
---- a/tests/routers/test_telegram.py
-+++ b/tests/routers/test_telegram.py
-@@ -116,3 +116,16 @@ def test_webhook_success_edited_message():
-         )
-     assert response.status_code == 200
-     assert response.json() == {"status": "ok"}
-+
-+def test_webhook_success_calls_chat_service():
-+    """ส่ง request ที่ถูกต้อง → ต้องเรียกใช้ chat_service.handle_chat_message ผ่าน BackgroundTasks"""
-+    with patch("app.routers.telegram.settings") as mock_settings:
-+        mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
-+        with patch("app.routers.telegram.handle_chat_message") as mock_handle:
-+            response = client.post(
-+                WEBHOOK_URL,
-+                headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
-+                json=VALID_PAYLOAD,
-+            )
-+    assert response.status_code == 200
-+    mock_handle.assert_called_once()
-diff --git a/tests/services/test_chat_service.py b/tests/services/test_chat_service.py
-new file mode 100644
-index 0000000..747c55f
---- /dev/null
-+++ b/tests/services/test_chat_service.py
-@@ -0,0 +1,115 @@
 +import pytest
-+from unittest.mock import patch, AsyncMock
-+from app.services.chat_service import handle_chat_message
-+from app.models.telegram import Update, Message, Chat
-+import httpx
++import pytest_asyncio
++import json
++import redis.asyncio as redis
 +
-+@pytest.fixture
-+def mock_update():
-+    return Update(
-+        update_id=1,
-+        message=Message(
-+            message_id=1,
-+            date=1612345678,
-+            chat=Chat(id=12345, type="private"),
-+            text="Hello Bot"
-+        )
-+    )
 +
-+@pytest.fixture
-+def mock_update_no_text():
-+    return Update(
-+        update_id=2,
-+        message=Message(
-+            message_id=2,
-+            date=1612345678,
-+            chat=Chat(id=12345, type="private"),
-+            text=None # e.g., a sticker
-+        )
-+    )
++def is_redis_available():
++    """เช็คว่ามี Redis server พร้อมใช้งานหรือไม่"""
++    import redis as sync_redis
++    try:
++        client = sync_redis.Redis(host="localhost", port=6379, socket_timeout=1)
++        client.ping()
++        client.close()
++        return True
++    except Exception:
++        return False
++
++
++# Skip ทั้ง module ถ้าไม่มี Redis
++pytestmark = [
++    pytest.mark.integration,
++    pytest.mark.skipif(not is_redis_available(), reason="Redis server is not available"),
++]
++
++
++@pytest_asyncio.fixture
++async def redis_client():
++    """สร้าง Redis connection จริงสำหรับ test"""
++    client = redis.from_url("redis://localhost:6379", decode_responses=True)
++    yield client
++    # Cleanup: ลบ keys ที่ test สร้างขึ้น
++    keys = await client.keys("chat_history:test_*")
++    if keys:
++        await client.delete(*keys)
++    await client.aclose()
++
++
++@pytest_asyncio.fixture
++async def setup_redis_service(redis_client, monkeypatch):
++    """Patch redis_service ให้ใช้ Redis จริง"""
++    import app.services.redis_service as rs
++    monkeypatch.setattr(rs, "redis_pool", redis_client)
++    return redis_client
++
 +
 +@pytest.mark.asyncio
-+@patch("app.services.chat_service.telegram_service")
-+@patch("app.services.chat_service.llm_service")
-+async def test_handle_chat_message_success(mock_llm, mock_telegram, mock_update):
-+    # Setup mocks
++async def test_write_and_read_roundtrip(setup_redis_service):
++    """ทดสอบ write → read roundtrip กับ Redis จริง"""
++    from app.services.redis_service import add_message_to_history, get_chat_history
++
++    chat_id = "test_roundtrip"
++    await add_message_to_history(chat_id, "user", "Hello")
++    await add_message_to_history(chat_id, "assistant", "Hi there!")
++
++    history = await get_chat_history(chat_id)
++
++    assert len(history) == 2
++    assert history[0] == {"role": "user", "content": "Hello"}
++    assert history[1] == {"role": "assistant", "content": "Hi there!"}
++
++
++@pytest.mark.asyncio
++async def test_ltrim_behavior(setup_redis_service, monkeypatch):
++    """ทดสอบ LTRIM ตัด history ที่เกิน limit"""
++    import app.services.redis_service as rs
++    from app.services.redis_service import add_message_to_history, get_chat_history
++    monkeypatch.setattr(rs.settings, "REDIS_HISTORY_LIMIT", 4)
++
++    chat_id = "test_ltrim"
++    for i in range(6):
++        await add_message_to_history(chat_id, "user", f"msg-{i}")
++
++    history = await get_chat_history(chat_id)
++
++    assert len(history) == 4
++    assert history[0]["content"] == "msg-2"
++    assert history[3]["content"] == "msg-5"
++
++
++@pytest.mark.asyncio
++async def test_ttl_is_set(setup_redis_service):
++    """ทดสอบว่า TTL ถูกตั้งค่าหลังเพิ่มข้อความ"""
++    from app.services.redis_service import add_message_to_history
++
++    chat_id = "test_ttl"
++    await add_message_to_history(chat_id, "user", "Test TTL")
++
++    ttl = await setup_redis_service.ttl(f"chat_history:{chat_id}")
++    assert ttl > 0
++
++
++@pytest.mark.asyncio
++async def test_concurrent_chat_isolation(setup_redis_service):
++    """ทดสอบว่า history ของแต่ละ chat_id แยกจากกัน"""
++    from app.services.redis_service import add_message_to_history, get_chat_history
++
++    await add_message_to_history("test_isolation_A", "user", "Message for A")
++    await add_message_to_history("test_isolation_B", "user", "Message for B")
++
++    history_a = await get_chat_history("test_isolation_A")
++    history_b = await get_chat_history("test_isolation_B")
++
++    assert history_a[0]["content"] == "Message for A"
++    assert len(history_b) == 1
++    assert history_b[0]["content"] == "Message for B"
++
++@pytest.mark.asyncio
++async def test_ttl_short_sleep(setup_redis_service, monkeypatch):
++    """ทดสอบว่าเมื่อตั้ง TTL=1 วิ แล้วรอ 1.1 วิ ประวัติต้องถูกลบอัตโนมัติจาก Redis"""
++    import asyncio
++    import app.services.redis_service as rs
++    from app.services.redis_service import add_message_to_history, get_chat_history
++    
++    monkeypatch.setattr(rs.settings, "REDIS_TTL_SECONDS", 1)
++
++    chat_id = "test_ttl_sleep"
++    await add_message_to_history(chat_id, "user", "This expires quickly")
++    
++    history_before = await get_chat_history(chat_id)
++    assert len(history_before) == 1
++    
++    await asyncio.sleep(1.1)
++    
++    history_after = await get_chat_history(chat_id)
++    assert len(history_after) == 0
+diff --git a/tests/services/test_chat_service.py b/tests/services/test_chat_service.py
+index 747c55f..b2984c8 100644
+--- a/tests/services/test_chat_service.py
++++ b/tests/services/test_chat_service.py
+@@ -28,88 +28,168 @@ def mock_update_no_text():
+         )
+     )
+ 
++
++# === Success path (with Redis history) ===
++
+ @pytest.mark.asyncio
++@patch("app.services.chat_service.redis_service")
+ @patch("app.services.chat_service.telegram_service")
+ @patch("app.services.chat_service.llm_service")
+-async def test_handle_chat_message_success(mock_llm, mock_telegram, mock_update):
+-    # Setup mocks
++async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
++    """ส่ง prompt พร้อม history ที่ดึงจาก Redis ไปให้ LLM"""
++    # Setup: Redis returns existing history
++    mock_redis.get_chat_history = AsyncMock(return_value=[
++        {"role": "user", "content": "What is Python?"},
++        {"role": "assistant", "content": "Python is a programming language."},
++    ])
++    mock_redis.add_message_to_history = AsyncMock()
+     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
+     mock_telegram.send_message = AsyncMock()
+ 
+-    # Call service
+     await handle_chat_message(mock_update)
+ 
+-    # Assertions
+-    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
++    # LLM should receive history + new message
++    expected_messages = [
++        {"role": "user", "content": "What is Python?"},
++        {"role": "assistant", "content": "Python is a programming language."},
++        {"role": "user", "content": "Hello Bot"},
++    ]
++    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+     mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
+ 
++    # ต้องบันทึก user message + assistant reply กลับ Redis
++    assert mock_redis.add_message_to_history.call_count == 2
++    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot")
++    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI")
++
++
+ @pytest.mark.asyncio
++@patch("app.services.chat_service.redis_service")
+ @patch("app.services.chat_service.telegram_service")
+ @patch("app.services.chat_service.llm_service")
+-async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_update_no_text):
+-    # Call service with an update that has no text
+-    await handle_chat_message(mock_update_no_text)
++async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
++    """ถ้าไม่มี history ต้องส่งแค่ message เดียว"""
++    mock_redis.get_chat_history = AsyncMock(return_value=[])
++    mock_redis.add_message_to_history = AsyncMock()
 +    mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
 +    mock_telegram.send_message = AsyncMock()
 +
-+    # Call service
 +    await handle_chat_message(mock_update)
 +
-+    # Assertions
-+    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
-+    mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
++    expected_messages = [{"role": "user", "content": "Hello Bot"}]
++    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+ 
+-    # Assertions
+-    mock_llm.get_llm_reply.assert_not_called()
+-    mock_telegram.send_message.assert_not_called()
 +
-+@pytest.mark.asyncio
-+@patch("app.services.chat_service.telegram_service")
-+@patch("app.services.chat_service.llm_service")
-+async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_update_no_text):
-+    # Call service with an update that has no text
++# === Redis failure (Graceful Degradation) ===
+ 
+ @pytest.mark.asyncio
++@patch("app.services.chat_service.redis_service")
+ @patch("app.services.chat_service.telegram_service")
+ @patch("app.services.chat_service.llm_service")
+-async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_update):
+-    # Setup mock to raise an exception
+-    mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
++async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mock_redis, mock_update):
++    """ถ้า Redis ล่ม ตอนดึง history → ยังทำงานได้ (ส่งแค่ prompt เดียว)"""
++    mock_redis.get_chat_history = AsyncMock(side_effect=Exception("Redis connection failed"))
++    mock_redis.add_message_to_history = AsyncMock()
++    mock_llm.get_llm_reply = AsyncMock(return_value="Reply without context")
+     mock_telegram.send_message = AsyncMock()
+ 
+-    # Call service (should handle the error gracefully without crashing)
+     await handle_chat_message(mock_update)
+ 
+-    # Assertions
+-    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
+-    mock_telegram.send_message.assert_not_called() # Should not send a message if LLM fails
++    # ต้องส่งแค่ message เดียว (ไม่มี history)
++    expected_messages = [{"role": "user", "content": "Hello Bot"}]
++    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
++    mock_telegram.send_message.assert_called_once_with(12345, "Reply without context")
++
+ 
+ @pytest.mark.asyncio
++@patch("app.services.chat_service.redis_service")
+ @patch("app.services.chat_service.telegram_service")
+ @patch("app.services.chat_service.llm_service")
+-async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_update):
+-    # Setup mocks: LLM succeeds, but Telegram throws HTTPStatusError
++async def test_handle_chat_message_redis_save_failure(mock_llm, mock_telegram, mock_redis, mock_update):
++    """ถ้า Redis ล่ม ตอนบันทึก history → ยังส่ง response ไป Telegram ได้ปกติ"""
++    mock_redis.get_chat_history = AsyncMock(return_value=[])
++    mock_redis.add_message_to_history = AsyncMock(side_effect=Exception("Redis write failed"))
+     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
+-    mock_telegram.send_message = AsyncMock(side_effect=httpx.HTTPStatusError("400 Bad Request", request=None, response=None))
++    mock_telegram.send_message = AsyncMock()
+ 
+-    # Call service (should handle the error gracefully without crashing)
++    # ต้องไม่ crash แม้ Redis save จะ fail
+     await handle_chat_message(mock_update)
+ 
+-    # Assertions
+-    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
+     mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
+ 
++
++# === Edge cases (keep existing behavior) ===
++
+ @pytest.mark.asyncio
++@patch("app.services.chat_service.redis_service")
+ @patch("app.services.chat_service.telegram_service")
+ @patch("app.services.chat_service.llm_service")
+-async def test_handle_chat_message_llm_malformed(mock_llm, mock_telegram, mock_update):
+-    # Setup mocks: LLM raises TypeError/KeyError simulating unexpected JSON
+-    mock_llm.get_llm_reply = AsyncMock(side_effect=KeyError("choices"))
++async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, mock_update_no_text):
++    """Ignore updates ที่ไม่มี text"""
 +    await handle_chat_message(mock_update_no_text)
-+
-+    # Assertions
 +    mock_llm.get_llm_reply.assert_not_called()
 +    mock_telegram.send_message.assert_not_called()
 +
++
 +@pytest.mark.asyncio
++@patch("app.services.chat_service.redis_service")
 +@patch("app.services.chat_service.telegram_service")
 +@patch("app.services.chat_service.llm_service")
-+async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_update):
-+    # Setup mock to raise an exception
-+    mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
-+    mock_telegram.send_message = AsyncMock()
-+
-+    # Call service (should handle the error gracefully without crashing)
-+    await handle_chat_message(mock_update)
-+
-+    # Assertions
-+    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
-+    mock_telegram.send_message.assert_not_called() # Should not send a message if LLM fails
-+
-+@pytest.mark.asyncio
-+@patch("app.services.chat_service.telegram_service")
-+@patch("app.services.chat_service.llm_service")
-+async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_update):
-+    # Setup mocks: LLM succeeds, but Telegram throws HTTPStatusError
-+    mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
-+    mock_telegram.send_message = AsyncMock(side_effect=httpx.HTTPStatusError("400 Bad Request", request=None, response=None))
-+
-+    # Call service (should handle the error gracefully without crashing)
-+    await handle_chat_message(mock_update)
-+
-+    # Assertions
-+    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
-+    mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
-+
-+@pytest.mark.asyncio
-+@patch("app.services.chat_service.telegram_service")
-+@patch("app.services.chat_service.llm_service")
-+async def test_handle_chat_message_llm_malformed(mock_llm, mock_telegram, mock_update):
-+    # Setup mocks: LLM raises TypeError/KeyError simulating unexpected JSON
-+    mock_llm.get_llm_reply = AsyncMock(side_effect=KeyError("choices"))
-+    mock_telegram.send_message = AsyncMock()
-+
-+    # Call service
-+    await handle_chat_message(mock_update)
-+
-+    # Assertions
-+    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
-+    mock_telegram.send_message.assert_not_called()
-+
-+@pytest.mark.asyncio
-+@patch("app.services.chat_service.telegram_service")
-+@patch("app.services.chat_service.llm_service")
-+async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_update):
-+    # Setup mocks: LLM call times out
-+    mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-+    mock_telegram.send_message = AsyncMock()
-+
-+    # Call service
-+    await handle_chat_message(mock_update)
-+
-+    # Assertions
-+    mock_llm.get_llm_reply.assert_called_once_with("Hello Bot")
-+    mock_telegram.send_message.assert_not_called()
-diff --git a/tests/services/test_llm_service.py b/tests/services/test_llm_service.py
-new file mode 100644
-index 0000000..0310a9e
---- /dev/null
-+++ b/tests/services/test_llm_service.py
-@@ -0,0 +1,52 @@
-+import pytest
-+import httpx
-+from app.services.llm_service import get_llm_reply
-+from app.config import settings
-+
-+@pytest.mark.asyncio
-+async def test_get_llm_reply_success(respx_mock):
-+    # Mock settings
-+    settings.OPENROUTER_API_KEY = "test_api_key"
-+    prompt = "Hello AI"
-+    expected_reply = "Hi there! I am an AI."
-+
-+    # Intercept OpenRouter API call
-+    route = respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
-+        return_value=httpx.Response(
-+            200,
-+            json={
-+                "choices": [
-+                    {
-+                        "message": {
-+                            "content": expected_reply
-+                        }
-+                    }
-+                ]
-+            }
-+        )
-+    )
-+
-+    # Call the service
-+    reply = await get_llm_reply(prompt)
-+
-+    # Assertions
-+    assert reply == expected_reply
-+    assert route.called
-+    assert route.calls[0].request.headers["Authorization"] == "Bearer test_api_key"
-+    import json
-+    assert json.loads(route.calls[0].request.content)["messages"][0]["content"] == prompt
-+
-+@pytest.mark.asyncio
-+async def test_get_llm_reply_api_error(respx_mock):
-+    # Mock settings
-+    settings.OPENROUTER_API_KEY = "test_api_key"
-+    prompt = "Hello AI"
-+
-+    # Intercept OpenRouter API call and simulate a 500 error
-+    respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
-+        return_value=httpx.Response(500, text="Internal Server Error")
-+    )
-+
-+    # Calling the service should raise an exception (like HTTPStatusError)
-+    with pytest.raises(httpx.HTTPStatusError):
-+        await get_llm_reply(prompt)
-diff --git a/tests/services/test_telegram_service.py b/tests/services/test_telegram_service.py
-new file mode 100644
-index 0000000..b286a35
---- /dev/null
-+++ b/tests/services/test_telegram_service.py
-@@ -0,0 +1,44 @@
-+import pytest
-+import httpx
-+from app.services.telegram_service import send_message
-+from app.config import settings
-+import json
-+
-+@pytest.mark.asyncio
-+async def test_send_message_success(respx_mock):
-+    # Mock settings
-+    settings.TELEGRAM_BOT_TOKEN = "test_bot_token"
-+    chat_id = 12345
-+    text = "Hello from AI"
-+
-+    # Intercept Telegram API call
-+    api_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-+    route = respx_mock.post(api_url).mock(
-+        return_value=httpx.Response(200, json={"ok": True})
-+    )
-+
-+    # Call the service
-+    await send_message(chat_id, text)
-+
-+    # Assertions
-+    assert route.called
-+    request_data = json.loads(route.calls[0].request.content)
-+    assert request_data["chat_id"] == chat_id
-+    assert request_data["text"] == text
-+
-+@pytest.mark.asyncio
-+async def test_send_message_error(respx_mock):
-+    # Mock settings
-+    settings.TELEGRAM_BOT_TOKEN = "test_bot_token"
-+    chat_id = 12345
-+    text = "Hello from AI"
-+
-+    # Intercept Telegram API call and simulate a 400 error (e.g., chat not found)
-+    api_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-+    respx_mock.post(api_url).mock(
-+        return_value=httpx.Response(400, json={"ok": False, "description": "Bad Request: chat not found"})
-+    )
-+
-+    # Calling the service should raise an exception
-+    with pytest.raises(httpx.HTTPStatusError):
-+        await send_message(chat_id, text)
++async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis, mock_update):
++    """ถ้า LLM error → จะส่งข้อความแจ้งเตือนกลับไปให้ user แทนการตอบปกติ"""
++    mock_redis.get_chat_history = AsyncMock(return_value=[])
++    mock_redis.add_message_to_history = AsyncMock()
++    mock_llm.get_llm_reply =
+... (Diff truncated for size) ...
 
 
 PR TEMPLATE:
@@ -547,4 +612,4 @@ INSTRUCTIONS:
 3. If no template, use a standard structure: Summary, Changes, Impact.
 4. Focus on 'Why' and 'What'.
 5. Do not include 'Here is the PR description' preamble. Just the body.
-6. IMPORTANT: Always use the exact FULL URL for closing issues. You must write `Closes https://github.com/oatrice/Akasa/issues/4`. Do NOT use short syntax (e.g., #123) and do not invent an owner/repo.
+6. IMPORTANT: Always use the exact FULL URL for closing issues. You must write `Closes https://github.com/oatrice/Akasa/issues/6`. Do NOT use short syntax (e.g., #123) and do not invent an owner/repo.
