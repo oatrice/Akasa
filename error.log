@@ -10,3 +10,59 @@ Traceback (most recent call last):
 httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.telegram.org/bot8668471222:AAGyhqujPd3nBSR8Mxgo42dUB4tQOoMjT-g/sendMessage'
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
 
+Error communicating with external API: 500 Error
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 22, in handle_chat_message
+    reply = await llm_service.get_llm_reply(prompt)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.HTTPStatusError: 500 Error
+
+Error communicating with external API: 400 Bad Request
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 24, in handle_chat_message
+    await telegram_service.send_message(chat_id, reply)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.HTTPStatusError: 400 Bad Request
+
+Error communicating with external API: 500 Error
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 22, in handle_chat_message
+    reply = await llm_service.get_llm_reply(prompt)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.HTTPStatusError: 500 Error
+
+Error communicating with external API: 400 Bad Request
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 24, in handle_chat_message
+    await telegram_service.send_message(chat_id, reply)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.HTTPStatusError: 400 Bad Request
+
+Error communicating with external API: 500 Error
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 22, in handle_chat_message
+    reply = await llm_service.get_llm_reply(prompt)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.HTTPStatusError: 500 Error
+
+Error communicating with external API: 400 Bad Request
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 24, in handle_chat_message
+    await telegram_service.send_message(chat_id, reply)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.HTTPStatusError: 400 Bad Request
+
+Error communicating with external API: Timeout
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 22, in handle_chat_message
+    reply = await llm_service.get_llm_reply(prompt)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 2154, in _execute_mock_call
+    raise effect
+httpx.TimeoutException: Timeout
+
