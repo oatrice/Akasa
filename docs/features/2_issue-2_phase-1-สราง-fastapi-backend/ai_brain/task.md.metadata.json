@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_TASK",
-  "summary":  "Checklist สำหรับ Phase 1 FastAPI Backend Foundation ตาม TDD strict mode (Red → Green → Refactor) พร้อมโครงสร้าง directory แบบขยายเพื่อรองรับ scaling",
-  "updatedAt":  "2026-03-07T01:30:38.946271Z"
-}
