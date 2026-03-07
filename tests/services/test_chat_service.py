@@ -272,3 +272,58 @@ async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_re
     # ตรวจว่าไม่มี call ไหนที่ส่ง "system" เข้าไป
     for call in mock_redis.add_message_to_history.call_args_list:
         assert call[0][1] != "system", "System prompt must NOT be saved to Redis"
+
+# === Local Build Info Tests (Issue #25) ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.get_build_info")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_build_info_appended_in_local_dev(
+    mock_llm, mock_telegram, mock_redis, mock_get_build_info, mock_update
+):
+    """ทดสอบกรณีรันแบบ Local Dev (ENVIRONMENT=development) LLM reply ต้องมี Build Info ต่อท้าย และไม่บันทึกลง Redis"""
+    original_env = getattr(settings, "ENVIRONMENT", "production")
+    settings.ENVIRONMENT = "development"
+    try:
+        mock_redis.get_chat_history = AsyncMock(return_value=[])
+        mock_redis.add_message_to_history = AsyncMock()
+        mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
+        mock_get_build_info.return_value = "🤖 Version 0.1.0\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
+        mock_telegram.send_message = AsyncMock()
+
+        await handle_chat_message(mock_update)
+
+        expected_reply_with_footer = "Reply from AI\n\n---\n*Local Dev Info*\n🤖 Version 0.1.0\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
+        mock_telegram.send_message.assert_called_once_with(12345, expected_reply_with_footer)
+        
+        # Redis should only save the original reply without the footer to avoid context pollution
+        mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI")
+    finally:
+        settings.ENVIRONMENT = original_env
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.get_build_info")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_build_info_not_appended_in_prod(
+    mock_llm, mock_telegram, mock_redis, mock_get_build_info, mock_update
+):
+    """ทดสอบกรณีรันแบบ Production จะไม่มีการเติม Local Build Info"""
+    original_env = getattr(settings, "ENVIRONMENT", "development")
+    settings.ENVIRONMENT = "production"
+    try:
+        mock_redis.get_chat_history = AsyncMock(return_value=[])
+        mock_redis.add_message_to_history = AsyncMock()
+        mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
+        mock_telegram.send_message = AsyncMock()
+        mock_get_build_info.return_value = "Should not be called"
+
+        await handle_chat_message(mock_update)
+
+        mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
+        mock_get_build_info.assert_not_called()
+    finally:
+        settings.ENVIRONMENT = original_env

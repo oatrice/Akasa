@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = ""
     WEBHOOK_SECRET_TOKEN: str = ""
+    ENVIRONMENT: str = "production"
     OPENROUTER_API_KEY: str = ""
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_HISTORY_LIMIT: int = 10
