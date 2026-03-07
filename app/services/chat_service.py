@@ -25,7 +25,7 @@ def get_build_info() -> str:
 
     # Version
     version = "Unknown"
-    version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION")
+    version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "VERSION")
     if os.path.exists(version_file):
         with open(version_file, "r") as f:
             version = f.read().strip()
