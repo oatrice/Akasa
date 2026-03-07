@@ -21,9 +21,13 @@ async def get_llm_reply(messages: list[dict]) -> str:
     }
 
     payload = {
-        "model": "google/gemma-3-4b-it:free",
+        "model": settings.LLM_MODEL,
         "messages": messages
     }
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Sending payload to OpenRouter: {payload}")
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
