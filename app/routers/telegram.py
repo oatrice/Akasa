@@ -27,7 +27,7 @@ async def verify_secret_token(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Secret token missing",
         )
-    if x_telegram_bot_api_secret_token != settings.WEBHOOK_SECRET_TOKEN:
+    if not settings.WEBHOOK_SECRET_TOKEN or x_telegram_bot_api_secret_token != settings.WEBHOOK_SECRET_TOKEN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid secret token",
