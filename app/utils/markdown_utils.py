@@ -1,0 +1,35 @@
+import re
+
+def escape_markdown_v2(text: str) -> str:
+    """
+    Escapes special characters in text for Telegram MarkdownV2 format.
+    Characters inside inline or multi-line code blocks are preserved.
+    """
+    if not text:
+        return text
+
+    # Characters to escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
+    # Using regex, we need to escape regex metacharacters in this list:
+    # \_ \* \[ \] \( \) \~ \` \> \# \+ \- \= \| \{ \} \. \!
+    chars_to_escape = r"_*[]()~`>#+-=|{}.!"
+    escape_pattern = re.compile(rf"([{re.escape(chars_to_escape)}])")
+
+    # Regular expression to match code blocks (both ``` and `)
+    # This pattern matches ```...``` first, then `...`
+    # We use re.DOTALL so the dot matches newlines inside ``` blocks
+    code_block_pattern = re.compile(r"(```.*?```|`.*?`)", flags=re.DOTALL)
+
+    parts = code_block_pattern.split(text)
+    escaped_parts = []
+
+    for i, part in enumerate(parts):
+        # re.split keeps the matched separators at odd indices if capturing parenthesis are used
+        if i % 2 == 1:
+            # This is a code block, do not escape its contents
+            escaped_parts.append(part)
+        else:
+            # This is normal text, escape special characters
+            escaped_part = escape_pattern.sub(r"\\\1", part)
+            escaped_parts.append(escaped_part)
+
+    return "".join(escaped_parts)
