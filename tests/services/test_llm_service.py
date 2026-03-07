@@ -6,7 +6,7 @@ from app.config import settings
 @pytest.mark.asyncio
 async def test_get_llm_reply_success(respx_mock):
     # Mock settings
-    settings.OPENROUTER_API_KEY = "test_api_key"
+    settings.LLM_API_KEY = "test_api_key"
     messages = [
         {"role": "user", "content": "Tell me about Python."},
         {"role": "assistant", "content": "Python is a programming language."},
@@ -45,7 +45,7 @@ async def test_get_llm_reply_success(respx_mock):
 @pytest.mark.asyncio
 async def test_get_llm_reply_api_error(respx_mock):
     # Mock settings
-    settings.OPENROUTER_API_KEY = "test_api_key"
+    settings.LLM_API_KEY = "test_api_key"
     messages = [{"role": "user", "content": "Hello AI"}]
 
     # Intercept OpenRouter API call and simulate a 500 error
@@ -60,7 +60,7 @@ async def test_get_llm_reply_api_error(respx_mock):
 @pytest.mark.asyncio
 async def test_get_llm_reply_single_message(respx_mock):
     """ทดสอบกรณีส่ง message เดียว (ไม่มี history)"""
-    settings.OPENROUTER_API_KEY = "test_api_key"
+    settings.LLM_API_KEY = "test_api_key"
     messages = [{"role": "user", "content": "Hello"}]
     expected_reply = "Hi!"
 
