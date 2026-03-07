@@ -136,15 +136,16 @@ async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, 
 @patch("app.services.chat_service.telegram_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis, mock_update):
-    """ถ้า LLM error → ไม่ send message ไป Telegram"""
+    """ถ้า LLM error → จะส่งข้อความแจ้งเตือนกลับไปให้ user แทนการตอบปกติ"""
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
-    mock_telegram.send_message.assert_not_called()
-    # ไม่ควรบันทึก history ถ้า LLM fail
+    # ควรส่งข้อความบอกว่าระบบขัดข้อง
+    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+    # ไม่ควรบันทึก history ถ้า LLM fail (ยกเว้นเราจะเก็บ error log แต่ปัจจุบันคือไม่เก็บ)
     mock_redis.add_message_to_history.assert_not_called()
 
 
@@ -168,12 +169,27 @@ async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_
 @patch("app.services.chat_service.telegram_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, mock_update):
-    """ถ้า LLM timeout → ไม่ crash และไม่ send message"""
+    """ถ้า LLM timeout → จะส่งข้อความแจ้งเตือนกลับไป"""
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
-    mock_telegram.send_message.assert_not_called()
+    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+    mock_redis.add_message_to_history.assert_not_called()
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, mock_redis, mock_update):
+    """ถ้า LLM ตอบกลับมาผิดฟอร์ม (ValueError/KeyError) → จะส่งข้อความแจ้งเตือน"""
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=KeyError("choices"))
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
     mock_redis.add_message_to_history.assert_not_called()

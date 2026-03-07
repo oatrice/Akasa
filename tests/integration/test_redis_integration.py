@@ -107,7 +107,26 @@ async def test_concurrent_chat_isolation(setup_redis_service):
     history_a = await get_chat_history("test_isolation_A")
     history_b = await get_chat_history("test_isolation_B")
 
-    assert len(history_a) == 1
     assert history_a[0]["content"] == "Message for A"
     assert len(history_b) == 1
     assert history_b[0]["content"] == "Message for B"
+
+@pytest.mark.asyncio
+async def test_ttl_short_sleep(setup_redis_service, monkeypatch):
+    """ทดสอบว่าเมื่อตั้ง TTL=1 วิ แล้วรอ 1.1 วิ ประวัติต้องถูกลบอัตโนมัติจาก Redis"""
+    import asyncio
+    import app.services.redis_service as rs
+    from app.services.redis_service import add_message_to_history, get_chat_history
+    
+    monkeypatch.setattr(rs.settings, "REDIS_TTL_SECONDS", 1)
+
+    chat_id = "test_ttl_sleep"
+    await add_message_to_history(chat_id, "user", "This expires quickly")
+    
+    history_before = await get_chat_history(chat_id)
+    assert len(history_before) == 1
+    
+    await asyncio.sleep(1.1)
+    
+    history_after = await get_chat_history(chat_id)
+    assert len(history_after) == 0

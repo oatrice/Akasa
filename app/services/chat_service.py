@@ -34,24 +34,35 @@ async def handle_chat_message(update: Update) -> None:
     # สร้าง messages context: history + ข้อความใหม่ของ user
     messages = history + [{"role": "user", "content": prompt}]
 
+    reply = ""
     try:
         reply = await llm_service.get_llm_reply(messages)
         print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
+    except (httpx.TimeoutException, httpx.HTTPError) as e:
+        logger.error(f"API Error getting LLM reply for {chat_id}: {e}")
+        await telegram_service.send_message(chat_id, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+        return
+    except (ValueError, KeyError, TypeError) as e:
+        logger.error(f"Malformed LLM response for {chat_id}: {e}")
+        await telegram_service.send_message(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
+        return
+    except Exception as e:
+        logger.error(f"Unexpected error getting LLM reply for {chat_id}: {e}")
+        return
+
+    try:
         await telegram_service.send_message(chat_id, reply)
         print(f"--- [DEBUG] Message successfully sent to Telegram chat {chat_id} ---")
-
-        # บันทึก user message + assistant reply ลง Redis
-        try:
-            await redis_service.add_message_to_history(chat_id, "user", prompt)
-            await redis_service.add_message_to_history(chat_id, "assistant", reply)
-        except Exception as e:
-            logger.warning(f"Redis add_message_to_history failed for {chat_id}: {e}")
-
-    except httpx.HTTPError as e:
-        import traceback
-        err_msg = f"Error communicating with external API: {e}\n{traceback.format_exc()}"
-        logger.error(err_msg)
-        with open("error.log", "a") as f:
-            f.write(err_msg + "\n")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Failed to send message to Telegram for {chat_id}. HTTP Status Error: {e}")
+        return
     except Exception as e:
-        logger.error(f"Unexpected error in handle_chat_message: {e}")
+        logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
+        return
+
+    # บันทึก user message + assistant reply ลง Redis
+    try:
+        await redis_service.add_message_to_history(chat_id, "user", prompt)
+        await redis_service.add_message_to_history(chat_id, "assistant", reply)
+    except Exception as e:
+        logger.warning(f"Redis add_message_to_history failed for {chat_id}: {e}")

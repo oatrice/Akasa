@@ -48,6 +48,25 @@ async def test_get_chat_history_returns_chronological_order(patch_redis):
     assert history[1] == {"role": "assistant", "content": "Hi there!"}
     assert history[2] == {"role": "user", "content": "How are you?"}
 
+@pytest.mark.asyncio
+async def test_get_chat_history_with_corrupted_json(patch_redis):
+    """ถ้ามีข้อมูลบางตัวใน Redis ไม่ใช่ JSON ที่อ่านได้ (corrupted) → ต้องข้ามตัวนั้นและคืนค่าเฉพาะตัวที่อ่านได้"""
+    from app.services.redis_service import get_chat_history
+    import json
+
+    # Push corrupted data directly to Redis
+    await patch_redis.lpush("chat_history:150", json.dumps({"role": "user", "content": "Good"}))
+    await patch_redis.lpush("chat_history:150", "NOT A JSON!!")
+    await patch_redis.lpush("chat_history:150", json.dumps({"role": "assistant", "content": "Also Good"}))
+
+    history = await get_chat_history(150)
+
+    # ควรดึงได้แค่ 2 ข้อความที่อ่านเป็น JSON ได้
+    assert len(history) == 2
+    # ลำดับใน Redis = ["Also Good", "NOT A JSON!!", "Good"] (ล่าสุดอยู่ซ้ายสุด)
+    # แต่ get_chat_history return `reversed` -> ["Good", "Also Good"]
+    assert history[0]["content"] == "Good"
+    assert history[1]["content"] == "Also Good"
 
 # --- add_message_to_history ---
 
@@ -84,6 +103,23 @@ async def test_history_is_trimmed_at_limit(patch_redis, monkeypatch):
     assert history[0]["content"] == "msg-2"
     assert history[3]["content"] == "msg-5"
 
+
+@pytest.mark.asyncio
+async def test_redis_limit_zero(patch_redis, monkeypatch):
+    """ถ้า REDIS_HISTORY_LIMIT = 0 ต้องไม่เก็บข้อมูลและ get_chat_history คืนค่าว่าง"""
+    from app.services import redis_service
+    from app.services.redis_service import add_message_to_history, get_chat_history
+    monkeypatch.setattr(redis_service.settings, "REDIS_HISTORY_LIMIT", 0)
+
+    chat_id = 350
+    await add_message_to_history(chat_id, "user", "This should not be saved")
+
+    history = await get_chat_history(chat_id)
+    assert history == []
+
+    # ตรวจสอบใน Redis จริงๆ ว่าไม่มี key หรือ key ว่างเปล่า
+    raw = await patch_redis.lrange(f"chat_history:{chat_id}", 0, -1)
+    assert len(raw) == 0
 
 # --- TTL ---
 
