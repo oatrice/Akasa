@@ -8,8 +8,8 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#1](https://github.com/oatrice/Akasa/issues/1) | สมัคร OpenRouter + ทดสอบ API | 🟡 In Progress |
-| [#2](https://github.com/oatrice/Akasa/issues/2) | สร้าง FastAPI backend | 🔲 Todo |
+| [#1](https://github.com/oatrice/Akasa/issues/1) | สมัคร OpenRouter + ทดสอบ API | ✅ Complete |
+| [#2](https://github.com/oatrice/Akasa/issues/2) | สร้าง FastAPI backend | ✅ Complete |
 | [#3](https://github.com/oatrice/Akasa/issues/3) | สร้าง Telegram Bot + webhook | 🔲 Todo |
 | [#4](https://github.com/oatrice/Akasa/issues/4) | ส่งข้อความ ➡️ LLM ➡️ ตอบกลับ | 🔲 Todo |
 | [#5](https://github.com/oatrice/Akasa/issues/5) | Deploy MVP | 🔲 Todo |

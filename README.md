@@ -70,6 +70,7 @@ akasa/
 │   └── utils/
 │       └── normalizer.py     # Normalize messages across platforms
 ├── tests/
+│   ├── test_main.py
 │   ├── test_llm.py
 │   ├── test_chat.py
 │   └── test_telegram.py
@@ -138,7 +139,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ### Phase 1: MVP 🎯 *(Current)*
 - [x] สมัคร OpenRouter + ทดสอบ API
-- [ ] สร้าง FastAPI backend
+- [x] สร้าง FastAPI backend
 - [ ] สร้าง Telegram Bot + webhook
 - [ ] ส่งข้อความ → LLM → ตอบกลับ
 - [ ] Deploy (local / Railway)
