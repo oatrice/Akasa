@@ -1,12 +1,12 @@
 import httpx
 from app.config import settings
+from app.utils.markdown_utils import escape_markdown_v2
 
 async def send_message(chat_id: int, text: str) -> None:
     """
     Sends a text message to a specific chat using the Telegram Bot API.
     """
     api_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-    from app.utils.markdown_utils import escape_markdown_v2
     
     payload = {
         "chat_id": chat_id,

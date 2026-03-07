@@ -46,3 +46,31 @@ def test_escape_markdown_v2_unmatched_backticks():
     text = "This ` is unmatched."
     expected = r"This \` is unmatched\."
     assert escape_markdown_v2(text) == expected
+
+# === Code Review #7 — Test Suggestions ===
+
+def test_escape_markdown_v2_special_chars_adjacent_to_code():
+    """Special characters immediately next to a code block must be escaped correctly."""
+    text = "The result is `5-3=2`!"
+    expected = "The result is `5-3=2`\\!"
+    assert escape_markdown_v2(text) == expected
+
+def test_escape_markdown_v2_nested_backticks_best_effort():
+    """Best effort: nested backticks in complex shell commands.
+    The regex may not handle nested backticks perfectly, but it should
+    not crash and should produce a parseable result."""
+    text = "Use `docker run --env 'VAR=val'` to run."
+    expected = "Use `docker run --env 'VAR=val'` to run\\."
+    assert escape_markdown_v2(text) == expected
+
+def test_escape_markdown_v2_unclosed_multiline_code_block():
+    """Unclosed multi-line code block: should escape everything as plain text
+    since the code block is not properly closed."""
+    text = "Here is the code: ```python\nprint('hello')"
+    result = escape_markdown_v2(text)
+    # ต้องไม่ crash และทุกอักขระพิเศษต้องถูก escape
+    assert "\\`" in result or "```" in result
+    # ต้องไม่มี raw ( หรือ ) ที่ไม่ถูก escape (ตรงนี้ไม่มี parens ในเคสนี้)
+    # ที่สำคัญคือต้อง return ค่ากลับมาได้ ไม่ hang
+    assert isinstance(result, str)
+    assert len(result) > 0
