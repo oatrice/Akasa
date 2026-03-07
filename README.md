@@ -62,11 +62,13 @@ akasa/
 │   ├── routers/              # API endpoints
 │   │   ├── telegram.py       # Telegram webhook
 │   │   └── health.py         # Health check
-│   └── services/             # Business logic
-│       ├── chat_service.py     # Chat orchestration
-│       ├── llm_service.py      # LLM provider integration
-│       ├── telegram_service.py # Telegram API communication
-│       └── redis_service.py    # Conversation history management
+│   ├── services/             # Business logic
+│   │   ├── chat_service.py     # Chat orchestration
+│   │   ├── llm_service.py      # LLM provider integration
+│   │   ├── telegram_service.py # Telegram API communication
+│   │   └── redis_service.py    # Conversation history management
+│   └── utils/                # Utility functions
+│       └── markdown_utils.py
 ├── tests/
 │   ├── integration/          # Integration tests
 │   │   └── test_redis_integration.py
@@ -161,7 +163,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ### Phase 2: Memory & Multi-Platform
 - [x] Conversation history (Redis)
-- [ ] Code formatting ใน chat
+- [x] Code formatting ใน chat
 - [ ] System prompt สำหรับ coding assistant
 - [ ] เพิ่ม LINE Bot
 - [ ] Rate limiting + error handling
