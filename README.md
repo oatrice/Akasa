@@ -62,11 +62,11 @@ akasa/
 │   ├── routers/              # API endpoints
 │   │   ├── telegram.py       # Telegram webhook
 │   │   └── health.py         # Health check
-│   ├── services/             # Business logic
-│   │   ├── chat_service.py     # Chat orchestration
-│   │   ├── llm_service.py      # LLM provider integration
-│   │   ├── telegram_service.py # Telegram API communication
-│   │   └── redis_service.py    # Conversation history management
+│   └── services/             # Business logic
+│       ├── chat_service.py     # Chat orchestration
+│       ├── llm_service.py      # LLM provider integration
+│       ├── telegram_service.py # Telegram API communication
+│       └── redis_service.py    # Conversation history management
 │   └── utils/                # Utility functions
 │       └── markdown_utils.py
 ├── tests/
@@ -81,6 +81,7 @@ akasa/
 ├── .gitignore
 ├── requirements.txt
 ├── setup_local_bot.sh       # Local dev setup script
+├── VERSION
 └── README.md
 ```
 
@@ -119,11 +120,18 @@ cp .env.example .env
 
 ```env
 # .env
+# App Environment: "local" or "production"
+ENV=local
+
+# --- Secrets ---
 OPENROUTER_API_KEY=your_openrouter_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 WEBHOOK_SECRET_TOKEN=a_strong_random_secret
+
+# --- Services ---
 REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://localhost:5432/akasa
+LLM_MODEL="google/gemma-2-9b-it:free"
 ```
 
 ### Run
@@ -164,7 +172,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### Phase 2: Memory & Multi-Platform
 - [x] Conversation history (Redis)
 - [x] Code formatting ใน chat
-- [ ] System prompt สำหรับ coding assistant
+- [x] System prompt สำหรับ coding assistant
 - [ ] เพิ่ม LINE Bot
 - [ ] Rate limiting + error handling
 

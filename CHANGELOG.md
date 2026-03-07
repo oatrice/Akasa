@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0] - 2026-03-08
+
+### Added
+- **System Prompt**: A system prompt has been added to define the bot's persona as an expert coding assistant. This ensures responses are consistently concise, technical, and focused on software development topics.
+- **Development Build Info**: In local development mode, a footer containing the app version and environment is automatically appended to bot messages for easier debugging.
+
+### Changed
+- **Bot Persona**: The bot is now more specialized and will primarily focus on answering coding and software development questions, guided by the new system prompt.
+- **Configurability**: The LLM model is now configurable via the `LLM_MODEL` environment variable.
+
+### Fixed
+- Corrected a file path resolution issue for the `VERSION` file, ensuring the build information footer can be reliably appended.
+
 ## [0.5.0] - 2026-03-07
 
 ### Added
