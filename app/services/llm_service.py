@@ -11,7 +11,7 @@ async def get_llm_reply(prompt: str) -> str:
     }
     
     payload = {
-        "model": "google/gemma-2-9b-it:free",
+        "model": "google/gemma-3-4b-it:free",
         "messages": [
             {"role": "user", "content": prompt}
         ]

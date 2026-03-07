@@ -42,8 +42,7 @@ async def telegram_webhook(update: Update, background_tasks: BackgroundTasks):
     ส่งงานการประมวลผลข้อความและตอบกลับไปที่ BackgroundTasks
     เพื่อตอบ 200 OK ให้ Telegram ทันที
     """
-    logger.info("Received Telegram update: %s", update.model_dump_json(indent=2))
-    
+    print(f"--- [WEBHOOK RAW UPDATE] ---\n{update.model_dump_json(indent=2)}\n----------------------------")
     # Schedule the chat processing in the background
     background_tasks.add_task(handle_chat_message, update)
     

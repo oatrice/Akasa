@@ -16,13 +16,19 @@ async def handle_chat_message(update: Update) -> None:
 
     chat_id = update.message.chat.id
     prompt = update.message.text
+    print(f"--- [DEBUG] Processing message from {chat_id}: {prompt} ---")
 
     try:
         reply = await llm_service.get_llm_reply(prompt)
+        print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
         await telegram_service.send_message(chat_id, reply)
+        print(f"--- [DEBUG] Message successfully sent to Telegram chat {chat_id} ---")
     except httpx.HTTPError as e:
-        logger.error(f"Error communicating with external API: {e}")
-        # Optionally, notify the user that an error occurred.
+        import traceback
+        err_msg = f"Error communicating with external API: {e}\n{traceback.format_exc()}"
+        logger.error(err_msg)
+        with open("error.log", "a") as f:
+            f.write(err_msg + "\n")
         # await telegram_service.send_message(chat_id, "Sorry, I am having trouble connecting to my brain right now.")
     except Exception as e:
         logger.error(f"Unexpected error in handle_chat_message: {e}")

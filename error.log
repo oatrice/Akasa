@@ -1,0 +1,12 @@
+Error communicating with external API: Client error '400 Bad Request' for url 'https://api.telegram.org/bot8668471222:AAGyhqujPd3nBSR8Mxgo42dUB4tQOoMjT-g/sendMessage'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+Traceback (most recent call last):
+  File "/Users/oatrice/Software-projects/Akasa/app/services/chat_service.py", line 24, in handle_chat_message
+    await telegram_service.send_message(chat_id, reply)
+  File "/Users/oatrice/Software-projects/Akasa/app/services/telegram_service.py", line 21, in send_message
+    response.raise_for_status()
+  File "/Users/oatrice/Software-projects/Akasa/venv/lib/python3.9/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '400 Bad Request' for url 'https://api.telegram.org/bot8668471222:AAGyhqujPd3nBSR8Mxgo42dUB4tQOoMjT-g/sendMessage'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+
