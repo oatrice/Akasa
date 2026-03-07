@@ -8,3 +8,5 @@ fastapi
 uvicorn[standard]
 httpx
 pydantic-settings
+redis
+fakeredis

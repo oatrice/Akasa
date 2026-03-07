@@ -9,7 +9,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v4
     
@@ -23,9 +34,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Run tests with pytest
-      # Our tests mock the OpenRouter API, so we just provide a dummy key to prevent dotenv errors if any.
+    - name: Run unit tests
       env:
         OPENROUTER_API_KEY: "dummy-key-for-ci"
       run: |
-        pytest -v
+        pytest tests/ -v --ignore=tests/integration -m "not integration"
+
+    - name: Run integration tests (with real Redis)
+      env:
+        OPENROUTER_API_KEY: "dummy-key-for-ci"
+        REDIS_URL: "redis://localhost:6379"
+      run: |
+        pytest tests/integration/ -v -m integration
