@@ -33,11 +33,12 @@ def test_webhook_success_valid_token():
     """ส่ง request พร้อม Secret Token ที่ถูกต้อง → ต้องได้ 200 OK"""
     with patch("app.routers.telegram.settings") as mock_settings:
         mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
-        response = client.post(
-            WEBHOOK_URL,
-            headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
-            json=VALID_PAYLOAD,
-        )
+        with patch("app.routers.telegram.handle_chat_message") as mock_handle:
+            response = client.post(
+                WEBHOOK_URL,
+                headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
+                json=VALID_PAYLOAD,
+            )
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
@@ -109,11 +110,12 @@ def test_webhook_success_edited_message():
     }
     with patch("app.routers.telegram.settings") as mock_settings:
         mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
-        response = client.post(
-            WEBHOOK_URL,
-            headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
-            json=edited_message_payload,
-        )
+        with patch("app.routers.telegram.handle_chat_message") as mock_handle:
+            response = client.post(
+                WEBHOOK_URL,
+                headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
+                json=edited_message_payload,
+            )
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
