@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, AsyncMock
 from app.services.chat_service import handle_chat_message
 from app.models.telegram import Update, Message, Chat
+from app.config import settings
 import httpx
 
 @pytest.fixture
@@ -50,6 +51,7 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
 
     # LLM should receive history + new message
     expected_messages = [
+        {"role": "system", "content": settings.SYSTEM_PROMPT},
         {"role": "user", "content": "What is Python?"},
         {"role": "assistant", "content": "Python is a programming language."},
         {"role": "user", "content": "Hello Bot"},
@@ -76,7 +78,10 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
 
     await handle_chat_message(mock_update)
 
-    expected_messages = [{"role": "user", "content": "Hello Bot"}]
+    expected_messages = [
+        {"role": "system", "content": settings.SYSTEM_PROMPT},
+        {"role": "user", "content": "Hello Bot"}
+    ]
     mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
 
 
@@ -95,8 +100,11 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
 
     await handle_chat_message(mock_update)
 
-    # ต้องส่งแค่ message เดียว (ไม่มี history)
-    expected_messages = [{"role": "user", "content": "Hello Bot"}]
+    # ต้องส่งแค่ message เดียว (ไม่มี history แต่มี system prompt)
+    expected_messages = [
+        {"role": "system", "content": settings.SYSTEM_PROMPT},
+        {"role": "user", "content": "Hello Bot"}
+    ]
     mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
     mock_telegram.send_message.assert_called_once_with(12345, "Reply without context")
 
@@ -193,3 +201,74 @@ async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, m
     await handle_chat_message(mock_update)
     mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
     mock_redis.add_message_to_history.assert_not_called()
+
+
+# === System Prompt Tests (Issue #8) ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
+    """System prompt ต้องถูกวางเป็นข้อความแรกใน messages ที่ส่งให้ LLM (มี history)"""
+    mock_redis.get_chat_history = AsyncMock(return_value=[
+        {"role": "user", "content": "What is Python?"},
+        {"role": "assistant", "content": "A programming language."},
+    ])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    call_args = mock_llm.get_llm_reply.call_args[0][0]
+    # ข้อความแรกต้องเป็น system prompt
+    assert call_args[0]["role"] == "system"
+    assert call_args[0]["content"] == settings.SYSTEM_PROMPT
+    # ตามด้วย history
+    assert call_args[1] == {"role": "user", "content": "What is Python?"}
+    assert call_args[2] == {"role": "assistant", "content": "A programming language."}
+    # ปิดท้ายด้วย user message ใหม่
+    assert call_args[-1] == {"role": "user", "content": "Hello Bot"}
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
+    """System prompt ต้องถูกวางเป็นข้อความแรกแม้ไม่มี history"""
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Reply")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    call_args = mock_llm.get_llm_reply.call_args[0][0]
+    assert len(call_args) == 2  # system + user
+    assert call_args[0]["role"] == "system"
+    assert call_args[0]["content"] == settings.SYSTEM_PROMPT
+    assert call_args[1] == {"role": "user", "content": "Hello Bot"}
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_redis, mock_update):
+    """System prompt ต้องไม่ถูกบันทึกลง Redis"""
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Reply")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    # ต้องบันทึกแค่ user + assistant (ไม่มี system)
+    assert mock_redis.add_message_to_history.call_count == 2
+    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot")
+    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply")
+    # ตรวจว่าไม่มี call ไหนที่ส่ง "system" เข้าไป
+    for call in mock_redis.add_message_to_history.call_args_list:
+        assert call[0][1] != "system", "System prompt must NOT be saved to Redis"

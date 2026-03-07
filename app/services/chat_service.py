@@ -31,8 +31,9 @@ async def handle_chat_message(update: Update) -> None:
         logger.warning(f"Redis get_chat_history failed for {chat_id}: {e}")
         history = []
 
-    # สร้าง messages context: history + ข้อความใหม่ของ user
-    messages = history + [{"role": "user", "content": prompt}]
+    # สร้าง messages context: system prompt + history + ข้อความใหม่ของ user
+    from app.config import settings
+    messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}] + history + [{"role": "user", "content": prompt}]
 
     reply = ""
     try:
