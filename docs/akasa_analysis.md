@@ -115,27 +115,27 @@
 
 ```mermaid
 graph TD
-    subgraph 📱 Client / Messaging Platforms
+    subgraph Client ["📱 Client / Messaging Platforms"]
         L[LINE Bot]
         T[Telegram Bot]
         W[WhatsApp Bot]
     end
 
-    subgraph 🌐 API Gateway / Routing
+    subgraph API_Gateway ["🌐 API Gateway / Routing"]
         AG[Webhook Endpoint]
     end
 
-    subgraph ⚙️ Core Backend Service
+    subgraph Backend ["⚙️ Core Backend Service"]
         RH[Request Handler & Normalizer]
         OM[Orchestrator / LangChain]
         SM[(Session Memory\nRedis / DB)]
     end
 
-    subgraph 🧠 AI & LLM Services
+    subgraph AI_Services ["🧠 AI & LLM Services"]
         LLM[LLM API\nOpenAI / Claude / Gemini]
     end
 
-    subgraph 🛠️ Tools & Execution (Optional)
+    subgraph Tools ["🛠️ Tools & Execution (Optional)"]
         GH[GitHub API / Git]
         SB[Code Sandbox\ne.g., E2B / Repl.it]
     end
