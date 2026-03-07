@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0] - 2026-03-07
+
+### Added
+- **MarkdownV2 Formatting**: The bot now supports rich text formatting. Code snippets sent in the chat are now automatically displayed in formatted blocks with syntax highlighting.
+- A new text escaping utility (`app/utils/markdown_utils.py`) was created to intelligently handle special Markdown characters while preserving the content of code blocks.
+- Added comprehensive unit tests for the new Markdown escaping logic to ensure reliability.
+
+### Changed
+- The `TelegramService` now sends all messages using `parse_mode="MarkdownV2"` by default to enable rich formatting.
+
+### Fixed
+- Corrected import placement in `telegram_service.py` to adhere to PEP8 standards.
+
 ## [0.4.0] - 2026-03-07
 
 ### Added

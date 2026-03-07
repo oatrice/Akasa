@@ -1,5 +1,6 @@
 import httpx
 from app.config import settings
+from app.utils.markdown_utils import escape_markdown_v2
 
 async def send_message(chat_id: int, text: str) -> None:
     """
@@ -9,7 +10,8 @@ async def send_message(chat_id: int, text: str) -> None:
     
     payload = {
         "chat_id": chat_id,
-        "text": text
+        "text": escape_markdown_v2(text),
+        "parse_mode": "MarkdownV2"
     }
 
     async with httpx.AsyncClient() as client:
