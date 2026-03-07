@@ -8,10 +8,11 @@ Endpoint: POST /api/v1/telegram/webhook
 """
 
 import logging
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status, BackgroundTasks
 
 from app.config import settings
 from app.models.telegram import Update
+from app.services.chat_service import handle_chat_message
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,15 @@ async def verify_secret_token(
 
 
 @router.post("/webhook", dependencies=[Depends(verify_secret_token)])
-async def telegram_webhook(update: Update):
+async def telegram_webhook(update: Update, background_tasks: BackgroundTasks):
     """
     รับ updates จาก Telegram Bot API
-
-    ในเฟสนี้แค่ log ข้อมูลที่ได้รับ
-    ยังไม่ประมวลผลหรือตอบกลับผู้ใช้
+    ส่งงานการประมวลผลข้อความและตอบกลับไปที่ BackgroundTasks
+    เพื่อตอบ 200 OK ให้ Telegram ทันที
     """
     logger.info("Received Telegram update: %s", update.model_dump_json(indent=2))
+    
+    # Schedule the chat processing in the background
+    background_tasks.add_task(handle_chat_message, update)
+    
     return {"status": "ok"}

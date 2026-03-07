@@ -116,3 +116,16 @@ def test_webhook_success_edited_message():
         )
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+def test_webhook_success_calls_chat_service():
+    """ส่ง request ที่ถูกต้อง → ต้องเรียกใช้ chat_service.handle_chat_message ผ่าน BackgroundTasks"""
+    with patch("app.routers.telegram.settings") as mock_settings:
+        mock_settings.WEBHOOK_SECRET_TOKEN = TEST_SECRET_TOKEN
+        with patch("app.routers.telegram.handle_chat_message") as mock_handle:
+            response = client.post(
+                WEBHOOK_URL,
+                headers={"X-Telegram-Bot-Api-Secret-Token": TEST_SECRET_TOKEN},
+                json=VALID_PAYLOAD,
+            )
+    assert response.status_code == 200
+    mock_handle.assert_called_once()
