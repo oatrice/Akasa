@@ -45,7 +45,8 @@ def get_build_info() -> str:
     except Exception:
         pass
 
-    _BUILD_INFO_CACHE = f"🤖 Version {version}\n🏗️ Built at {built_at}\n🔗 Commit {git_hash}"
+    from app.config import settings
+    _BUILD_INFO_CACHE = f"🤖 Version {version}\n🌍 Env {settings.ENVIRONMENT}\n🏗️ Built at {built_at}\n🔗 Commit {git_hash}"
     return _BUILD_INFO_CACHE
 
 async def handle_chat_message(update: Update) -> None:

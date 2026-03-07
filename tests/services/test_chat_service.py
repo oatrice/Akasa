@@ -5,6 +5,14 @@ from app.models.telegram import Update, Message, Chat
 from app.config import settings
 import httpx
 
+@pytest.fixture(autouse=True)
+def set_production_env():
+    """บังคับให้ทุก test รันใน environment = production ยกเว้น test ที่ระบุเป็นอย่างอื่นชัดเจน"""
+    original_env = getattr(settings, "ENVIRONMENT", "production")
+    settings.ENVIRONMENT = "production"
+    yield
+    settings.ENVIRONMENT = original_env
+
 @pytest.fixture
 def mock_update():
     return Update(
@@ -290,12 +298,12 @@ async def test_build_info_appended_in_local_dev(
         mock_redis.get_chat_history = AsyncMock(return_value=[])
         mock_redis.add_message_to_history = AsyncMock()
         mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
-        mock_get_build_info.return_value = "🤖 Version 0.1.0\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
+        mock_get_build_info.return_value = "🤖 Version 0.1.0\n🌍 Env development\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
         mock_telegram.send_message = AsyncMock()
 
         await handle_chat_message(mock_update)
 
-        expected_reply_with_footer = "Reply from AI\n\n---\n*Local Dev Info*\n🤖 Version 0.1.0\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
+        expected_reply_with_footer = "Reply from AI\n\n---\n*Local Dev Info*\n🤖 Version 0.1.0\n🌍 Env development\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
         mock_telegram.send_message.assert_called_once_with(12345, expected_reply_with_footer)
         
         # Redis should only save the original reply without the footer to avoid context pollution
