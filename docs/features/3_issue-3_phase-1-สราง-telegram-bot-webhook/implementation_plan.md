@@ -1,0 +1,58 @@
+# [Phase 1] สร้าง Telegram Bot + webhook
+
+This plan outlines the integration of the Telegram webhook into the FastAPI backend to receive real-time messages from Telegram bots.
+
+## User Review Required
+
+> [!WARNING]
+> **Tech Stack Conflict**: The `prompt_backend.txt` mentions Go in the instruction headers, but `plan.md` and `analysis.md` describe a Python FastAPI implementation. According to the conflict resolution rules, **Python (FastAPI)** will be used. Please confirm this is correct.
+
+> [!IMPORTANT]
+> **Environment Variables**: You will need to use BotFather to create a Telegram Bot and obtain a `TELEGRAM_BOT_TOKEN`. You will also need to generate a secure string for `WEBHOOK_SECRET_TOKEN`. These must be added to your `.env` file before full testing can be done.
+
+## Proposed Changes
+
+### Configuration
+#### [MODIFY] `.env.example`
+- Add `TELEGRAM_BOT_TOKEN="your_bot_token_here"`
+- Add `WEBHOOK_SECRET_TOKEN="a_strong_random_secret"`
+
+#### [MODIFY] `requirements.txt`
+- Add `pydantic-settings` to manage configuration cleanly.
+
+#### [NEW] `app/config.py`
+- Create `Settings` class using `pydantic_settings.BaseSettings` to load `TELEGRAM_BOT_TOKEN` and `WEBHOOK_SECRET_TOKEN`.
+
+---
+
+### Telegram Webhook Models
+#### [NEW] `app/models/telegram.py`
+- Define `Update`, `Message`, `Chat`, and `User` models using `pydantic.BaseModel` to handle incoming Telegram payload.
+
+---
+
+### Webhook API
+#### [NEW] `app/routers/telegram.py`
+- Create a new router with endpoint `POST /api/v1/telegram/webhook`.
+- Implement `verify_secret_token` dependency to check the `X-Telegram-Bot-Api-Secret-Token` header.
+- Return `200 OK` on success, `403 Forbidden` if token is invalid or missing.
+
+#### [MODIFY] `app/main.py`
+- Register `telegram.router` to the main FastAPI application.
+
+---
+
+### Testing (TDD)
+#### [NEW] `tests/routers/test_telegram.py`
+- Write failing tests first covering HTTP 200 (valid token), HTTP 403 (invalid/missing token), and HTTP 405 (invalid method).
+
+## Verification Plan
+
+### Automated Tests
+- Run `pytest tests/routers/test_telegram.py -v` to ensure all webhook token validation and payload receiving logic passes.
+
+### Manual Verification
+1. Start `ngrok` to expose port 8000: `ngrok http 8000`.
+2. Register the generated `ngrok` URL with the Telegram API (`https://api.telegram.org/bot<TOKEN>/setWebhook?url=<NGROK_URL>/api/v1/telegram/webhook&secret_token=<YOUR_SECRET>`).
+3. Send a message to the bot via the Telegram app.
+4. Verify the FastAPI log prints `Received update: ...` with the JSON payload.

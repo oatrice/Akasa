@@ -58,29 +58,21 @@ akasa/
 │   ├── main.py              # FastAPI entry point
 │   ├── config.py             # Settings & env vars
 │   ├── models/               # Pydantic models
-│   │   └── message.py
+│   │   └── telegram.py
 │   ├── routers/              # API endpoints
 │   │   ├── telegram.py       # Telegram webhook
-│   │   ├── line.py           # LINE webhook (Phase 2)
 │   │   └── health.py         # Health check
-│   ├── services/             # Business logic
-│   │   ├── llm.py            # LLM provider integration
-│   │   ├── chat.py           # Chat orchestration
-│   │   └── memory.py         # Session memory
-│   └── utils/
-│       └── normalizer.py     # Normalize messages across platforms
+│   └── services/             # Business logic
+│       └── __init__.py
 ├── tests/
 │   ├── test_main.py
-│   ├── test_llm.py
-│   ├── test_chat.py
-│   └── test_telegram.py
+│   └── routers/
+│       └── test_telegram.py
 ├── docs/
 │   └── akasa_analysis.md     # Project analysis
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
-├── pyproject.toml
-├── Dockerfile
 └── README.md
 ```
 
@@ -119,6 +111,7 @@ cp .env.example .env
 # .env
 OPENROUTER_API_KEY=your_openrouter_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+WEBHOOK_SECRET_TOKEN=a_strong_random_secret
 REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://localhost:5432/akasa
 ```
@@ -140,7 +133,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### Phase 1: MVP 🎯 *(Current)*
 - [x] สมัคร OpenRouter + ทดสอบ API
 - [x] สร้าง FastAPI backend
-- [ ] สร้าง Telegram Bot + webhook
+- [x] สร้าง Telegram Bot + webhook
 - [ ] ส่งข้อความ → LLM → ตอบกลับ
 - [ ] Deploy (local / Railway)
 
