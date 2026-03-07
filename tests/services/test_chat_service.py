@@ -211,6 +211,22 @@ async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, m
     mock_redis.add_message_to_history.assert_not_called()
 
 
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_llm_unexpected_error(mock_llm, mock_telegram, mock_redis, mock_update):
+    """ถ้าเกิด Error ที่ไม่คาดคิดตอนเรียก LLM → จะส่งข้อความแจ้งเตือน generic กลับไป"""
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=RuntimeError("Some terrible weird error"))
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
+    mock_redis.add_message_to_history.assert_not_called()
+
+
 # === System Prompt Tests (Issue #8) ===
 
 @pytest.mark.asyncio
