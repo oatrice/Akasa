@@ -37,6 +37,17 @@ def mock_update_no_text():
         )
     )
 
+@pytest.fixture
+def setup_mock_redis(mock_redis):
+    """Helper สำหรับ setup พื้นฐานของ Redis Mock เพื่อให้รองรับ Multi-Project"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.get_project_list = AsyncMock(return_value=["default"])
+    mock_redis.set_current_project = AsyncMock()
+    return mock_redis
+
 
 # === Success path (with Redis history) ===
 
@@ -45,8 +56,10 @@ def mock_update_no_text():
 @patch("app.services.chat_service.telegram_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
-    """ส่ง prompt พร้อม history ที่ดึงจาก Redis ไปให้ LLM"""
-    # Setup: Redis returns existing history
+    """ส่ง prompt พร้อม history ที่ดึงจาก Redis ไปให้ LLM โดยแยกตามโปรเจ็กต์"""
+    # Setup
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[
         {"role": "user", "content": "What is Python?"},
         {"role": "assistant", "content": "Python is a programming language."},
@@ -57,20 +70,20 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
 
     await handle_chat_message(mock_update)
 
-    # LLM should receive history + new message
-    expected_messages = [
-        {"role": "system", "content": settings.SYSTEM_PROMPT},
-        {"role": "user", "content": "What is Python?"},
-        {"role": "assistant", "content": "Python is a programming language."},
-        {"role": "user", "content": "Hello Bot"},
-    ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
+    # LLM should receive history + new message (with project context in system prompt)
+    call_args = mock_llm.get_llm_reply.call_args[0][0]
+    assert call_args[0]["role"] == "system"
+    assert "default" in call_args[0]["content"]
+    assert call_args[1] == {"role": "user", "content": "What is Python?"}
+    assert call_args[2] == {"role": "assistant", "content": "Python is a programming language."}
+    assert call_args[3] == {"role": "user", "content": "Hello Bot"}
+
     mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
 
-    # ต้องบันทึก user message + assistant reply กลับ Redis
+    # ต้องบันทึก user message + assistant reply กลับ Redis (ต้องระบุ project_name)
     assert mock_redis.add_message_to_history.call_count == 2
-    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot")
-    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI")
+    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot", project_name="default")
+    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI", project_name="default")
 
 
 @pytest.mark.asyncio
@@ -79,6 +92,8 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้าไม่มี history ต้องส่งแค่ message เดียว"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
@@ -86,11 +101,10 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
 
     await handle_chat_message(mock_update)
 
-    expected_messages = [
-        {"role": "system", "content": settings.SYSTEM_PROMPT},
-        {"role": "user", "content": "Hello Bot"}
-    ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
+    call_args = mock_llm.get_llm_reply.call_args[0][0]
+    assert len(call_args) == 2  # system + user
+    assert call_args[0]["role"] == "system"
+    assert call_args[1] == {"role": "user", "content": "Hello Bot"}
 
 
 # === Redis failure (Graceful Degradation) ===
@@ -101,6 +115,8 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า Redis ล่ม ตอนดึง history → ยังทำงานได้ (ส่งแค่ prompt เดียว)"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(side_effect=Exception("Redis connection failed"))
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply without context")
@@ -109,11 +125,9 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
     await handle_chat_message(mock_update)
 
     # ต้องส่งแค่ message เดียว (ไม่มี history แต่มี system prompt)
-    expected_messages = [
-        {"role": "system", "content": settings.SYSTEM_PROMPT},
-        {"role": "user", "content": "Hello Bot"}
-    ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
+    call_args = mock_llm.get_llm_reply.call_args[0][0]
+    assert call_args[0]["role"] == "system"
+    assert call_args[1] == {"role": "user", "content": "Hello Bot"}
     mock_telegram.send_message.assert_called_once_with(12345, "Reply without context")
 
 
@@ -123,6 +137,8 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_redis_save_failure(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า Redis ล่ม ตอนบันทึก history → ยังส่ง response ไป Telegram ได้ปกติ"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock(side_effect=Exception("Redis write failed"))
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
@@ -153,6 +169,8 @@ async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, 
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM error → จะส่งข้อความแจ้งเตือนกลับไปให้ user แทนการตอบปกติ"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
@@ -171,6 +189,8 @@ async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า Telegram error → ไม่ crash"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
@@ -186,6 +206,8 @@ async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM timeout → จะส่งข้อความแจ้งเตือนกลับไป"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
@@ -201,6 +223,8 @@ async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, 
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM ตอบกลับมาผิดฟอร์ม (ValueError/KeyError) → จะส่งข้อความแจ้งเตือน"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=KeyError("choices"))
@@ -217,6 +241,8 @@ async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, m
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_unexpected_error(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้าเกิด Error ที่ไม่คาดคิดตอนเรียก LLM → จะส่งข้อความแจ้งเตือน generic กลับไป"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=RuntimeError("Some terrible weird error"))
@@ -235,6 +261,8 @@ async def test_handle_chat_message_llm_unexpected_error(mock_llm, mock_telegram,
 @patch("app.services.chat_service.llm_service")
 async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """System prompt ต้องถูกวางเป็นข้อความแรกใน messages ที่ส่งให้ LLM (มี history)"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[
         {"role": "user", "content": "What is Python?"},
         {"role": "assistant", "content": "A programming language."},
@@ -248,7 +276,7 @@ async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, moc
     call_args = mock_llm.get_llm_reply.call_args[0][0]
     # ข้อความแรกต้องเป็น system prompt
     assert call_args[0]["role"] == "system"
-    assert call_args[0]["content"] == settings.SYSTEM_PROMPT
+    assert settings.SYSTEM_PROMPT in call_args[0]["content"]
     # ตามด้วย history
     assert call_args[1] == {"role": "user", "content": "What is Python?"}
     assert call_args[2] == {"role": "assistant", "content": "A programming language."}
@@ -262,6 +290,8 @@ async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, moc
 @patch("app.services.chat_service.llm_service")
 async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """System prompt ต้องถูกวางเป็นข้อความแรกแม้ไม่มี history"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply")
@@ -272,7 +302,7 @@ async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_
     call_args = mock_llm.get_llm_reply.call_args[0][0]
     assert len(call_args) == 2  # system + user
     assert call_args[0]["role"] == "system"
-    assert call_args[0]["content"] == settings.SYSTEM_PROMPT
+    assert settings.SYSTEM_PROMPT in call_args[0]["content"]
     assert call_args[1] == {"role": "user", "content": "Hello Bot"}
 
 
@@ -282,6 +312,8 @@ async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_
 @patch("app.services.chat_service.llm_service")
 async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_redis, mock_update):
     """System prompt ต้องไม่ถูกบันทึกลง Redis"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply")
@@ -291,8 +323,8 @@ async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_re
 
     # ต้องบันทึกแค่ user + assistant (ไม่มี system)
     assert mock_redis.add_message_to_history.call_count == 2
-    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot")
-    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply")
+    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot", project_name="default")
+    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply", project_name="default")
     # ตรวจว่าไม่มี call ไหนที่ส่ง "system" เข้าไป
     for call in mock_redis.add_message_to_history.call_args_list:
         assert call[0][1] != "system", "System prompt must NOT be saved to Redis"
@@ -311,6 +343,8 @@ async def test_build_info_appended_in_local_dev(
     original_env = getattr(settings, "ENVIRONMENT", "production")
     settings.ENVIRONMENT = "development"
     try:
+        mock_redis.get_current_project = AsyncMock(return_value="default")
+        mock_redis.get_user_model_preference = AsyncMock(return_value=None)
         mock_redis.get_chat_history = AsyncMock(return_value=[])
         mock_redis.add_message_to_history = AsyncMock()
         mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
@@ -323,7 +357,7 @@ async def test_build_info_appended_in_local_dev(
         mock_telegram.send_message.assert_called_once_with(12345, expected_reply_with_footer)
         
         # Redis should only save the original reply without the footer to avoid context pollution
-        mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI")
+        mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI", project_name="default")
     finally:
         settings.ENVIRONMENT = original_env
 
@@ -339,6 +373,8 @@ async def test_build_info_not_appended_in_prod(
     original_env = getattr(settings, "ENVIRONMENT", "development")
     settings.ENVIRONMENT = "production"
     try:
+        mock_redis.get_current_project = AsyncMock(return_value="default")
+        mock_redis.get_user_model_preference = AsyncMock(return_value=None)
         mock_redis.get_chat_history = AsyncMock(return_value=[])
         mock_redis.add_message_to_history = AsyncMock()
         mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
@@ -477,6 +513,7 @@ async def test_handle_model_command_invalid_alias(mock_telegram, mock_redis):
 async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mock_redis, mock_update):
     """ข้อความปกติควรใช้โมเดลที่ผู้ใช้เลือกไว้ใน Redis"""
     # Setup: ผู้ใช้เลือก Claude ไว้
+    mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value="anthropic/claude-3.5-sonnet")
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()

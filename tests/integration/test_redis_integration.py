@@ -92,7 +92,8 @@ async def test_ttl_is_set(setup_redis_service):
     chat_id = "test_ttl"
     await add_message_to_history(chat_id, "user", "Test TTL")
 
-    ttl = await setup_redis_service.ttl(f"chat_history:{chat_id}")
+    # อัปเดต key เป็นรูปแบบใหม่ที่มี :default
+    ttl = await setup_redis_service.ttl(f"chat_history:{chat_id}:default")
     assert ttl > 0
 
 

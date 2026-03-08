@@ -76,7 +76,20 @@
 
 ---
 
-## 📋 Roadmap
+## 🔭 Future Directions: Remote Dev Workspace (v0.7.0+)
+
+เพื่อก้าวข้ามขีดจำกัดของแชทบอทสู่การเป็น "Remote Orchestrator", Akasa จะมุ่งเน้นสี่ด้านหลัก:
+1.  **Mobile-Native Verification**: ระบบดึง Screenshot จาก Emulator/Simulator เพื่อการทำ Manual QA ผ่านแชท
+2.  **CLI Agentic Workflow**: ให้ LLM สามารถเรียกใช้ `gh`, `vercel`, `render` และ `maestro` เพื่อทำงานแทนผู้ใช้
+3.  **Laptop-to-Mobile Bridge**: ระบบ Notification แบบ Proactive เพื่อให้งานที่รันนานๆ บนคอมพิวเตอร์สามารถส่งผลลัพธ์หาผู้ใช้ได้ทันที
+4.  **Multi-Platform Notification Hub**: พัฒนา FastAPI เป็น Notification Gateway ที่รองรับความปลอดภัยระดับ API Key
+
+## 🛠️ Tech Stack Expansion
+-   **Service**: เพิ่ม `GithubService`, `DeployService`, `MobileService`
+-   **Security**: จัดการ `X-Akasa-API-Key` ใน Middleware ของ FastAPI
+-   **Async**: ใช้ `BackgroundTasks` ของ FastAPI ร่วมกับ Redis เพื่อจัดลำดับงานที่รันนานๆ
+
+## 📋 Roadmap (Updated v0.7.0)
 
 ### Phase 1: Foundation (MVP) 🎯
 - [ ] สมัคร OpenRouter + ได้ API key

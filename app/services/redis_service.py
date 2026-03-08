@@ -1,14 +1,14 @@
 """
-Redis Service — จัดการประวัติการสนทนาใน Redis
+Redis Service — จัดการประวัติการสนทนาใน Redis (รองรับ Multi-Project)
 
-ใช้ Redis LIST เก็บ messages แบบ LIFO (LPUSH) แล้ว reverse ตอนดึง
+ใช้ Redis LIST เก็บ messages แบบ LIFO (LPUSH) แยกตามชื่อโปรเจ็กต์
 เพื่อให้ได้ลำดับเวลาถูกต้อง (เก่าสุด → ใหม่สุด)
 """
 
 import redis.asyncio as redis
 import json
 import logging
-from typing import Optional
+from typing import Optional, List
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,12 +17,28 @@ logger = logging.getLogger(__name__)
 redis_pool = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
-async def get_chat_history(chat_id: int) -> list[dict]:
-    """ดึงประวัติการสนทนาล่าสุดสำหรับ chat_id ในลำดับเวลา"""
+async def get_chat_history(chat_id: int, project_name: str = "default") -> list[dict]:
+    """ดึงประวัติการสนทนาล่าสุดสำหรับ chat_id ในโปรเจ็กต์ที่กำหนด"""
     if settings.REDIS_HISTORY_LIMIT <= 0:
         return []
 
-    history_key = f"chat_history:{chat_id}"
+    # โครงสร้าง Key ใหม่: chat_history:{chat_id}:{project_name}
+    history_key = f"chat_history:{chat_id}:{project_name}"
+    
+    # --- Migration Logic ---
+    # ถ้าดึงจาก 'default' และไม่มีข้อมูล ให้ลองเช็ค Key แบบเก่า (v0.7.0 ลงไป)
+    if project_name == "default":
+        exists = await redis_pool.exists(history_key)
+        if not exists:
+            old_key = f"chat_history:{chat_id}"
+            old_exists = await redis_pool.exists(old_key)
+            if old_exists:
+                # ย้ายข้อมูลจาก Key เก่ามาที่ 'default' ใหม่
+                logger.info(f"Migrating history for {chat_id} from old key to 'default' project.")
+                # ใช้ RENAME (atomic) เพื่อย้ายข้อมูล
+                await redis_pool.rename(old_key, history_key)
+    # -----------------------
+
     raw_history = await redis_pool.lrange(history_key, 0, settings.REDIS_HISTORY_LIMIT - 1)
     
     # LPUSH เก็บแบบ LIFO → reverse เพื่อให้ได้ chronological order
@@ -31,18 +47,21 @@ async def get_chat_history(chat_id: int) -> list[dict]:
         try:
             history.append(json.loads(msg))
         except json.JSONDecodeError as e:
-            logger.warning(f"Skipping corrupted JSON in Redis for {chat_id}: {msg} - Error: {e}")
+            logger.warning(f"Skipping corrupted JSON in Redis for {chat_id} (Project: {project_name}): {msg} - Error: {e}")
             continue
             
     return history
 
 
-async def add_message_to_history(chat_id: int, role: str, content: str):
-    """เพิ่มข้อความลงในประวัติการสนทนาของ chat_id"""
+async def add_message_to_history(chat_id: int, role: str, content: str, project_name: str = "default"):
+    """เพิ่มข้อความลงในประวัติการสนทนาของ chat_id ในโปรเจ็กต์ที่กำหนด"""
     if settings.REDIS_HISTORY_LIMIT <= 0:
         return
 
-    history_key = f"chat_history:{chat_id}"
+    # เพิ่มชื่อโปรเจ็กต์ลงใน List ของ User เพื่อให้แสดงผลได้
+    await _add_project_to_list(chat_id, project_name)
+
+    history_key = f"chat_history:{chat_id}:{project_name}"
     message = json.dumps({"role": role, "content": content})
     # Push ข้อความใหม่ไปที่หัว list
     await redis_pool.lpush(history_key, message)
@@ -62,3 +81,68 @@ async def set_user_model_preference(chat_id: int, model_identifier: str):
     """บันทึกค่าโมเดลที่ผู้ใช้เลือกไว้ลงใน Redis"""
     pref_key = f"user_model_pref:{chat_id}"
     await redis_pool.set(pref_key, model_identifier, ex=settings.REDIS_TTL_SECONDS)
+
+
+# --- Multi-Project Management ---
+
+async def get_current_project(chat_id: int) -> str:
+    """ดึงชื่อโปรเจ็กต์ที่ Active อยู่ในปัจจุบัน"""
+    current_key = f"user_current_project:{chat_id}"
+    project = await redis_pool.get(current_key)
+    return project if project else "default"
+
+
+async def set_current_project(chat_id: int, project_name: str):
+    """ตั้งค่าโปรเจ็กต์ที่ Active อยู่ในปัจจุบัน"""
+    current_key = f"user_current_project:{chat_id}"
+    await redis_pool.set(current_key, project_name, ex=settings.REDIS_TTL_SECONDS)
+    # เพิ่มเข้า list ด้วยถ้ายังไม่มี
+    await _add_project_to_list(chat_id, project_name)
+
+
+async def rename_project(chat_id: int, old_name: str, new_name: str):
+    """เปลี่ยนชื่อโปรเจ็กต์และย้ายประวัติแชท (Atomic Migration)"""
+    if old_name == new_name:
+        return
+
+    old_history_key = f"chat_history:{chat_id}:{old_name}"
+    new_history_key = f"chat_history:{chat_id}:{new_name}"
+    list_key = f"user_projects:{chat_id}"
+    current_key = f"user_current_project:{chat_id}"
+
+    # 1. ย้ายประวัติแชท (ถ้ามี)
+    exists = await redis_pool.exists(old_history_key)
+    if exists:
+        await redis_pool.rename(old_history_key, new_history_key)
+
+    # 2. อัปเดตรายชื่อโปรเจ็กต์ (ลบชื่อเก่า เพิ่มชื่อใหม่)
+    await redis_pool.srem(list_key, old_name)
+    await redis_pool.sadd(list_key, new_name)
+
+    # 3. ถ้าเป็นโปรเจ็กต์ปัจจุบัน ให้เปลี่ยนชื่อด้วย
+    current = await redis_pool.get(current_key)
+    if current == old_name:
+        await redis_pool.set(current_key, new_name, ex=settings.REDIS_TTL_SECONDS)
+
+
+async def get_project_list(chat_id: int) -> List[str]:
+    """ดึงรายชื่อโปรเจ็กต์ทั้งหมดของ User"""
+    list_key = f"user_projects:{chat_id}"
+    projects = await redis_pool.smembers(list_key)
+    # ต้องมี default เสมอ
+    if not projects:
+        return ["default"]
+    
+    # แปลงจาก set เป็น list และตรวจสอบว่ามี default หรือไม่
+    project_list = list(projects)
+    if "default" not in project_list:
+        project_list.append("default")
+        
+    return project_list
+
+
+async def _add_project_to_list(chat_id: int, project_name: str):
+    """Helper สำหรับเพิ่มโปรเจ็กต์เข้า List (Internal use)"""
+    list_key = f"user_projects:{chat_id}"
+    await redis_pool.sadd(list_key, project_name)
+    await redis_pool.expire(list_key, settings.REDIS_TTL_SECONDS)

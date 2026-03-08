@@ -84,12 +84,14 @@ async def handle_chat_message(update: Update) -> None:
 
 
 async def _handle_command(chat_id: int, command_text: str) -> None:
-    """จัดการคำสั่งต่างๆ (เช่น /model)"""
+    """จัดการคำสั่งต่างๆ (เช่น /model, /project)"""
     parts = command_text.split()
     cmd = parts[0].lower()
     
     if cmd == "/model":
         await _handle_model_command(chat_id, parts[1:] if len(parts) > 1 else [])
+    elif cmd == "/project":
+        await _handle_project_command(chat_id, parts[1:] if len(parts) > 1 else [])
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
 
@@ -147,29 +149,89 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, message)
 
 
+async def _handle_project_command(chat_id: int, args: list[str]) -> None:
+    """จัดการคำสั่ง /project (list, select, new, rename)"""
+    if not args:
+        # แสดงสถานะปัจจุบัน
+        current = await redis_service.get_current_project(chat_id)
+        projects = await redis_service.get_project_list(chat_id)
+        
+        msg = f"📁 Current Project: `{current}`\n\n"
+        msg += "Available Projects:\n"
+        for p in projects:
+            marker = "✅" if p == current else "-"
+            msg += f"{marker} `{p}`\n"
+        
+        msg += "\nUsage:\n"
+        msg += "• `/project select <name>`\n"
+        msg += "• `/project new <name>`\n"
+        msg += "• `/project rename <old> <new>`"
+        await _send_response(chat_id, msg)
+        return
+
+    sub_cmd = args[0].lower()
+    
+    if sub_cmd == "list":
+        projects = await redis_service.get_project_list(chat_id)
+        msg = "📁 Your Projects:\n" + "\n".join([f"- `{p}`" for p in projects])
+        await _send_response(chat_id, msg)
+        
+    elif sub_cmd == "select" and len(args) > 1:
+        target = args[1].lower()
+        projects = await redis_service.get_project_list(chat_id)
+        if target in projects:
+            await redis_service.set_current_project(chat_id, target)
+            await _send_response(chat_id, f"✅ Switched to project: `{target}`")
+        else:
+            await _send_response(chat_id, f"❌ Project `{target}` not found. Use `/project new {target}` to create it.")
+
+    elif sub_cmd == "new" and len(args) > 1:
+        target = args[1].lower()
+        await redis_service.set_current_project(chat_id, target)
+        await _send_response(chat_id, f"🆕 Created and switched to project: `{target}`")
+
+    elif sub_cmd == "rename" and len(args) > 2:
+        old_name = args[1].lower()
+        new_name = args[2].lower()
+        
+        projects = await redis_service.get_project_list(chat_id)
+        if old_name in projects:
+            await redis_service.rename_project(chat_id, old_name, new_name)
+            await _send_response(chat_id, f"✅ Project renamed from `{old_name}` to `{new_name}`.\n(Current project updated if needed)")
+        else:
+            await _send_response(chat_id, f"❌ Project `{old_name}` not found.")
+    
+    else:
+        await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")
+
+
 async def _handle_standard_message(chat_id: int, prompt: str) -> None:
     """จัดการข้อความปกติ (ดึง history, เรียก LLM, บันทึก history)"""
     
-    # ดึง Model Preference จาก Redis
+    # 1. ดึงโปรเจ็กต์ปัจจุบัน
+    current_project = await redis_service.get_current_project(chat_id)
+
+    # 2. ดึง Model Preference จาก Redis
     try:
         model_pref = await redis_service.get_user_model_preference(chat_id)
     except Exception as e:
         logger.warning(f"Redis get_user_model_preference failed for {chat_id}: {e}")
         model_pref = None
 
-    # ดึง history จาก Redis (graceful: ถ้า Redis ล่ม → ใช้ list ว่าง)
+    # 3. ดึง history จาก Redis แยกตามโปรเจ็กต์
     try:
-        history = await redis_service.get_chat_history(chat_id)
+        history = await redis_service.get_chat_history(chat_id, project_name=current_project)
     except Exception as e:
-        logger.warning(f"Redis get_chat_history failed for {chat_id}: {e}")
+        logger.warning(f"Redis get_chat_history failed for {chat_id} (Project: {current_project}): {e}")
         history = []
 
-    # สร้าง messages context: system prompt + history + ข้อความใหม่ของ user
-    messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}] + history + [{"role": "user", "content": prompt}]
+    # 4. สร้าง messages context: system prompt (พร้อมบริบทโปรเจ็กต์) + history + ข้อความใหม่ของ user
+    custom_system_prompt = f"{settings.SYSTEM_PROMPT}\n\n[CONTEXT]\nYou are currently working on project: '{current_project}'."
+    messages = [{"role": "system", "content": custom_system_prompt}] + history + [{"role": "user", "content": prompt}]
 
     reply = ""
     try:
-        # เรียก LLM พร้อมส่งโมเดลที่ผู้ใช้เลือก (ถ้ามี)
+        # 5. เรียก LLM พร้อมส่งโมเดลที่ผู้ใช้เลือก (ถ้ามี)
         reply = await llm_service.get_llm_reply(messages, model=model_pref)
         print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
     except (httpx.TimeoutException, httpx.HTTPError) as e:
@@ -185,12 +247,12 @@ async def _handle_standard_message(chat_id: int, prompt: str) -> None:
         await _send_response(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
         return
 
-    # ส่งคำตอบกลับหาผู้ใช้
+    # 6. ส่งคำตอบกลับหาผู้ใช้
     await _send_response(chat_id, reply)
 
-    # บันทึก user message + assistant reply ลง Redis
+    # 7. บันทึก user message + assistant reply ลง Redis ในโปรเจ็กต์ปัจจุบัน
     try:
-        await redis_service.add_message_to_history(chat_id, "user", prompt)
-        await redis_service.add_message_to_history(chat_id, "assistant", reply)
+        await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
+        await redis_service.add_message_to_history(chat_id, "assistant", reply, project_name=current_project)
     except Exception as e:
-        logger.warning(f"Redis add_message_to_history failed for {chat_id}: {e}")
+        logger.warning(f"Redis add_message_to_history failed for {chat_id} (Project: {current_project}): {e}")

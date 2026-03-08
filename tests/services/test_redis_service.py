@@ -55,9 +55,9 @@ async def test_get_chat_history_with_corrupted_json(patch_redis):
     import json
 
     # Push corrupted data directly to Redis
-    await patch_redis.lpush("chat_history:150", json.dumps({"role": "user", "content": "Good"}))
-    await patch_redis.lpush("chat_history:150", "NOT A JSON!!")
-    await patch_redis.lpush("chat_history:150", json.dumps({"role": "assistant", "content": "Also Good"}))
+    await patch_redis.lpush("chat_history:150:default", json.dumps({"role": "user", "content": "Good"}))
+    await patch_redis.lpush("chat_history:150:default", "NOT A JSON!!")
+    await patch_redis.lpush("chat_history:150:default", json.dumps({"role": "assistant", "content": "Also Good"}))
 
     history = await get_chat_history(150)
 
@@ -77,7 +77,7 @@ async def test_add_message_stores_correct_json(patch_redis):
 
     await add_message_to_history(200, "user", "Test message")
 
-    raw = await patch_redis.lrange("chat_history:200", 0, -1)
+    raw = await patch_redis.lrange("chat_history:200:default", 0, -1)
     assert len(raw) == 1
     parsed = json.loads(raw[0])
     assert parsed == {"role": "user", "content": "Test message"}
@@ -130,7 +130,7 @@ async def test_ttl_is_set_on_history_key(patch_redis):
 
     await add_message_to_history(400, "user", "Test TTL")
 
-    ttl = await patch_redis.ttl("chat_history:400")
+    ttl = await patch_redis.ttl("chat_history:400:default")
     # TTL should be set (positive value, default 86400)
     assert ttl > 0
 
