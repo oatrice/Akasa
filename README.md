@@ -15,7 +15,7 @@
 - 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks จากคอมพิวเตอร์สู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
-- 🧠 **Context Memory** — จำบทสนทนาและ context การเขียนโค้ด
+- 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
 - 🔌 **Multi-LLM** — สลับโมเดล AI ได้ผ่านคำสั่ง `/model` (GPT-4o, Claude 3, Gemini, etc.)
 - 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl
 - 📱 **Mobile-First UX** — ตอบสั้น กระชับ เหมาะกับหน้าจอมือถือ
