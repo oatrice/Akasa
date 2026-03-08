@@ -42,7 +42,7 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | 🔲 Todo |
+| [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | ✅ Complete |
 | [#14](https://github.com/oatrice/Akasa/issues/14) | Analytics dashboard | 🔲 Todo |
 | [#15](https://github.com/oatrice/Akasa/issues/15) | WhatsApp integration | 🔲 Todo |
 | [#16](https://github.com/oatrice/Akasa/issues/16) | Custom instructions per user | 🔲 Todo |

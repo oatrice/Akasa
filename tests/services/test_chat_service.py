@@ -64,7 +64,7 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
         {"role": "assistant", "content": "Python is a programming language."},
         {"role": "user", "content": "Hello Bot"},
     ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
     mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
 
     # ต้องบันทึก user message + assistant reply กลับ Redis
@@ -90,7 +90,7 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
         {"role": "system", "content": settings.SYSTEM_PROMPT},
         {"role": "user", "content": "Hello Bot"}
     ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
 
 
 # === Redis failure (Graceful Degradation) ===
@@ -113,7 +113,7 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
         {"role": "system", "content": settings.SYSTEM_PROMPT},
         {"role": "user", "content": "Hello Bot"}
     ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
     mock_telegram.send_message.assert_called_once_with(12345, "Reply without context")
 
 
@@ -351,3 +351,140 @@ async def test_build_info_not_appended_in_prod(
         mock_get_build_info.assert_not_called()
     finally:
         settings.ENVIRONMENT = original_env
+
+
+# === Model Selection (/model) Tests ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+async def test_handle_model_command_show_current(mock_telegram, mock_redis):
+    """ส่ง /model (ไม่มี argument) เพื่อดูโมเดลปัจจุบัน"""
+    mock_redis.get_user_model_preference = AsyncMock(return_value="anthropic/claude-3.5-sonnet")
+    mock_telegram.send_message = AsyncMock()
+    
+    update = Update(
+        update_id=10,
+        message=Message(
+            message_id=10,
+            date=1612345678,
+            chat=Chat(id=123, type="private"),
+            text="/model"
+        )
+    )
+    
+    await handle_chat_message(update)
+    
+    # ควรบอกว่าใช้ Claude อยู่
+    args = mock_telegram.send_message.call_args[0]
+    assert "Claude 3.5 Sonnet" in args[1]
+    assert "claude" in args[1]
+    assert "gemini" in args[1]
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+async def test_handle_model_command_show_default_from_settings(mock_telegram, mock_redis, monkeypatch):
+    """ส่ง /model (ไม่มี pref) เพื่อดูโมเดลปัจจุบัน โดยต้องดึงค่า default จาก settings จริงๆ"""
+    # Setup: ไม่มีการตั้งค่าส่วนตัว
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_telegram.send_message = AsyncMock()
+    
+    # เปลี่ยนค่า default ใน settings เป็น Llama3
+    monkeypatch.setattr(settings, "LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
+    
+    update = Update(
+        update_id=100,
+        message=Message(
+            message_id=100,
+            date=1612345678,
+            chat=Chat(id=999, type="private"),
+            text="/model"
+        )
+    )
+    
+    await handle_chat_message(update)
+    
+    # ผลลัพธ์ต้องแสดงชื่อ Llama 3.3 70B ไม่ใช่ Gemini ในส่วนของ Current model
+    args = mock_telegram.send_message.call_args[0]
+    first_line = args[1].split("\n")[0]
+    assert "Meta Llama 3.3 70B" in first_line
+    assert "(default)" in first_line.lower()
+    assert "Gemini 2.5 Flash" not in first_line
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+async def test_handle_model_command_update_success(mock_telegram, mock_redis):
+    """ส่ง /model <alias> เพื่อเปลี่ยนโมเดล"""
+    mock_redis.set_user_model_preference = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    
+    update = Update(
+        update_id=11,
+        message=Message(
+            message_id=11,
+            date=1612345678,
+            chat=Chat(id=123, type="private"),
+            text="/model gemini"
+        )
+    )
+    
+    await handle_chat_message(update)
+    
+    # ต้องบันทึกลง Redis
+    mock_redis.set_user_model_preference.assert_called_once_with(123, "google/gemini-2.5-flash")
+    # ต้องแจ้งยืนยัน
+    args = mock_telegram.send_message.call_args[0]
+    assert "updated" in args[1].lower()
+    assert "Google Gemini 2.5 Flash" in args[1]
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+async def test_handle_model_command_invalid_alias(mock_telegram, mock_redis):
+    """ส่ง /model <alias> ที่ไม่มีอยู่จริง"""
+    mock_redis.set_user_model_preference = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    
+    update = Update(
+        update_id=12,
+        message=Message(
+            message_id=12,
+            date=1612345678,
+            chat=Chat(id=123, type="private"),
+            text="/model invalid_alias"
+        )
+    )
+    
+    await handle_chat_message(update)
+    
+    # ต้องไม่บันทึกลง Redis
+    mock_redis.set_user_model_preference.assert_not_called()
+    # ต้องแจ้ง Error และบอกรายการที่ถูกต้อง
+    args = mock_telegram.send_message.call_args[0]
+    assert "Invalid model" in args[1]
+    assert "claude" in args[1]
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mock_redis, mock_update):
+    """ข้อความปกติควรใช้โมเดลที่ผู้ใช้เลือกไว้ใน Redis"""
+    # Setup: ผู้ใช้เลือก Claude ไว้
+    mock_redis.get_user_model_preference = AsyncMock(return_value="anthropic/claude-3.5-sonnet")
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Claude reply")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    # get_llm_reply ต้องถูกเรียกพร้อม model="anthropic/claude-3.5-sonnet"
+    mock_llm.get_llm_reply.assert_called_once()
+    assert mock_llm.get_llm_reply.call_args.kwargs["model"] == "anthropic/claude-3.5-sonnet"
