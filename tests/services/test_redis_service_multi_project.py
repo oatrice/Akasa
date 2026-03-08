@@ -135,3 +135,43 @@ async def test_auto_migration_from_v070(patch_redis):
     # หลังเรียก: old_key ต้องหายไป และ new_key ต้องมีข้อมูล
     assert await patch_redis.exists(old_key) == 0
     assert await patch_redis.exists(new_key) == 1
+
+
+# --- Test Agent State (Project-Specific Memory - Issue #38) ---
+
+@pytest.mark.asyncio
+async def test_set_and_get_agent_state(patch_redis):
+    """ทดสอบการบันทึกและดึง AgentState (JSON object)"""
+    from app.services.redis_service import set_agent_state, get_agent_state
+    from app.models.agent_state import AgentState
+    import datetime
+
+    chat_id = 900
+    project_name = "odin"
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # 1. ทดสอบดึง state ที่ยังไม่มีอยู่ ควรได้ None
+    initial_state = await get_agent_state(chat_id, project_name)
+    assert initial_state is None
+
+    # 2. สร้างและบันทึก state
+    state_to_save = AgentState(
+        current_task="Refactoring the authentication flow.",
+        focus_file="app/services/auth_service.py",
+        last_activity_timestamp=now
+    )
+    await set_agent_state(chat_id, project_name, state_to_save)
+
+    # 3. ดึง state ที่บันทึกไว้กลับมา
+    retrieved_state = await get_agent_state(chat_id, project_name)
+
+    # 4. ตรวจสอบว่า state ที่ได้กลับมาเป็น instance ของ AgentState และมีข้อมูลถูกต้อง
+    assert isinstance(retrieved_state, AgentState)
+    assert retrieved_state.current_task == state_to_save.current_task
+    assert retrieved_state.focus_file == state_to_save.focus_file
+    # เปรียบเทียบ timestamp โดยแปลงเป็น isoformat
+    assert retrieved_state.last_activity_timestamp.isoformat() == now.isoformat()
+
+    # 5. ตรวจสอบว่าโปรเจ็กต์อื่นไม่มี state
+    other_project_state = await get_agent_state(chat_id, "another-project")
+    assert other_project_state is None

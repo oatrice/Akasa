@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Optional, List
 from app.config import settings
+from app.models.agent_state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -146,3 +147,36 @@ async def _add_project_to_list(chat_id: int, project_name: str):
     list_key = f"user_projects:{chat_id}"
     await redis_pool.sadd(list_key, project_name)
     await redis_pool.expire(list_key, settings.REDIS_TTL_SECONDS)
+
+
+# --- Agent State (Project-Specific Memory) ---
+
+def _get_agent_state_key(chat_id: int, project_name: str) -> str:
+    """Helper to generate the Redis key for agent state."""
+    return f"agent_state:{chat_id}:{project_name}"
+
+
+async def get_agent_state(chat_id: int, project_name: str) -> Optional[AgentState]:
+    """
+    ดึง AgentState ล่าสุดของโปรเจ็กต์.
+    คืนค่า AgentState object หรือ None ถ้าไม่มีข้อมูล.
+    """
+    state_key = _get_agent_state_key(chat_id, project_name)
+    json_str = await redis_pool.get(state_key)
+    if not json_str:
+        return None
+    
+    try:
+        return AgentState.from_json(json_str)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.error(f"Failed to decode AgentState for {chat_id} (Project: {project_name}): {e}")
+        return None
+
+
+async def set_agent_state(chat_id: int, project_name: str, state: AgentState):
+    """
+    บันทึก AgentState ของโปรเจ็กต์ลง Redis.
+    """
+    state_key = _get_agent_state_key(chat_id, project_name)
+    json_str = state.to_json()
+    await redis_pool.set(state_key, json_str, ex=settings.REDIS_TTL_SECONDS)

@@ -9,7 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.config import settings
 from app.services import llm_service
 
-async def test_model(alias, identifier):
+# Note: Renamed to _test_model to prevent pytest from discovering it as a test
+async def _test_model(alias, identifier):
     print(f"Testing model: {alias} ({identifier})...", end=" ", flush=True)
     messages = [
         {"role": "system", "content": "You are a helpful assistant. Reply with only one word: 'Success'."},
@@ -33,7 +34,7 @@ async def main():
     
     results = []
     for alias, info in settings.AVAILABLE_MODELS.items():
-        success = await test_model(alias, info["identifier"])
+        success = await _test_model(alias, info["identifier"])
         results.append((alias, success))
         # หน่วงเวลาเล็กน้อยเพื่อเลี่ยง rate limit
         await asyncio.sleep(1)

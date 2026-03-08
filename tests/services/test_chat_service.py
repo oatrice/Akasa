@@ -525,3 +525,107 @@ async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mo
     # get_llm_reply ต้องถูกเรียกพร้อม model="anthropic/claude-3.5-sonnet"
     mock_llm.get_llm_reply.assert_called_once()
     assert mock_llm.get_llm_reply.call_args.kwargs["model"] == "anthropic/claude-3.5-sonnet"
+
+
+# === Project Context Restoration (/project) Tests - Issue #38 ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mock_redis):
+    """ทดสอบ /project select <name> เมื่อมี AgentState บันทึกไว้ ต้องแสดง Welcome back summary"""
+    from app.models.agent_state import AgentState
+    import datetime
+
+    chat_id = 2000
+    project_name = "akasa"
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
+    # 1. Setup Mock: จำลองว่า Redis มี AgentState ของโปรเจ็กต์นี้อยู่
+    saved_state = AgentState(
+        current_task="Fixing the Redis migration bug.",
+        focus_file="app/services/redis_service.py",
+        last_activity_timestamp=now
+    )
+    # redis_service.get_agent_state ต้องคืนค่า state นี้เมื่อถูกเรียก
+    mock_redis.get_agent_state = AsyncMock(return_value=saved_state)
+    mock_redis.get_project_list = AsyncMock(return_value=["default", "akasa"])
+    mock_redis.set_current_project = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    
+    # 2. สร้าง Update object สำหรับคำสั่ง /project select
+    update = Update(
+        update_id=20,
+        message=Message(
+            message_id=20,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text=f"/project select {project_name}"
+        )
+    )
+
+    # 3. รัน handle_chat_message
+    await handle_chat_message(update)
+
+    # 4. ตรวจสอบ:
+    # - ต้องมีการ set project ใหม่ใน Redis
+    mock_redis.set_current_project.assert_called_once_with(chat_id, project_name)
+    # - ต้องมีการส่งข้อความกลับไป
+    mock_telegram.send_message.assert_called_once()
+    # - ข้อความต้องเป็น Welcome Back summary ที่ถูกต้อง (ใช้ Template)
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Welcome back" in sent_message
+    assert f"project: `{project_name}`" in sent_message
+    assert "Last known task:" in sent_message
+    assert saved_state.current_task in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
+    """ทดสอบ /note <task> ต้องบันทึก AgentState ลง Redis"""
+    from app.models.agent_state import AgentState
+    import datetime
+
+    chat_id = 2001
+    project_name = "akasa"
+    note_text = "Working on the new /note command feature."
+    
+    # 1. Setup Mock
+    mock_redis.get_current_project = AsyncMock(return_value=project_name)
+    # get_agent_state คืนค่า None เพื่อจำลองว่ายังไม่มี state เดิม
+    mock_redis.get_agent_state = AsyncMock(return_value=None) 
+    mock_redis.set_agent_state = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    
+    # 2. สร้าง Update สำหรับ /note command
+    update = Update(
+        update_id=21,
+        message=Message(
+            message_id=21,
+            date=int(datetime.datetime.now().timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text=f"/note {note_text}"
+        )
+    )
+
+    # 3. รัน handle_chat_message
+    await handle_chat_message(update)
+
+    # 4. ตรวจสอบ
+    # - ต้องมีการเรียก set_agent_state
+    mock_redis.set_agent_state.assert_called_once()
+    # - ตรวจสอบ object ที่ส่งไปให้ set_agent_state
+    call_args = mock_redis.set_agent_state.call_args[0]
+    assert call_args[0] == chat_id
+    assert call_args[1] == project_name
+    saved_state: AgentState = call_args[2]
+    assert isinstance(saved_state, AgentState)
+    assert saved_state.current_task == note_text
+    
+    # - ต้องส่งข้อความยืนยันกลับมา
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "✅ Note saved for project" in sent_message
+    assert f"`{project_name}`" in sent_message
