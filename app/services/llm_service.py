@@ -77,7 +77,7 @@ async def _get_google_gemini_reply(messages: list[dict], model: str) -> str:
 async def _get_openrouter_reply(messages: list[dict], model: str) -> str:
     """เรียกใช้ OpenRouter API ตามปกติ"""
     headers = {
-        "Authorization": f"Bearer {settings.LLM_API_KEY}",
+        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
 

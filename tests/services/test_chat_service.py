@@ -64,7 +64,7 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
         {"role": "assistant", "content": "Python is a programming language."},
         {"role": "user", "content": "Hello Bot"},
     ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
     mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
 
     # ต้องบันทึก user message + assistant reply กลับ Redis
@@ -90,7 +90,7 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
         {"role": "system", "content": settings.SYSTEM_PROMPT},
         {"role": "user", "content": "Hello Bot"}
     ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
 
 
 # === Redis failure (Graceful Degradation) ===
@@ -113,7 +113,7 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
         {"role": "system", "content": settings.SYSTEM_PROMPT},
         {"role": "user", "content": "Hello Bot"}
     ]
-    mock_llm.get_llm_reply.assert_called_once_with(expected_messages)
+    mock_llm.get_llm_reply.assert_called_once_with(expected_messages, model=None)
     mock_telegram.send_message.assert_called_once_with(12345, "Reply without context")
 
 

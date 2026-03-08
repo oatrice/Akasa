@@ -13,12 +13,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = ""
     WEBHOOK_SECRET_TOKEN: str = ""
     ENVIRONMENT: str = "production"
-    OPENROUTER_API_KEY: str = ""
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_HISTORY_LIMIT: int = 10
     REDIS_TTL_SECONDS: int = 86400  # 24 hours
 
-    LLM_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     LLM_BASE_URL: str = "https://openrouter.ai/api/v1"
     LLM_MODEL: str = "google/gemini-flash"
