@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.8.0](https://github.com/oatrice/Akasa/compare/v0.7.0...v0.8.0) (2026-03-08)
+
+
+### Features
+
+* [Phase 1] ส่งข้อความ ➡️ LLM ➡️ ตอบกลับ... ([1b13667](https://github.com/oatrice/Akasa/commit/1b13667bbc21b285f3dda3220735019e27a15ea5))
+* [Phase 1] ส่งข้อความ ➡️ LLM ➡️ ตอบกลับ... ([b432ef7](https://github.com/oatrice/Akasa/commit/b432ef7ea163fb96d9886b1fee45cf9de7364d94))
+* [Phase 1] สมัคร OpenRouter + ทดสอบ API... ([d0595fb](https://github.com/oatrice/Akasa/commit/d0595fb1e3d2a121ab7defd4d86b0871ec5e784f))
+* [Phase 1] สมัคร OpenRouter + ทดสอบ API... ([f26ac69](https://github.com/oatrice/Akasa/commit/f26ac698dca40cb4288e0af2fa090acd1b80ee0f))
+* [Phase 1] สร้าง FastAPI backend... ([28446dd](https://github.com/oatrice/Akasa/commit/28446dda77d1854b9d7d17d27c2e9c51bae7fbb9))
+* [Phase 1] สร้าง FastAPI backend... ([5ec0699](https://github.com/oatrice/Akasa/commit/5ec0699db16d701be89ad91bfe497a9058637f89))
+* [Phase 1] สร้าง Telegram Bot + Webhook ([505875d](https://github.com/oatrice/Akasa/commit/505875d5c619c46aa33535b7530154be0127a684))
+* [Phase 2] Code formatting ใน chat... ([3b99a98](https://github.com/oatrice/Akasa/commit/3b99a98ff3de8c6bf0d4cd498c3681f8819d2720))
+* [Phase 2] Code formatting ใน chat... ([cbcc2cf](https://github.com/oatrice/Akasa/commit/cbcc2cfd53e91606b68fc044310dd1416b41e383))
+* [Phase 2] Conversation history (Redis)... ([dc975a6](https://github.com/oatrice/Akasa/commit/dc975a6930595f79927fd8ee29541d2e78cce086))
+* [Phase 2] Conversation history (Redis)... ([cfb5fe2](https://github.com/oatrice/Akasa/commit/cfb5fe27e8f885a4e886f0421dd48390eec5d3ee))
+* [Phase 2] System prompt สำหรับ coding assistant (#... ([0773b5d](https://github.com/oatrice/Akasa/commit/0773b5dd8e17a132f1d3389a1b5c0db8160b8f10))
+* [Phase 2] System prompt สำหรับ coding assistant (#... ([5909114](https://github.com/oatrice/Akasa/commit/59091144815c3671bd3753d28f79eb5e684d57fc))
+* [Phase 4] Multi-model selection... ([#27](https://github.com/oatrice/Akasa/issues/27)) ([b1cb4ca](https://github.com/oatrice/Akasa/commit/b1cb4ca799ac4c804d088634abc7d4ac6ae336cb))
+* add local dev setup script, enhance debugging, and upgrade LLM ([ab3267b](https://github.com/oatrice/Akasa/commit/ab3267b8e3f160593abf15a65faf3cc034ddf50b))
+* add local dev setup script, enhance debugging, and upgrade LLM ([f7be4ad](https://github.com/oatrice/Akasa/commit/f7be4ad483568a6581037d2f0af9bada7f006c2d))
+* add MarkdownV2 formatting support for Telegram bot ([93ed8e1](https://github.com/oatrice/Akasa/commit/93ed8e1361f4c54d4757d82303a0e7271cc32eae))
+* add OpenRouter response validation and error tests ([8bad6a4](https://github.com/oatrice/Akasa/commit/8bad6a492a345397ae3a445ff501e0c9eddcb806))
+* add Redis-backed conversation memory with fault tolerance ([c80f8ae](https://github.com/oatrice/Akasa/commit/c80f8ae0fd0f71b7cfff87457b3f97358727f628))
+* add Telegram bot webhook integration with configuration management ([35d24e9](https://github.com/oatrice/Akasa/commit/35d24e9e4cc8258d3d3ce78497e99782d7320afd))
+* **chat:** add Redis-backed chat history with graceful degradation ([6f4ddad](https://github.com/oatrice/Akasa/commit/6f4ddaddd2a244ecebf8766fda1e561736e22538))
+* **chat:** append build info footer in local development mode ([ac5423a](https://github.com/oatrice/Akasa/commit/ac5423ad084acb084e371b16ff167f31730019c7))
+* **chat:** prepend system prompt to LLM context ([11bb269](https://github.com/oatrice/Akasa/commit/11bb269342bf57dee2762d5c1ee06be27640de47))
+* implement async chat processing with OpenRouter LLM integration ([dc60a99](https://github.com/oatrice/Akasa/commit/dc60a99485e83c2ff2bd49c76ad6e4ff3c74d653))
+* **issue-2:** implement phase 1 fastapi backend foundation with TDD ([a325cfc](https://github.com/oatrice/Akasa/commit/a325cfc963cbbd870180f1cdc50f47acf2719d0f))
+* restrict AI to coding topics and add env to build info ([f52e9d1](https://github.com/oatrice/Akasa/commit/f52e9d120de8d224df7fc63598a8f2c64f2c6165))
+* **telegram:** add MarkdownV2 support with proper text escaping ([79f20d4](https://github.com/oatrice/Akasa/commit/79f20d482ace06ca65860019fd9ec6991ba9352d))
+
+
+### Bug Fixes
+
+* **chat_service:** correct VERSION file path resolution ([2eb3e90](https://github.com/oatrice/Akasa/commit/2eb3e9014231c71e65787dec58aad93553faeca6))
+* resolve CI failures - remove duplicate test files, add pytest-asyncio and respx to requirements, add pyproject.toml ([32b3d32](https://github.com/oatrice/Akasa/commit/32b3d32253ed26cac387cfd3bf2337866b92e250))
+* resolve CI failures - remove duplicate test files, add pytest-asyncio and respx to requirements, add pyproject.toml ([4af150f](https://github.com/oatrice/Akasa/commit/4af150fe60669b8e4584cb7e703da7ead0bec77e))
+* **telegram:** prevent auth bypass with empty webhook secret token ([0d0151f](https://github.com/oatrice/Akasa/commit/0d0151fab03eb44f28205eb524f278be72e3e247))
+
 ## [0.7.0](https://github.com/oatrice/Akasa/compare/v0.6.0...v0.7.0) (2026-03-08)
 
 ### Features
