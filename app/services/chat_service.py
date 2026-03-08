@@ -49,17 +49,91 @@ def get_build_info() -> str:
     _BUILD_INFO_CACHE = f"🤖 Version {version}\n🌍 Env {settings.ENVIRONMENT}\n🏗️ Built at {built_at}\n🔗 Commit {git_hash}"
     return _BUILD_INFO_CACHE
 
+
 async def handle_chat_message(update: Update) -> None:
     """
     Processes an incoming Telegram update.
-    ดึง history จาก Redis, ส่งพร้อม prompt ไปให้ LLM, บันทึก history กลับ Redis
+    แยกแยะระหว่างคำสั่ง (Command) และข้อความปกติ
     """
     if not update.message or not update.message.text:
         return
 
     chat_id = update.message.chat.id
-    prompt = update.message.text
-    print(f"--- [DEBUG] Processing message from {chat_id}: {prompt} ---")
+    text = update.message.text.strip()
+    print(f"--- [DEBUG] Processing message from {chat_id}: {text} ---")
+
+    if text.startswith("/"):
+        await _handle_command(chat_id, text)
+    else:
+        await _handle_standard_message(chat_id, text)
+
+
+async def _handle_command(chat_id: int, command_text: str) -> None:
+    """จัดการคำสั่งต่างๆ (เช่น /model)"""
+    parts = command_text.split()
+    cmd = parts[0].lower()
+    
+    if cmd == "/model":
+        await _handle_model_command(chat_id, parts[1:] if len(parts) > 1 else [])
+    else:
+        await telegram_service.send_message(chat_id, f"❌ Unknown command: {cmd}")
+
+
+async def _handle_model_command(chat_id: int, args: list[str]) -> None:
+    """จัดการคำสั่ง /model"""
+    available_models = settings.AVAILABLE_MODELS
+    
+    if not args:
+        # กรณี /model เฉยๆ -> แสดงสถานะปัจจุบันและรายการที่เลือกได้
+        try:
+            current_pref = await redis_service.get_user_model_preference(chat_id)
+        except Exception:
+            current_pref = None
+            
+        model_name = "Default (Gemini Flash)"
+        if current_pref:
+            # หาชื่อเล่นจาก identifier
+            for alias, info in available_models.items():
+                if info["identifier"] == current_pref:
+                    model_name = info["name"]
+                    break
+            else:
+                model_name = current_pref # fallback ถ้าหา alias ไม่เจอ
+                
+        message = f"❇️ Current model: `{model_name}`\n\nTo switch, use `/model <alias>`:\n"
+        for alias, info in available_models.items():
+            message += f"- `{alias}`: {info['name']}\n"
+            
+        await telegram_service.send_message(chat_id, message)
+        return
+
+    # กรณี /model <alias> -> อัปเดตการตั้งค่า
+    alias = args[0].lower()
+    if alias in available_models:
+        model_info = available_models[alias]
+        try:
+            await redis_service.set_user_model_preference(chat_id, model_info["identifier"])
+            await telegram_service.send_message(chat_id, f"✅ Model selection updated to: {model_info['name']}")
+        except Exception as e:
+            logger.error(f"Failed to save model preference for {chat_id}: {e}")
+            await telegram_service.send_message(chat_id, "❌ Failed to save model preference. Please try again.")
+    else:
+        # Alias ไม่ถูกต้อง
+        message = f"❌ Invalid model '{alias}'.\nAvailable models:\n"
+        for a in available_models.keys():
+            message += f"- `{a}`\n"
+        await telegram_service.send_message(chat_id, message)
+
+
+async def _handle_standard_message(chat_id: int, prompt: str) -> None:
+    """จัดการข้อความปกติ (ดึง history, เรียก LLM, บันทึก history)"""
+    
+    # ดึง Model Preference จาก Redis
+    try:
+        model_pref = await redis_service.get_user_model_preference(chat_id)
+    except Exception as e:
+        logger.warning(f"Redis get_user_model_preference failed for {chat_id}: {e}")
+        model_pref = None
 
     # ดึง history จาก Redis (graceful: ถ้า Redis ล่ม → ใช้ list ว่าง)
     try:
@@ -73,7 +147,8 @@ async def handle_chat_message(update: Update) -> None:
 
     reply = ""
     try:
-        reply = await llm_service.get_llm_reply(messages)
+        # เรียก LLM พร้อมส่งโมเดลที่ผู้ใช้เลือก (ถ้ามี)
+        reply = await llm_service.get_llm_reply(messages, model=model_pref)
         print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
     except (httpx.TimeoutException, httpx.HTTPError) as e:
         logger.error(f"API Error getting LLM reply for {chat_id}: {e}")

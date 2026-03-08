@@ -152,3 +152,39 @@ async def test_chat_isolation(patch_redis):
     assert history_a[0]["content"] == "Chat A message"
     assert len(history_b) == 1
     assert history_b[0]["content"] == "Chat B message"
+
+
+# --- User Model Preference ---
+
+@pytest.mark.asyncio
+async def test_get_user_model_preference_none(patch_redis):
+    """ถ้าผู้ใช้ยังไม่เคยตั้งค่า ต้องคืนค่า None"""
+    from app.services.redis_service import get_user_model_preference
+    pref = await get_user_model_preference(chat_id=777)
+    assert pref is None
+
+
+@pytest.mark.asyncio
+async def test_set_and_get_user_model_preference(patch_redis):
+    """ตั้งค่าแล้วต้องดึงกลับมาได้ถูกต้อง"""
+    from app.services.redis_service import set_user_model_preference, get_user_model_preference
+    
+    chat_id = 888
+    model_id = "anthropic/claude-3.5-sonnet"
+    
+    await set_user_model_preference(chat_id, model_id)
+    
+    pref = await get_user_model_preference(chat_id)
+    assert pref == model_id
+
+
+@pytest.mark.asyncio
+async def test_model_preference_has_ttl(patch_redis):
+    """การตั้งค่าโมเดลต้องมี TTL"""
+    from app.services.redis_service import set_user_model_preference
+    
+    chat_id = 999
+    await set_user_model_preference(chat_id, "some-model")
+    
+    ttl = await patch_redis.ttl(f"user_model_pref:{chat_id}")
+    assert ttl > 0
