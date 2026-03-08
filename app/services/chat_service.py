@@ -105,7 +105,7 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         except Exception:
             current_pref = None
             
-        model_name = "Default (Gemini Flash)"
+        model_name = "Default (Gemini 2.5 Flash)"
         if current_pref:
             # หาชื่อเล่นจาก identifier
             for alias, info in available_models.items():

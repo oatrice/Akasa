@@ -24,10 +24,10 @@ class Settings(BaseSettings):
 
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "gemini": {"name": "Google Gemini 2.5 Flash (Free Tier)", "identifier": "google/gemini-2.5-flash"},
-        "llama3": {"name": "Meta Llama 3.3 70B (Free)", "identifier": "meta-llama/llama-3.3-70b-instruct:free"},
-        "deepseek-r1": {"name": "DeepSeek R1 (Free Reasoning)", "identifier": "deepseek/deepseek-r1:free"},
-        "deepseek-chat": {"name": "DeepSeek Chat (Free)", "identifier": "deepseek/deepseek-chat:free"},
-        "qwen-coder": {"name": "Qwen 2.5 Coder 32B (Free)", "identifier": "qwen/qwen-2.5-coder-32b-instruct:free"},
+        "llama3": {"name": "Meta Llama 3.3 70B (Free/Paid)", "identifier": "meta-llama/llama-3.3-70b-instruct"},
+        "deepseek-r1": {"name": "DeepSeek R1 (Reasoning)", "identifier": "deepseek/deepseek-r1"},
+        "deepseek-chat": {"name": "DeepSeek V3.2", "identifier": "deepseek/deepseek-v3.2"},
+        "qwen-coder": {"name": "Qwen 2.5 Coder 32B", "identifier": "qwen/qwen-2.5-coder-32b-instruct"},
         "free-router": {"name": "OpenRouter Auto (Free)", "identifier": "openrouter/auto:free"},
         "claude": {"name": "Claude 3.5 Sonnet (Paid)", "identifier": "anthropic/claude-3.5-sonnet"},
         "gpt4o": {"name": "OpenAI GPT-4o (Paid)", "identifier": "openai/gpt-4o"},
