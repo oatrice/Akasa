@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/oatrice/Akasa/compare/v0.8.0...v0.9.0) (2026-03-08)
+
+
+### Features
+
+* [Feature] Project-Specific Memory & Context Restor... ([#40](https://github.com/oatrice/Akasa/issues/40)) ([49a9ab9](https://github.com/oatrice/Akasa/commit/49a9ab9ab8a298bc0e0e9a0ef23e496802959c9a))
+
 ## [0.9.0] - 2026-03-08
 
 ### Features
