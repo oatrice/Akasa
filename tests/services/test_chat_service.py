@@ -385,6 +385,38 @@ async def test_handle_model_command_show_current(mock_telegram, mock_redis):
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.telegram_service")
+async def test_handle_model_command_show_default_from_settings(mock_telegram, mock_redis, monkeypatch):
+    """ส่ง /model (ไม่มี pref) เพื่อดูโมเดลปัจจุบัน โดยต้องดึงค่า default จาก settings จริงๆ"""
+    # Setup: ไม่มีการตั้งค่าส่วนตัว
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_telegram.send_message = AsyncMock()
+    
+    # เปลี่ยนค่า default ใน settings เป็น Llama3
+    monkeypatch.setattr(settings, "LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
+    
+    update = Update(
+        update_id=100,
+        message=Message(
+            message_id=100,
+            date=1612345678,
+            chat=Chat(id=999, type="private"),
+            text="/model"
+        )
+    )
+    
+    await handle_chat_message(update)
+    
+    # ผลลัพธ์ต้องแสดงชื่อ Llama 3.3 70B ไม่ใช่ Gemini ในส่วนของ Current model
+    args = mock_telegram.send_message.call_args[0]
+    first_line = args[1].split("\n")[0]
+    assert "Meta Llama 3.3 70B" in first_line
+    assert "(default)" in first_line.lower()
+    assert "Gemini 2.5 Flash" not in first_line
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
 async def test_handle_model_command_update_success(mock_telegram, mock_redis):
     """ส่ง /model <alias> เพื่อเปลี่ยนโมเดล"""
     mock_redis.set_user_model_preference = AsyncMock()
@@ -403,11 +435,11 @@ async def test_handle_model_command_update_success(mock_telegram, mock_redis):
     await handle_chat_message(update)
     
     # ต้องบันทึกลง Redis
-    mock_redis.set_user_model_preference.assert_called_once_with(123, "google/gemini-flash")
+    mock_redis.set_user_model_preference.assert_called_once_with(123, "google/gemini-2.5-flash")
     # ต้องแจ้งยืนยัน
     args = mock_telegram.send_message.call_args[0]
     assert "updated" in args[1].lower()
-    assert "Gemini 2.5 Flash" in args[1]
+    assert "Google Gemini 2.5 Flash" in args[1]
 
 
 @pytest.mark.asyncio

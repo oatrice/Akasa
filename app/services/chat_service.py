@@ -105,15 +105,22 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         except Exception:
             current_pref = None
             
-        model_name = "Default (Gemini 2.5 Flash)"
         if current_pref:
-            # หาชื่อเล่นจาก identifier
+            # ค้นหาชื่อโมเดลจากการตั้งค่าส่วนตัว
+            model_name = current_pref
             for alias, info in available_models.items():
                 if info["identifier"] == current_pref:
                     model_name = info["name"]
                     break
-            else:
-                model_name = current_pref # fallback ถ้าหา alias ไม่เจอ
+        else:
+            # ค้นหาชื่อโมเดลเริ่มต้นจาก settings.LLM_MODEL
+            default_id = settings.LLM_MODEL
+            model_name = default_id
+            for alias, info in available_models.items():
+                if info["identifier"] == default_id:
+                    model_name = info["name"]
+                    break
+            model_name = f"{model_name} (default)"
                 
         message = f"❇️ Current model: `{model_name}`\n\nTo switch, use `/model <alias>`:\n"
         for alias, info in available_models.items():
