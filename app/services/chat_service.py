@@ -50,6 +50,21 @@ def get_build_info() -> str:
     return _BUILD_INFO_CACHE
 
 
+async def _send_response(chat_id: int, text: str) -> None:
+    """Helper สำหรับส่งข้อความพร้อมเติม Local Dev Info ถ้าอยู่ในโหมด development"""
+    final_text = text
+    if settings.ENVIRONMENT == "development":
+        build_info = get_build_info()
+        final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
+    
+    try:
+        await telegram_service.send_message(chat_id, final_text)
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Failed to send message to Telegram for {chat_id}. HTTP Status Error: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
+
+
 async def handle_chat_message(update: Update) -> None:
     """
     Processes an incoming Telegram update.
@@ -76,7 +91,7 @@ async def _handle_command(chat_id: int, command_text: str) -> None:
     if cmd == "/model":
         await _handle_model_command(chat_id, parts[1:] if len(parts) > 1 else [])
     else:
-        await telegram_service.send_message(chat_id, f"❌ Unknown command: {cmd}")
+        await _send_response(chat_id, f"❌ Unknown command: {cmd}")
 
 
 async def _handle_model_command(chat_id: int, args: list[str]) -> None:
@@ -104,7 +119,7 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         for alias, info in available_models.items():
             message += f"- `{alias}`: {info['name']}\n"
             
-        await telegram_service.send_message(chat_id, message)
+        await _send_response(chat_id, message)
         return
 
     # กรณี /model <alias> -> อัปเดตการตั้งค่า
@@ -113,16 +128,16 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         model_info = available_models[alias]
         try:
             await redis_service.set_user_model_preference(chat_id, model_info["identifier"])
-            await telegram_service.send_message(chat_id, f"✅ Model selection updated to: {model_info['name']}")
+            await _send_response(chat_id, f"✅ Model selection updated to: {model_info['name']}")
         except Exception as e:
             logger.error(f"Failed to save model preference for {chat_id}: {e}")
-            await telegram_service.send_message(chat_id, "❌ Failed to save model preference. Please try again.")
+            await _send_response(chat_id, "❌ Failed to save model preference. Please try again.")
     else:
         # Alias ไม่ถูกต้อง
         message = f"❌ Invalid model '{alias}'.\nAvailable models:\n"
         for a in available_models.keys():
             message += f"- `{a}`\n"
-        await telegram_service.send_message(chat_id, message)
+        await _send_response(chat_id, message)
 
 
 async def _handle_standard_message(chat_id: int, prompt: str) -> None:
@@ -152,32 +167,19 @@ async def _handle_standard_message(chat_id: int, prompt: str) -> None:
         print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
     except (httpx.TimeoutException, httpx.HTTPError) as e:
         logger.error(f"API Error getting LLM reply for {chat_id}: {e}")
-        await telegram_service.send_message(chat_id, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+        await _send_response(chat_id, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
         return
     except (ValueError, KeyError, TypeError) as e:
         logger.error(f"Malformed LLM response for {chat_id}: {e}")
-        await telegram_service.send_message(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
+        await _send_response(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
         return
     except Exception as e:
         logger.error(f"Unexpected error getting LLM reply for {chat_id}: {e}")
-        await telegram_service.send_message(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
+        await _send_response(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
         return
 
-    # Issue #25: Append build info in local development
-    final_reply_to_send = reply
-    if settings.ENVIRONMENT == "development":
-        build_info = get_build_info()
-        final_reply_to_send = f"{reply}\n\n---\n*Local Dev Info*\n{build_info}"
-
-    try:
-        await telegram_service.send_message(chat_id, final_reply_to_send)
-        print(f"--- [DEBUG] Message successfully sent to Telegram chat {chat_id} ---")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Failed to send message to Telegram for {chat_id}. HTTP Status Error: {e}")
-        return
-    except Exception as e:
-        logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
-        return
+    # ส่งคำตอบกลับหาผู้ใช้
+    await _send_response(chat_id, reply)
 
     # บันทึก user message + assistant reply ลง Redis
     try:

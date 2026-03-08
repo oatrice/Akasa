@@ -23,14 +23,15 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "google/gemini-2.5-flash"
 
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
-        "claude": {"name": "Claude 3.5 Sonnet", "identifier": "anthropic/claude-3.5-sonnet"},
-        "gemini": {"name": "Google Gemini 2.5 Flash", "identifier": "google/gemini-2.5-flash"},
-        "gpt4o": {"name": "OpenAI GPT-4o", "identifier": "openai/gpt-4o"},
-        "gemini-pro": {"name": "Google Gemini Pro 1.5", "identifier": "google/gemini-pro-1.5"},
-        "kimi": {"name": "Moonshot Kimi", "identifier": "moonshot/moonshot-v1-8k"},
-        "deepseek-coder": {"name": "DeepSeek Coder (Free)", "identifier": "deepseek/deepseek-coder:free"},
-        "llama3": {"name": "Meta Llama 3 (Free)", "identifier": "meta-llama/llama-3-8b-instruct:free"},
-        "free-router": {"name": "OpenRouter Free Router", "identifier": "openrouter/auto:free"},
+        "gemini": {"name": "Google Gemini 2.5 Flash (Free Tier)", "identifier": "google/gemini-2.5-flash"},
+        "llama3": {"name": "Meta Llama 3.3 70B (Free)", "identifier": "meta-llama/llama-3.3-70b-instruct:free"},
+        "deepseek-r1": {"name": "DeepSeek R1 (Free Reasoning)", "identifier": "deepseek/deepseek-r1:free"},
+        "deepseek-chat": {"name": "DeepSeek Chat (Free)", "identifier": "deepseek/deepseek-chat:free"},
+        "qwen-coder": {"name": "Qwen 2.5 Coder 32B (Free)", "identifier": "qwen/qwen-2.5-coder-32b-instruct:free"},
+        "free-router": {"name": "OpenRouter Auto (Free)", "identifier": "openrouter/auto:free"},
+        "claude": {"name": "Claude 3.5 Sonnet (Paid)", "identifier": "anthropic/claude-3.5-sonnet"},
+        "gpt4o": {"name": "OpenAI GPT-4o (Paid)", "identifier": "openai/gpt-4o"},
+        "gemini-pro": {"name": "Google Gemini Pro 1.5 (Paid)", "identifier": "google/gemini-pro-1.5"},
     }
     
     SYSTEM_PROMPT: str = (
