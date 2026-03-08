@@ -86,7 +86,7 @@ async def _get_openrouter_reply(messages: list[dict], model: str) -> str:
         "messages": messages
     }
 
-    logger.debug(f"Sending payload to OpenRouter: {payload}")
+    print(f"--- [DEBUG] Sending payload to OpenRouter: {payload} ---")
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

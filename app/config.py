@@ -20,11 +20,11 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     LLM_BASE_URL: str = "https://openrouter.ai/api/v1"
-    LLM_MODEL: str = "google/gemini-flash"
+    LLM_MODEL: str = "google/gemini-2.5-flash"
 
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "claude": {"name": "Claude 3.5 Sonnet", "identifier": "anthropic/claude-3.5-sonnet"},
-        "gemini": {"name": "Google Gemini 2.5 Flash", "identifier": "google/gemini-flash"},
+        "gemini": {"name": "Google Gemini 2.5 Flash", "identifier": "google/gemini-2.5-flash"},
         "gpt4o": {"name": "OpenAI GPT-4o", "identifier": "openai/gpt-4o"},
         "gemini-pro": {"name": "Google Gemini Pro 1.5", "identifier": "google/gemini-pro-1.5"},
         "kimi": {"name": "Moonshot Kimi", "identifier": "moonshot/moonshot-v1-8k"},
