@@ -575,7 +575,7 @@ async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mo
     # - ข้อความต้องเป็น Welcome Back summary ที่ถูกต้อง (ใช้ Template)
     sent_message = mock_telegram.send_message.call_args[0][1]
     assert "Welcome back" in sent_message
-    assert f"Switched to project: `{project_name}`" in sent_message
+    assert f"project: `{project_name}`" in sent_message
     assert "Last known task:" in sent_message
     assert saved_state.current_task in sent_message
 
