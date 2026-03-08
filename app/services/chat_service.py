@@ -193,11 +193,13 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
     elif sub_cmd == "rename" and len(args) > 2:
         old_name = args[1].lower()
         new_name = args[2].lower()
-        # หมายเหตุ: ใน Phase แรก rename คือการเปลี่ยน Current Project และลบตัวเก่าออกจาก list
-        # แต่ประวัติแชทยังอยู่ใน Redis key เดิม (ต้องใช้ความระมัดระวัง)
-        # TODO: Implement full key rename in RedisService if needed
-        await redis_service.set_current_project(chat_id, new_name)
-        await _send_response(chat_id, f"📝 Project renamed (Current set to `{new_name}`).\n*Note: History is still tied to old keys.*")
+        
+        projects = await redis_service.get_project_list(chat_id)
+        if old_name in projects:
+            await redis_service.rename_project(chat_id, old_name, new_name)
+            await _send_response(chat_id, f"✅ Project renamed from `{old_name}` to `{new_name}`.\n(Current project updated if needed)")
+        else:
+            await _send_response(chat_id, f"❌ Project `{old_name}` not found.")
     
     else:
         await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")

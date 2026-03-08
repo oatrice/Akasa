@@ -14,6 +14,7 @@
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub, สั่ง Build/Deploy, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
 - 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks จากคอมพิวเตอร์สู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
+- 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและ context การเขียนโค้ด
 - 🔌 **Multi-LLM** — สลับโมเดล AI ได้ผ่านคำสั่ง `/model` (GPT-4o, Claude 3, Gemini, etc.)
 - 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl

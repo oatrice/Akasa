@@ -32,7 +32,7 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#17](https://github.com/oatrice/Akasa/issues/17) | [Phase 3] ออกแบบโครงสร้างแชทสำหรับการทำงานหลายโปรเจ็กต์ | 🔲 Todo |
+| [#17](https://github.com/oatrice/Akasa/issues/17) | [Phase 3] ออกแบบโครงสร้างแชทสำหรับการทำงานหลายโปรเจ็กต์ | ✅ Complete |
 | [#30](https://github.com/oatrice/Akasa/issues/30) | [Service] Support Outbound Messaging in TelegramService | 🔲 Todo |
 | [#29](https://github.com/oatrice/Akasa/issues/29) | [Feature] Implement Secure Proactive Notification Endpoint | 🔲 Todo |
 

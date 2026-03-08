@@ -100,6 +100,31 @@ async def set_current_project(chat_id: int, project_name: str):
     await _add_project_to_list(chat_id, project_name)
 
 
+async def rename_project(chat_id: int, old_name: str, new_name: str):
+    """เปลี่ยนชื่อโปรเจ็กต์และย้ายประวัติแชท (Atomic Migration)"""
+    if old_name == new_name:
+        return
+
+    old_history_key = f"chat_history:{chat_id}:{old_name}"
+    new_history_key = f"chat_history:{chat_id}:{new_name}"
+    list_key = f"user_projects:{chat_id}"
+    current_key = f"user_current_project:{chat_id}"
+
+    # 1. ย้ายประวัติแชท (ถ้ามี)
+    exists = await redis_pool.exists(old_history_key)
+    if exists:
+        await redis_pool.rename(old_history_key, new_history_key)
+
+    # 2. อัปเดตรายชื่อโปรเจ็กต์ (ลบชื่อเก่า เพิ่มชื่อใหม่)
+    await redis_pool.srem(list_key, old_name)
+    await redis_pool.sadd(list_key, new_name)
+
+    # 3. ถ้าเป็นโปรเจ็กต์ปัจจุบัน ให้เปลี่ยนชื่อด้วย
+    current = await redis_pool.get(current_key)
+    if current == old_name:
+        await redis_pool.set(current_key, new_name, ex=settings.REDIS_TTL_SECONDS)
+
+
 async def get_project_list(chat_id: int) -> List[str]:
     """ดึงรายชื่อโปรเจ็กต์ทั้งหมดของ User"""
     list_key = f"user_projects:{chat_id}"
