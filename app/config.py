@@ -23,16 +23,17 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "google/gemini-2.5-flash"
 
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
-        "gemini": {"name": "Google Gemini 2.5 Flash (Free Tier)", "identifier": "google/gemini-2.5-flash"},
-        "llama3": {"name": "Meta Llama 3.3 70B (Free/Paid)", "identifier": "meta-llama/llama-3.3-70b-instruct"},
+        "gemini": {"name": "Google Gemini 2.5 Flash", "identifier": "google/gemini-2.5-flash"},
+        "llama3": {"name": "Meta Llama 3.3 70B", "identifier": "meta-llama/llama-3.3-70b-instruct"},
         "deepseek-r1": {"name": "DeepSeek R1 (Reasoning)", "identifier": "deepseek/deepseek-r1"},
-        "deepseek-chat": {"name": "DeepSeek V3.2", "identifier": "deepseek/deepseek-v3.2"},
+        "deepseek-chat": {"name": "DeepSeek Chat", "identifier": "deepseek/deepseek-chat"},
         "qwen-coder": {"name": "Qwen 2.5 Coder 32B", "identifier": "qwen/qwen-2.5-coder-32b-instruct"},
         "free-router": {"name": "OpenRouter Auto (Free)", "identifier": "openrouter/auto:free"},
         "claude": {"name": "Claude 3.5 Sonnet (Paid)", "identifier": "anthropic/claude-3.5-sonnet"},
         "gpt4o": {"name": "OpenAI GPT-4o (Paid)", "identifier": "openai/gpt-4o"},
         "gemini-pro": {"name": "Google Gemini Pro 1.5 (Paid)", "identifier": "google/gemini-pro-1.5"},
     }
+
     
     SYSTEM_PROMPT: str = (
         "You are Akasa, an expert AI assistant specializing in software development. "
