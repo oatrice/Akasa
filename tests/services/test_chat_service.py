@@ -633,25 +633,25 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
 # === Proactive Messaging Support (Issue #30) ===
 
 @pytest.mark.asyncio
-@patch("app.services.chat_service.llm_service.get_llm_reply", new_callable=AsyncMock)
-@patch("app.services.chat_service.tg_service.send_message", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.add_message_to_history", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.get_user_model_preference", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.get_chat_history", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.get_current_project", new_callable=AsyncMock)
 @patch("app.services.chat_service.redis_service.set_user_chat_id_mapping", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_current_project", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_chat_history", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_user_model_preference", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.add_message_to_history", new_callable=AsyncMock)
+@patch("app.services.chat_service.tg_service.send_message", new_callable=AsyncMock)
+@patch("app.services.chat_service.llm_service.get_llm_reply", new_callable=AsyncMock)
 async def test_handle_chat_message_saves_user_chat_id_mapping(
-    mock_set_mapping,
-    mock_get_project,
-    mock_get_history,
-    mock_get_model_pref,
-    mock_add_history,
+    mock_get_llm_reply,
     mock_send_message,
-    mock_get_llm_reply
+    mock_add_history,
+    mock_get_model_pref,
+    mock_get_history,
+    mock_get_project,
+    mock_set_mapping,
 ):
     """
     Verifies that handle_chat_message calls redis_service.set_user_chat_id_mapping.
-    This version uses the "patch where it's used" principle correctly.
+    This version uses "patch where it's used" with full, correct paths.
     """
     from app.models.telegram import Update, Message, Chat, TelegramUser
 
