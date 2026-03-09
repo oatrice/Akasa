@@ -36,23 +36,33 @@ async def send_notification(
 ):
     """รับการแจ้งเตือนจากภายนอกและส่งหา User"""
     logger.info(f"Incoming notification for user_id: {payload.user_id}, priority: {payload.priority}")
+    if payload.metadata:
+        logger.info(f"Notification metadata: {payload.metadata}")
     
     # จัดการ Priority (B) ผ่านโมเดล
     message_text = payload.get_formatted_message()
     
     try:
+        # ตรวจสอบการแปลง user_id เป็น int (เพื่อความชัวร์ว่าไม่ตายตรงนี้)
+        u_id = int(payload.user_id)
+        
         await tg_service.send_proactive_message(
-            user_id=int(payload.user_id), 
+            user_id=u_id, 
             text=message_text
         )
         return NotificationResponse(
             status="success", 
             message="Notification queued for delivery."
         )
-    except UserChatIdNotFoundException:
+    except UserChatIdNotFoundException as e:
+        logger.warning(f"Notification error: {e}")
         raise HTTPException(status_code=400, detail="User not found for notification")
-    except BotBlockedException:
-        raise HTTPException(status_code=500, detail="Failed to send notification: Bot blocked by user.")
+    except BotBlockedException as e:
+        logger.warning(f"Notification error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send notification: Bot blocked by user.")
+    except ValueError:
+        logger.error(f"Invalid user_id format: {payload.user_id}")
+        raise HTTPException(status_code=400, detail="Invalid user_id format. Must be numeric.")
     except Exception as e:
-        logger.error(f"Error in send_notification: {e}")
+        logger.error(f"Error in send_notification: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred during notification dispatch.")

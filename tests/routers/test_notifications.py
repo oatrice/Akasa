@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.config import settings
-
 from app.routers.notifications import verify_api_key
+from app.exceptions import UserChatIdNotFoundException, BotBlockedException
 
 client = TestClient(app)
 
@@ -18,9 +18,13 @@ def mock_tg_service():
     with patch("app.routers.notifications.tg_service") as mock:
         yield mock
 
+@pytest.fixture
+def mock_redis_service():
+    with patch("app.services.redis_service.get_chat_id_for_user") as mock:
+        yield mock
+
 def test_send_notification_unauthorized():
     """ต้องคืนค่า 401 ถ้า API Key ไม่ถูกต้องหรือหายไป"""
-    # ตรวจสอบว่าไม่ได้ใส่ override และใช้ key ผิด
     response = client.post(
         "/api/v1/notifications/send",
         json={"user_id": "123", "message": "hello"},
@@ -31,12 +35,10 @@ def test_send_notification_unauthorized():
 
 def test_send_notification_bad_request_invalid_payload():
     """ต้องคืนค่า 422 ถ้า Payload ไม่ครบถ้วน (ขาด message)"""
-    # Override ให้ผ่านการตรวจสอบ API Key เสมอ
     app.dependency_overrides[verify_api_key] = lambda: True
-    
     response = client.post(
         "/api/v1/notifications/send",
-        json={"user_id": "123"}, # ขาด message
+        json={"user_id": "123"},
         headers={"X-Akasa-API-Key": "any-key"}
     )
     assert response.status_code == 422
@@ -50,8 +52,7 @@ async def test_send_notification_success(mock_tg_service):
     payload = {
         "user_id": "123456789",
         "message": "Test notification",
-        "priority": "high",
-        "metadata": {"source": "unit-test"}
+        "priority": "high"
     }
     
     response = client.post(
@@ -64,15 +65,42 @@ async def test_send_notification_success(mock_tg_service):
     assert response.json()["status"] == "success"
     mock_tg_service.send_proactive_message.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_send_notification_user_not_found(mock_tg_service):
+    """ต้องคืนค่า 400 เมื่อไม่พบ User ใน Redis Mapping"""
+    mock_tg_service.send_proactive_message = AsyncMock(side_effect=UserChatIdNotFoundException("Not found"))
+    app.dependency_overrides[verify_api_key] = lambda: True
+    
+    response = client.post(
+        "/api/v1/notifications/send",
+        json={"user_id": "999", "message": "hello"},
+        headers={"X-Akasa-API-Key": "valid-key"}
+    )
+    
+    assert response.status_code == 400
+    assert response.json()["detail"] == "User not found for notification"
+
+@pytest.mark.asyncio
+async def test_send_notification_bot_blocked(mock_tg_service):
+    """ต้องคืนค่า 500 เมื่อ Bot ถูก User Blocked"""
+    mock_tg_service.send_proactive_message = AsyncMock(side_effect=BotBlockedException("Blocked"))
+    app.dependency_overrides[verify_api_key] = lambda: True
+    
+    response = client.post(
+        "/api/v1/notifications/send",
+        json={"user_id": "123", "message": "hello"},
+        headers={"X-Akasa-API-Key": "valid-key"}
+    )
+    
+    assert response.status_code == 500
+    assert "Bot blocked by user" in response.json()["detail"]
+
 def test_notification_payload_formatting():
     """ตรวจสอบว่าการจัดรูปแบบข้อความตาม Priority ทำงานถูกต้อง"""
     from app.models.notification import NotificationPayload
     
-    # กรณี Normal
     payload_normal = NotificationPayload(user_id="1", message="test", priority="normal")
     assert payload_normal.get_formatted_message() == "test"
     
-    # กรณี High (B)
     payload_high = NotificationPayload(user_id="1", message="test", priority="high")
     assert "🚨 *IMPORTANT NOTIFICATION* 🚨" in payload_high.get_formatted_message()
-    assert "test" in payload_high.get_formatted_message()

@@ -4,8 +4,16 @@ Akasa API — FastAPI Backend Entry Point
 จุดเริ่มต้นของแอปพลิเคชัน Backend สำหรับโปรเจกต์ Akasa
 """
 
+import logging
 from fastapi import FastAPI
 from app.routers import health, telegram, notifications
+
+# ตั้งค่า Logging เบื้องต้น
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:     %(name)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Akasa API",
