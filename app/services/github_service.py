@@ -30,6 +30,16 @@ class GitHubService:
         except (FileNotFoundError, subprocess.CalledProcessError):
             raise GitHubServiceError("GitHub CLI (gh) is not installed on the server.")
 
+    def check_auth(self) -> bool:
+        """Check if GitHub CLI is authenticated."""
+        try:
+            self._run_gh_command(["auth", "status"])
+            return True
+        except GitHubAuthError:
+            raise
+        except GitHubServiceError as e:
+            raise GitHubAuthError(f"Authentication check failed: {str(e)}")
+
     def sanitize_input(self, text: str) -> str:
         """Basic sanitization to prevent command injection characters."""
         if not text:
