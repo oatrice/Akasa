@@ -197,8 +197,8 @@ async def test_set_and_get_user_chat_id_mapping(patch_redis):
     """ทดสอบการเก็บและดึง mapping ระหว่าง user_id และ chat_id"""
     from app.services.redis_service import set_user_chat_id_mapping, get_chat_id_for_user
 
-    user_id = "user-123"
-    chat_id = "chat-456"
+    user_id = 12345
+    chat_id = 67890
 
     # 1. ทดสอบ get user ที่ยังไม่มี -> ควรได้ None
     retrieved_chat_id = await get_chat_id_for_user(user_id)
@@ -207,9 +207,9 @@ async def test_set_and_get_user_chat_id_mapping(patch_redis):
     # 2. ตั้งค่า mapping
     await set_user_chat_id_mapping(user_id, chat_id)
 
-    # 3. ดึงค่ากลับมา -> ต้องตรงกับที่ตั้งไว้
+    # 3. ดึงค่ากลับมา -> ต้องตรงกับที่ตั้งไว้ (และเป็น string ตามที่ Redis เก็บ)
     retrieved_chat_id = await get_chat_id_for_user(user_id)
-    assert retrieved_chat_id == chat_id
+    assert retrieved_chat_id == str(chat_id)
 
     # 4. Key ต้องมี TTL
     ttl = await patch_redis.ttl(f"user_chat_id:{user_id}")
