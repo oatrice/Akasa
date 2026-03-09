@@ -122,7 +122,7 @@ class GitHubService:
 
     def get_repo_info(self, repo: str) -> GitHubRepo:
         """Get repository information."""
-        args = ["repo", "view", repo, "--json", "fullName,description,url,stargazerCount"]
+        args = ["repo", "view", repo, "--json", "nameWithOwner,description,url,stargazerCount"]
         result = self._run_gh_command(args)
         
         try:
