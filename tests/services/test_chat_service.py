@@ -53,7 +53,7 @@ def setup_mock_redis(mock_redis):
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """ส่ง prompt พร้อม history ที่ดึงจาก Redis ไปให้ LLM โดยแยกตามโปรเจ็กต์"""
@@ -85,10 +85,9 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
     mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot", project_name="default")
     mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI", project_name="default")
 
-
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้าไม่มี history ต้องส่งแค่ message เดียว"""
@@ -111,7 +110,7 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า Redis ล่ม ตอนดึง history → ยังทำงานได้ (ส่งแค่ prompt เดียว)"""
@@ -133,7 +132,7 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_redis_save_failure(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า Redis ล่ม ตอนบันทึก history → ยังส่ง response ไป Telegram ได้ปกติ"""
@@ -154,7 +153,7 @@ async def test_handle_chat_message_redis_save_failure(mock_llm, mock_telegram, m
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, mock_update_no_text):
     """Ignore updates ที่ไม่มี text"""
@@ -165,7 +164,7 @@ async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, 
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM error → จะส่งข้อความแจ้งเตือนกลับไปให้ user แทนการตอบปกติ"""
@@ -185,7 +184,7 @@ async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า Telegram error → ไม่ crash"""
@@ -202,7 +201,7 @@ async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM timeout → จะส่งข้อความแจ้งเตือนกลับไป"""
@@ -219,7 +218,7 @@ async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, 
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM ตอบกลับมาผิดฟอร์ม (ValueError/KeyError) → จะส่งข้อความแจ้งเตือน"""
@@ -237,7 +236,7 @@ async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, m
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_unexpected_error(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้าเกิด Error ที่ไม่คาดคิดตอนเรียก LLM → จะส่งข้อความแจ้งเตือน generic กลับไป"""
@@ -257,7 +256,7 @@ async def test_handle_chat_message_llm_unexpected_error(mock_llm, mock_telegram,
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """System prompt ต้องถูกวางเป็นข้อความแรกใน messages ที่ส่งให้ LLM (มี history)"""
@@ -286,7 +285,7 @@ async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, moc
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
     """System prompt ต้องถูกวางเป็นข้อความแรกแม้ไม่มี history"""
@@ -308,7 +307,7 @@ async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_redis, mock_update):
     """System prompt ต้องไม่ถูกบันทึกลง Redis"""
@@ -334,7 +333,7 @@ async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_re
 @pytest.mark.asyncio
 @patch("app.services.chat_service.get_build_info")
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_build_info_appended_in_local_dev(
     mock_llm, mock_telegram, mock_redis, mock_get_build_info, mock_update
@@ -364,7 +363,7 @@ async def test_build_info_appended_in_local_dev(
 @pytest.mark.asyncio
 @patch("app.services.chat_service.get_build_info")
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_build_info_not_appended_in_prod(
     mock_llm, mock_telegram, mock_redis, mock_get_build_info, mock_update
@@ -393,7 +392,7 @@ async def test_build_info_not_appended_in_prod(
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_model_command_show_current(mock_telegram, mock_redis):
     """ส่ง /model (ไม่มี argument) เพื่อดูโมเดลปัจจุบัน"""
     mock_redis.get_user_model_preference = AsyncMock(return_value="anthropic/claude-3.5-sonnet")
@@ -420,7 +419,7 @@ async def test_handle_model_command_show_current(mock_telegram, mock_redis):
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_model_command_show_default_from_settings(mock_telegram, mock_redis, monkeypatch):
     """ส่ง /model (ไม่มี pref) เพื่อดูโมเดลปัจจุบัน โดยต้องดึงค่า default จาก settings จริงๆ"""
     # Setup: ไม่มีการตั้งค่าส่วนตัว
@@ -452,7 +451,7 @@ async def test_handle_model_command_show_default_from_settings(mock_telegram, mo
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_model_command_update_success(mock_telegram, mock_redis):
     """ส่ง /model <alias> เพื่อเปลี่ยนโมเดล"""
     mock_redis.set_user_model_preference = AsyncMock()
@@ -480,7 +479,7 @@ async def test_handle_model_command_update_success(mock_telegram, mock_redis):
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_model_command_invalid_alias(mock_telegram, mock_redis):
     """ส่ง /model <alias> ที่ไม่มีอยู่จริง"""
     mock_redis.set_user_model_preference = AsyncMock()
@@ -508,7 +507,7 @@ async def test_handle_model_command_invalid_alias(mock_telegram, mock_redis):
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mock_redis, mock_update):
     """ข้อความปกติควรใช้โมเดลที่ผู้ใช้เลือกไว้ใน Redis"""
@@ -531,7 +530,7 @@ async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mo
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mock_redis):
     """ทดสอบ /project select <name> เมื่อมี AgentState บันทึกไว้ ต้องแสดง Welcome back summary"""
     from app.models.agent_state import AgentState
@@ -582,7 +581,7 @@ async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mo
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     """ทดสอบ /note <task> ต้องบันทึก AgentState ลง Redis"""
     from app.models.agent_state import AgentState
@@ -629,3 +628,60 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     sent_message = mock_telegram.send_message.call_args[0][1]
     assert "✅ Note saved for project" in sent_message
     assert f"`{project_name}`" in sent_message
+
+
+# === Proactive Messaging Support (Issue #30) ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service.set_user_chat_id_mapping", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_current_project", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_chat_history", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_user_model_preference", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.add_message_to_history", new_callable=AsyncMock)
+@patch("app.services.chat_service.tg_service.send_message", new_callable=AsyncMock)
+@patch("app.services.chat_service.llm_service.get_llm_reply", new_callable=AsyncMock)
+async def test_handle_chat_message_saves_user_chat_id_mapping(
+    mock_get_llm_reply,
+    mock_send_message,
+    mock_add_history,
+    mock_get_model_pref,
+    mock_get_history,
+    mock_get_project,
+    mock_set_mapping,
+):
+    """
+    Verifies that handle_chat_message calls redis_service.set_user_chat_id_mapping.
+    This version uses "patch where it's used" with full, correct paths.
+    """
+    from app.models.telegram import Update, Message, Chat, TelegramUser
+
+    # 1. Setup mock return values
+    mock_get_project.return_value = "default"
+    mock_get_history.return_value = []
+    mock_get_model_pref.return_value = None
+    mock_get_llm_reply.return_value = "Some reply"
+
+    # 2. Create a valid Update object, ensuring the 'from' alias is handled
+    user_id = 98765
+    chat_id = 12345
+    update_data = {
+        "update_id": 1,
+        "message": {
+            "message_id": 1,
+            "date": 1612345678,
+            "chat": {"id": chat_id, "type": "private"},
+            "text": "Hello Bot",
+            "from": {"id": user_id, "is_bot": False, "first_name": "Test User"}
+        }
+    }
+    update_with_user = Update.parse_obj(update_data)
+
+    # 3. Call the function under test
+    await handle_chat_message(update_with_user)
+
+    # 4. Assert that the target mock was called correctly
+    mock_set_mapping.assert_called_once_with(
+        user_id=user_id,
+        chat_id=chat_id
+    )
+    mock_send_message.assert_called_once()

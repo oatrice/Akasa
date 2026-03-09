@@ -180,3 +180,22 @@ async def set_agent_state(chat_id: int, project_name: str, state: AgentState):
     state_key = _get_agent_state_key(chat_id, project_name)
     json_str = state.to_json()
     await redis_pool.set(state_key, json_str, ex=settings.REDIS_TTL_SECONDS)
+
+
+# --- User ID to Chat ID Mapping (for Proactive Messaging) ---
+
+async def set_user_chat_id_mapping(user_id: int, chat_id: int):
+    """
+    เก็บ mapping ระหว่าง user_id ของ Telegram กับ chat_id ล่าสุด.
+    """
+    key = f"user_chat_id:{user_id}"
+    # Chat ID ควรจะเป็น str เสมอตาม convention ของ Redis
+    await redis_pool.set(key, str(chat_id), ex=settings.REDIS_TTL_SECONDS)
+
+
+async def get_chat_id_for_user(user_id: int) -> Optional[str]:
+    """
+    ดึง chat_id ล่าสุดที่ผูกกับ user_id.
+    """
+    key = f"user_chat_id:{user_id}"
+    return await redis_pool.get(key)

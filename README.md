@@ -16,6 +16,7 @@
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
+- 📝 **Task Notes** — บันทึก Task ที่กำลังทำอยู่สำหรับโปรเจ็กต์ปัจจุบันด้วยคำสั่ง `/note <your task description>` เพื่อให้บอทจำบริบทได้แม่นยำขึ้น
 - 🔌 **Multi-LLM** — สลับโมเดล AI ได้ผ่านคำสั่ง `/model` (GPT-4o, Claude 3, Gemini, etc.)
 - 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl
 - 📱 **Mobile-First UX** — ตอบสั้น กระชับ เหมาะกับหน้าจอมือถือ
@@ -163,6 +164,20 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ---
 
+## ⌨️ Commands
+
+| Command | Description | Example |
+|---|---|---|
+| `/project` | ดูโปรเจ็กต์ปัจจุบันและโปรเจ็กต์ทั้งหมด | `/project` |
+| `/project select <name>` | สลับไปทำงานในโปรเจ็กต์อื่น | `/project select my-app` |
+| `/project new <name>` | สร้างและสลับไปโปรเจ็กต์ใหม่ | `/project new new-feature` |
+| `/project rename <old> <new>` | เปลี่ยนชื่อโปรเจ็กต์ | `/project rename old-name new-name`|
+| `/model` | ดูโมเดล AI ที่ใช้ปัจจุบันและรายการที่เลือกได้ | `/model` |
+| `/model <alias>` | เปลี่ยนโมเดล AI ที่ต้องการใช้ | `/model claude` |
+| `/note <description>` | บันทึก Task ปัจจุบันเพื่อช่วยให้บอทจำบริบท | `/note working on the login bug` |
+
+---
+
 ## 📋 Roadmap
 
 ### Phase 1: MVP 🎯 *(Current)*
@@ -174,6 +189,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ### Phase 2: Memory & Multi-Platform
 - [x] Conversation history (Redis)
+- [x] Project-Specific Memory (via `/note` command)
 - [x] Code formatting ใน chat
 - [x] System prompt สำหรับ coding assistant
 - [ ] เพิ่ม LINE Bot
