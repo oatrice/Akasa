@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.0] - 2026-03-09
+
+### Added
+- **GitHub Integration**: Introduced `GithubService` to wrap `gh cli` commands, enabling the bot to list issues, create issues, and check PR status directly from chat.
+- **Configuration for GitHub Token**: Added `GITHUB_TOKEN` to `.env.example` and `app/config.py` for secure GitHub authentication.
+- **Utility Script**: Included `scripts/verify_github.py` for local testing of GitHub integration.
+- **Type Hinting**: Added Pydantic models in `app/models/github.py` to represent GitHub API JSON responses, improving data handling.
+- **Documentation**: Added detailed analysis, plan, SBE, and spec documents for the GitHub integration feature.
+
+### Fixed
+- **Model Alignment**: Corrected internal models in `github_service.py` to align with the JSON output format of the `gh cli`.
+
+### Changed
+- **Chat Service**: Updated `chat_service.py` to integrate with the new `GithubService`, allowing users to trigger GitHub actions via chat commands.
+
 ## [0.11.0](https://github.com/oatrice/Akasa/compare/v0.10.0...v0.11.0) (2026-03-09)
 
 
