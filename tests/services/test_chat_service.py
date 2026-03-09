@@ -633,16 +633,35 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
 # === Proactive Messaging Support (Issue #30) ===
 
 @pytest.mark.asyncio
-async def test_handle_chat_message_saves_user_chat_id_mapping():
+@patch("app.services.chat_service.llm_service.get_llm_reply", new_callable=AsyncMock)
+@patch("app.services.chat_service.tg_service.send_message", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.add_message_to_history", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_user_model_preference", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_chat_history", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.get_current_project", new_callable=AsyncMock)
+@patch("app.services.chat_service.redis_service.set_user_chat_id_mapping", new_callable=AsyncMock)
+async def test_handle_chat_message_saves_user_chat_id_mapping(
+    mock_set_mapping,
+    mock_get_project,
+    mock_get_history,
+    mock_get_model_pref,
+    mock_add_history,
+    mock_send_message,
+    mock_get_llm_reply
+):
     """
     Verifies that handle_chat_message calls redis_service.set_user_chat_id_mapping.
-    This version uses patch.object to correctly mock methods on service instances.
+    This version uses the "patch where it's used" principle correctly.
     """
     from app.models.telegram import Update, Message, Chat, TelegramUser
-    from app.services import redis_service, llm_service
-    from app.services.telegram_service import tg_service # Import the final renamed instance
 
-    # 1. Create a valid Update object
+    # 1. Setup mock return values
+    mock_get_project.return_value = "default"
+    mock_get_history.return_value = []
+    mock_get_model_pref.return_value = None
+    mock_get_llm_reply.return_value = "Some reply"
+
+    # 2. Create a valid Update object
     user_id = 98765
     chat_id = 12345
     update_with_user = Update(
@@ -656,23 +675,12 @@ async def test_handle_chat_message_saves_user_chat_id_mapping():
         )
     )
 
-    # 2. Use patch.object for precise, robust mocking within a context
-    with patch.object(redis_service, "set_user_chat_id_mapping", new_callable=AsyncMock) as mock_set_mapping, \
-         patch.object(redis_service, "get_current_project", new_callable=AsyncMock, return_value="default"), \
-         patch.object(redis_service, "get_chat_history", new_callable=AsyncMock, return_value=[]), \
-         patch.object(redis_service, "get_user_model_preference", new_callable=AsyncMock, return_value=None), \
-         patch.object(redis_service, "add_message_to_history", new_callable=AsyncMock), \
-         patch.object(tg_service, "send_message", new_callable=AsyncMock) as mock_send, \
-         patch.object(llm_service, "get_llm_reply", new_callable=AsyncMock, return_value="Some reply"):
+    # 3. Call the function under test
+    await handle_chat_message(update_with_user)
 
-        # 3. Call the function under test
-        await handle_chat_message(update_with_user)
-
-        # 4. Assert that the target mock was called correctly
-        mock_set_mapping.assert_called_once_with(
-            user_id=user_id,
-            chat_id=chat_id
-        )
-        
-        # Optional: Verify other mocks were called to ensure flow is correct
-        mock_send.assert_called_once()
+    # 4. Assert that the target mock was called correctly
+    mock_set_mapping.assert_called_once_with(
+        user_id=user_id,
+        chat_id=chat_id
+    )
+    mock_send_message.assert_called_once()
