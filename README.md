@@ -12,7 +12,7 @@
 
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub, สั่ง Build/Deploy, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
-- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks จากคอมพิวเตอร์สู่มือถือทันที
+- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks หรือข้อความจากระบบภายนอกสู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
@@ -227,4 +227,20 @@ This is a personal project by [@oatrice](https://github.com/oatrice).
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.## [0.10.0] - 2026-03-09
+
+### Added
+- **API สำหรับส่งการแจ้งเตือน**: เพิ่ม Endpoint `POST /api/v1/notifications/send` ที่ปลอดภัยด้วย API Key สำหรับให้ระบบภายนอก (เช่น Gemini CLI) ส่งข้อความแจ้งเตือนไปยังผู้ใช้ Telegram ได้โดยตรง (Proactive Notifications)
+- **การจัดการบริบทโปรเจกต์**: ผู้ใช้สามารถสลับระหว่างโปรเจกต์ต่างๆ ได้อย่างราบรื่น โดยบอทจะจดจำและแสดงสรุป Task ล่าสุดที่ทำไว้ในแต่ละโปรเจกต์เมื่อสลับกลับมา
+- **คำสั่ง `/note`**: เพิ่มคำสั่งให้ผู้ใช้สามารถบันทึกหรืออัปเดต Task ปัจจุบันสำหรับโปรเจกต์ที่กำลังทำงานอยู่ได้
+- **การบันทึก Agent State**: สถานะการทำงานของบอท (เช่น Task ปัจจุบัน, ไฟล์ที่กำลังแก้ไข) จะถูกบันทึกแยกตามโปรเจกต์ เพื่อให้การกู้คืนบริบทมีประสิทธิภาพ
+
+### Fixed
+- **การสร้าง Update Object**: แก้ไขการสร้าง Object `Update` ใน Test Suite เพื่อจัดการกับ Alias ของ `from` ได้อย่างถูกต้อง
+- **ลำดับ Decorator ของ Mock**: แก้ไขลำดับของ Mock Decorator ใน Test Case ของ `handle_chat_message` เพื่อให้ทำงานได้อย่างถูกต้อง
+- **Type Fixes & Test Guidance**: ปรับปรุง Type Hinting และคำแนะนำในการทดสอบตามรายงาน Code Review
+
+### Changed
+- **Refactoring `telegram_service`**: เปลี่ยนชื่อ Singleton Instance ของ `telegram_service` เป็น `tg_service` เพื่อความสอดคล้อง
+- **Test Refactoring**: ปรับปรุงการเขียน Test สำหรับ `chat_service` โดยใช้ `patch.object` เพื่อหลีกเลี่ยงปัญหาการชนกันของชื่อ Mock
+- **Sync AI Brain Artifacts**: อัปเดตเอกสารประกอบในส่วน AI Brain ให้สอดคล้องกับการเปลี่ยนแปลงล่าสุด
