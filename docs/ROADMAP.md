@@ -43,7 +43,7 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#31](https://github.com/oatrice/Akasa/issues/31) | [Service] GithubService: CLI Wrapper | 🔲 Todo |
+| [#31](https://github.com/oatrice/Akasa/issues/31) | [Service] GithubService: CLI Wrapper | ✅ Complete |
 | [#32](https://github.com/oatrice/Akasa/issues/32) | [Feature] Define GitHub Function Calling for ChatService | 🔲 Todo |
 | [#33](https://github.com/oatrice/Akasa/issues/33) | [Service] Async Deployment Service for Web & Backend | 🔲 Todo |
 | [#34](https://github.com/oatrice/Akasa/issues/34) | [Feature] Post-Build Notification System with URL Verification | 🔲 Todo |

@@ -9,6 +9,7 @@ from app.models.telegram import Update, Message
 from app.models.agent_state import AgentState
 from app.services import llm_service, redis_service
 from app.services.telegram_service import tg_service # Import the renamed instance
+from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
 import httpx
 import logging
 import os
@@ -17,6 +18,9 @@ from datetime import datetime, timezone
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Initialize GitHub Service
+github_service = GitHubService()
 
 # Cache build info at startup
 _BUILD_INFO_CACHE = None
@@ -93,7 +97,7 @@ async def handle_chat_message(update: Update) -> None:
 
 
 async def _handle_command(message: "Message") -> None:
-    """จัดการคำสั่งต่างๆ (เช่น /model, /project)"""
+    """จัดการคำสั่งต่างๆ (เช่น /model, /project, /github)"""
     chat_id = message.chat.id
     parts = message.text.split()
     cmd = parts[0].lower()
@@ -105,8 +109,94 @@ async def _handle_command(message: "Message") -> None:
         await _handle_project_command(chat_id, args)
     elif cmd == "/note" and len(parts) > 1:
         await _handle_note_command(chat_id, args)
+    elif cmd == "/github":
+        await _handle_github_command(chat_id, args)
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
+
+
+async def _handle_github_command(chat_id: int, args: list[str]) -> None:
+    """จัดการคำสั่ง /github (repo, issues, pr)"""
+    if not args:
+        msg = "🐙 *GitHub Commands:*\n"
+        msg += "• `/github repo <owner/repo>` - View repo info\n"
+        msg += "• `/github issues [owner/repo]` - List issues\n"
+        msg += "• `/github issue new <repo> <title> [body]` - Create issue\n"
+        msg += "• `/github pr [owner/repo]` - View PR status\n"
+        msg += "• `/github pr new <repo> <title> [body]` - Create PR\n\n"
+        msg += "💡 *Tip:* If repo is omitted, it uses the current project name."
+        await _send_response(chat_id, msg)
+        return
+
+    sub_cmd = args[0].lower()
+    
+    try:
+        if sub_cmd == "repo" and len(args) > 1:
+            repo_name = args[1]
+            repo = github_service.get_repo_info(repo_name)
+            msg = f"📦 *{repo.full_name}*\n"
+            msg += f"📝 {repo.description or 'No description'}\n"
+            msg += f"⭐ Stars: {repo.stargazers_count}\n"
+            msg += f"🔗 [View on GitHub]({repo.html_url})"
+            await _send_response(chat_id, msg)
+
+        elif sub_cmd == "issues":
+            repo_name = args[1] if len(args) > 1 else await redis_service.get_current_project(chat_id)
+            if not repo_name or "/" not in repo_name:
+                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo` or select a project that matches a repo name.")
+                return
+            
+            issues = github_service.list_issues(repo_name)
+            if not issues:
+                await _send_response(chat_id, f"✅ No open issues found for `{repo_name}`")
+                return
+                
+            msg = f"🎯 *Open Issues for {repo_name}:*\n"
+            for issue in issues:
+                msg += f"• #{issue.number} {issue.title} ([link]({issue.url}))\n"
+            await _send_response(chat_id, msg)
+
+        elif sub_cmd == "issue" and len(args) > 3 and args[1] == "new":
+            repo_name = args[2]
+            title = args[3]
+            body = " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot"
+            url = github_service.create_issue(repo_name, title, body)
+            await _send_response(chat_id, f"✅ Issue created: {url}")
+
+        elif sub_cmd == "pr":
+            if len(args) > 1 and args[1] == "new" and len(args) > 3:
+                repo_name = args[2]
+                title = args[3]
+                body = " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot"
+                url = github_service.pr_create(repo_name, title, body)
+                await _send_response(chat_id, f"✅ Pull Request created: {url}")
+            else:
+                repo_name = args[1] if len(args) > 1 else await redis_service.get_current_project(chat_id)
+                if not repo_name or "/" not in repo_name:
+                    await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                    return
+                
+                prs = github_service.get_pr_status(repo_name)
+                if not prs:
+                    await _send_response(chat_id, f"✅ No active PRs found for `{repo_name}`")
+                    return
+                
+                msg = f"🔀 *PR Status for {repo_name}:*\n"
+                for pr in prs:
+                    status = "🛠️ Draft" if pr.is_draft else "🚀 Active"
+                    msg += f"• #{pr.number} {pr.title} ({status}) [link]({pr.url})\n"
+                await _send_response(chat_id, msg)
+
+        else:
+            await _send_response(chat_id, f"❌ Invalid GitHub command or missing arguments.")
+
+    except GitHubAuthError as e:
+        await _send_response(chat_id, f"🔐 *Auth Error:* {str(e)}\nPlease check your `GITHUB_TOKEN`.")
+    except GitHubServiceError as e:
+        await _send_response(chat_id, f"❌ *GitHub Error:* {str(e)}")
+    except Exception as e:
+        logger.exception("GitHub command failed")
+        await _send_response(chat_id, f"⚠️ Unexpected error: {str(e)}")
 
 
 async def _handle_note_command(chat_id: int, args: list[str]) -> None:
