@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/oatrice/Akasa/compare/v0.9.0...v0.10.0) (2026-03-09)
+
+
+### Features
+
+* Support Outbound Messaging in TelegramService ([#42](https://github.com/oatrice/Akasa/issues/42)) ([2b3adfc](https://github.com/oatrice/Akasa/commit/2b3adfc149bf20f04ee9f70dbd4babd79936698d))
+
 ## [0.10.0] - 2026-03-09
 
 ### Added
