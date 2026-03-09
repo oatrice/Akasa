@@ -661,19 +661,20 @@ async def test_handle_chat_message_saves_user_chat_id_mapping(
     mock_get_model_pref.return_value = None
     mock_get_llm_reply.return_value = "Some reply"
 
-    # 2. Create a valid Update object
+    # 2. Create a valid Update object, ensuring the 'from' alias is handled
     user_id = 98765
     chat_id = 12345
-    update_with_user = Update(
-        update_id=1,
-        message=Message(
-            message_id=1,
-            date=1612345678,
-            chat=Chat(id=chat_id, type="private"),
-            text="Hello Bot",
-            from_user=TelegramUser(id=user_id, is_bot=False, first_name="Test User")
-        )
-    )
+    update_data = {
+        "update_id": 1,
+        "message": {
+            "message_id": 1,
+            "date": 1612345678,
+            "chat": {"id": chat_id, "type": "private"},
+            "text": "Hello Bot",
+            "from": {"id": user_id, "is_bot": False, "first_name": "Test User"}
+        }
+    }
+    update_with_user = Update.parse_obj(update_data)
 
     # 3. Call the function under test
     await handle_chat_message(update_with_user)
