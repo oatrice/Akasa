@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://openrouter.ai/api/v1"
     LLM_MODEL: str = "google/gemini-2.5-flash"
 
+    AKASA_API_KEY: str = "default-dev-key"
+
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "gemini": {"name": "Google Gemini 2.5 Flash", "identifier": "google/gemini-2.5-flash"},
         "llama3": {"name": "Meta Llama 3.3 70B", "identifier": "meta-llama/llama-3.3-70b-instruct"},
