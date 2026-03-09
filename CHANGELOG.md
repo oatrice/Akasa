@@ -1,11 +1,26 @@
 # Changelog
 
-## [0.9.0](https://github.com/oatrice/Akasa/compare/v0.8.0...v0.9.0) (2026-03-08)
+## [0.10.0] - 2026-03-09
 
+### Added
+- feat: add user-chat ID mapping for proactive messaging support
+- docs: document /note command and project-specific memory feature
+- feat: [Feature] Project-Specific Memory & Context Restor...
+- docs: add Luma code review report identifying test assertion bug
+- feat: Add agent state persistence and context restoration
 
-### Features
+### Fixed
+- docs: add Luma code review report with type fixes and test guidance
+- test(chat): fix Update object creation to handle 'from' alias
+- test(chat): fix mock decorator order in handle_chat_message test
+- docs: add Luma code review report identifying test assertion bug
 
-* [Feature] Project-Specific Memory & Context Restor... ([#40](https://github.com/oatrice/Akasa/issues/40)) ([49a9ab9](https://github.com/oatrice/Akasa/commit/49a9ab9ab8a298bc0e0e9a0ef23e496802959c9a))
+### Changed
+- test: refactor chat service test to use @patch decorators
+- refactor: rename telegram_service singleton to tg_service
+- test(chat_service): use patch.object to avoid mock naming collisions
+- docs: add analysis for TelegramService proactive messaging (issue-30)
+- docs: sync AI brain artifacts
 
 ## [0.9.0] - 2026-03-08
 
