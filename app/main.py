@@ -5,7 +5,7 @@ Akasa API — FastAPI Backend Entry Point
 """
 
 from fastapi import FastAPI
-from app.routers import health, telegram
+from app.routers import health, telegram, notifications
 
 app = FastAPI(
     title="Akasa API",
@@ -17,3 +17,4 @@ app.router.redirect_slashes = False
 
 app.include_router(health.router)
 app.include_router(telegram.router)
+app.include_router(notifications.router, prefix="/api/v1")
