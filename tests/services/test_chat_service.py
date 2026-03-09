@@ -629,3 +629,46 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     sent_message = mock_telegram.send_message.call_args[0][1]
     assert "✅ Note saved for project" in sent_message
     assert f"`{project_name}`" in sent_message
+
+
+# === Proactive Messaging Support (Issue #30) ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.telegram_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_saves_user_chat_id_mapping(mock_llm, mock_telegram, mock_redis):
+    """ทดสอบว่าทุกครั้งที่ handle_chat_message ถูกเรียก ต้องมีการบันทึก user_id -> chat_id mapping"""
+    from app.models.telegram import Update, Message, Chat, TelegramUser
+
+    # Create a specific update for this test with the required 'from_user' field
+    user_id = 98765
+    chat_id = 12345
+    update_with_user = Update(
+        update_id=1,
+        message=Message(
+            message_id=1,
+            date=1612345678,
+            chat=Chat(id=chat_id, type="private"),
+            text="Hello Bot",
+            from_user=TelegramUser(id=user_id, is_bot=False, first_name="Test User")
+        )
+    )
+
+    # Setup mocks
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Some reply")
+    mock_telegram.send_message = AsyncMock()
+
+    # Call the main handler with the correct update object
+    await handle_chat_message(update_with_user)
+
+    # Assert that the mapping function was called correctly
+    mock_redis.set_user_chat_id_mapping.assert_called_once_with(
+        user_id=user_id,
+        chat_id=chat_id
+    )

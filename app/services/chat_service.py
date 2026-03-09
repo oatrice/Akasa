@@ -59,6 +59,7 @@ async def _send_response(chat_id: int, text: str) -> None:
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
     
     try:
+        # The imported `telegram_service` is now an instance of the TelegramService class
         await telegram_service.send_message(chat_id, final_text)
     except httpx.HTTPStatusError as e:
         logger.error(f"Failed to send message to Telegram for {chat_id}. HTTP Status Error: {e}")
@@ -74,27 +75,36 @@ async def handle_chat_message(update: Update) -> None:
     if not update.message or not update.message.text:
         return
 
-    chat_id = update.message.chat.id
-    text = update.message.text.strip()
-    print(f"--- [DEBUG] Processing message from {chat_id}: {text} ---")
+    # --- Issue #30: Proactive Messaging Support ---
+    if update.message and update.message.from_user:
+        try:
+            await redis_service.set_user_chat_id_mapping(
+                user_id=update.message.from_user.id,
+                chat_id=update.message.chat.id
+            )
+        except Exception as e:
+            logger.warning(f"Failed to set user_chat_id mapping for user {update.message.from_user.id}: {e}")
+    # ---------------------------------------------
 
-    if text.startswith("/"):
-        await _handle_command(chat_id, text)
+    if update.message.text.startswith("/"):
+        await _handle_command(update.message)
     else:
-        await _handle_standard_message(chat_id, text)
+        await _handle_standard_message(update.message)
 
 
-async def _handle_command(chat_id: int, command_text: str) -> None:
+async def _handle_command(message: "Message") -> None:
     """จัดการคำสั่งต่างๆ (เช่น /model, /project)"""
-    parts = command_text.split()
+    chat_id = message.chat.id
+    parts = message.text.split()
     cmd = parts[0].lower()
+    args = parts[1:] if len(parts) > 1 else []
     
     if cmd == "/model":
-        await _handle_model_command(chat_id, parts[1:] if len(parts) > 1 else [])
+        await _handle_model_command(chat_id, args)
     elif cmd == "/project":
-        await _handle_project_command(chat_id, parts[1:] if len(parts) > 1 else [])
+        await _handle_project_command(chat_id, args)
     elif cmd == "/note" and len(parts) > 1:
-        await _handle_note_command(chat_id, parts[1:])
+        await _handle_note_command(chat_id, args)
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
 
@@ -239,8 +249,11 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")
 
 
-async def _handle_standard_message(chat_id: int, prompt: str) -> None:
+async def _handle_standard_message(message: "Message") -> None:
     """จัดการข้อความปกติ (ดึง history, เรียก LLM, บันทึก history)"""
+    chat_id = message.chat.id
+    prompt = message.text.strip()
+    print(f"--- [DEBUG] Processing message from {chat_id}: {prompt} ---")
     
     # 1. ดึงโปรเจ็กต์ปัจจุบัน
     current_project = await redis_service.get_current_project(chat_id)

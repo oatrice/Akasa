@@ -188,3 +188,29 @@ async def test_model_preference_has_ttl(patch_redis):
     
     ttl = await patch_redis.ttl(f"user_model_pref:{chat_id}")
     assert ttl > 0
+
+
+# --- User ID to Chat ID Mapping (for Proactive Messaging - Issue #30) ---
+
+@pytest.mark.asyncio
+async def test_set_and_get_user_chat_id_mapping(patch_redis):
+    """ทดสอบการเก็บและดึง mapping ระหว่าง user_id และ chat_id"""
+    from app.services.redis_service import set_user_chat_id_mapping, get_chat_id_for_user
+
+    user_id = "user-123"
+    chat_id = "chat-456"
+
+    # 1. ทดสอบ get user ที่ยังไม่มี -> ควรได้ None
+    retrieved_chat_id = await get_chat_id_for_user(user_id)
+    assert retrieved_chat_id is None
+
+    # 2. ตั้งค่า mapping
+    await set_user_chat_id_mapping(user_id, chat_id)
+
+    # 3. ดึงค่ากลับมา -> ต้องตรงกับที่ตั้งไว้
+    retrieved_chat_id = await get_chat_id_for_user(user_id)
+    assert retrieved_chat_id == chat_id
+
+    # 4. Key ต้องมี TTL
+    ttl = await patch_redis.ttl(f"user_chat_id:{user_id}")
+    assert ttl > 0
