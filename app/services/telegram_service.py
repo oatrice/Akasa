@@ -52,4 +52,4 @@ class TelegramService:
                 raise  # Re-raise other HTTP errors
 
 # Create a singleton instance for the application to use
-telegram_service = TelegramService(settings.TELEGRAM_BOT_TOKEN)
+tg_service = TelegramService(settings.TELEGRAM_BOT_TOKEN)

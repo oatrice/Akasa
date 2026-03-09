@@ -5,9 +5,10 @@ Flow: Telegram → ดึง history จาก Redis → สร้าง message
 Graceful degradation: ถ้า Redis ล่ม ยังทำงานได้เป็น stateless
 """
 
-from app.models.telegram import Update
+from app.models.telegram import Update, Message
 from app.models.agent_state import AgentState
-from app.services import llm_service, telegram_service, redis_service
+from app.services import llm_service, redis_service
+from app.services.telegram_service import tg_service # Import the renamed instance
 import httpx
 import logging
 import os
@@ -59,8 +60,7 @@ async def _send_response(chat_id: int, text: str) -> None:
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
     
     try:
-        # The imported `telegram_service` is now an instance of the TelegramService class
-        await telegram_service.send_message(chat_id, final_text)
+        await tg_service.send_message(chat_id, final_text)
     except httpx.HTTPStatusError as e:
         logger.error(f"Failed to send message to Telegram for {chat_id}. HTTP Status Error: {e}")
     except Exception as e:
