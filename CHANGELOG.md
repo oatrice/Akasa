@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/oatrice/Akasa/compare/v0.11.0...v0.12.0) (2026-03-09)
+
+
+### Features
+
+* [Service] GithubService: Subprocess Wrapper for GH... ([#47](https://github.com/oatrice/Akasa/issues/47)) ([6f30a2a](https://github.com/oatrice/Akasa/commit/6f30a2a9465aa29c2aa5e020ca66dc5d7cb024c4))
+
 ## [0.12.0] - 2026-03-09
 
 ### Added
