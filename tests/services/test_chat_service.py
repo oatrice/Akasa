@@ -634,14 +634,16 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
 # === Proactive Messaging Support (Issue #30) ===
 
 @pytest.mark.asyncio
-@patch("app.services.chat_service.redis_service")
-@patch("app.services.chat_service.telegram_service")
-@patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_saves_user_chat_id_mapping(mock_llm, mock_telegram, mock_redis):
-    """ทดสอบว่าทุกครั้งที่ handle_chat_message ถูกเรียก ต้องมีการบันทึก user_id -> chat_id mapping"""
+async def test_handle_chat_message_saves_user_chat_id_mapping():
+    """
+    Verifies that handle_chat_message calls redis_service.set_user_chat_id_mapping.
+    This version uses patch.object on the Class to avoid naming collisions.
+    """
     from app.models.telegram import Update, Message, Chat, TelegramUser
+    from app.services import redis_service, llm_service
+    from app.services.telegram_service import TelegramService # Import the Class
 
-    # Create a specific update for this test with the required 'from_user' field
+    # 1. Create a valid Update object
     user_id = 98765
     chat_id = 12345
     update_with_user = Update(
@@ -655,20 +657,23 @@ async def test_handle_chat_message_saves_user_chat_id_mapping(mock_llm, mock_tel
         )
     )
 
-    # Setup mocks
-    mock_redis.set_user_chat_id_mapping = AsyncMock()
-    mock_redis.get_current_project = AsyncMock(return_value="default")
-    mock_redis.get_chat_history = AsyncMock(return_value=[])
-    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
-    mock_redis.add_message_to_history = AsyncMock()
-    mock_llm.get_llm_reply = AsyncMock(return_value="Some reply")
-    mock_telegram.send_message = AsyncMock()
+    # 2. Use patch.object, targeting the Class method directly
+    with patch.object(redis_service, "set_user_chat_id_mapping", new_callable=AsyncMock) as mock_set_mapping, \
+         patch.object(redis_service, "get_current_project", new_callable=AsyncMock, return_value="default"), \
+         patch.object(redis_service, "get_chat_history", new_callable=AsyncMock, return_value=[]), \
+         patch.object(redis_service, "get_user_model_preference", new_callable=AsyncMock, return_value=None), \
+         patch.object(redis_service, "add_message_to_history", new_callable=AsyncMock), \
+         patch.object(TelegramService, "send_message", new_callable=AsyncMock) as mock_send, \
+         patch.object(llm_service, "get_llm_reply", new_callable=AsyncMock, return_value="Some reply"):
 
-    # Call the main handler with the correct update object
-    await handle_chat_message(update_with_user)
+        # 3. Call the function under test
+        await handle_chat_message(update_with_user)
 
-    # Assert that the mapping function was called correctly
-    mock_redis.set_user_chat_id_mapping.assert_called_once_with(
-        user_id=user_id,
-        chat_id=chat_id
-    )
+        # 4. Assert that the target mock was called correctly
+        mock_set_mapping.assert_called_once_with(
+            user_id=user_id,
+            chat_id=chat_id
+        )
+        
+        # Optional: Verify other mocks were called to ensure flow is correct
+        mock_send.assert_called_once()
