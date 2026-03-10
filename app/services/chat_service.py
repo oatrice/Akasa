@@ -130,6 +130,24 @@ GITHUB_TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_github_pr",
+            "description": "Creates a new Pull Request in a GitHub repository.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "title": {"type": "string", "description": "The title of the Pull Request."},
+                    "body": {"type": "string", "description": "The body content of the Pull Request."},
+                    "head": {"type": "string", "description": "The name of the branch where your changes are implemented."},
+                    "base": {"type": "string", "description": "The name of the branch you want your changes pulled into (default: 'main')."},
+                },
+                "required": ["repo", "title", "body", "head", "base"],
+            },
+        },
+    },
 ]
 # ------------------------------------------
 
@@ -503,6 +521,14 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
             if not issues:
                 return "No issues matching the query found."
             return "\n".join([f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})" for i in issues])
+        elif function_name == "create_github_pr":
+            return github_service.pr_create(
+                repo=args.get("repo"),
+                title=args.get("title"),
+                body=args.get("body"),
+                head=args.get("head"),
+                base=args.get("base", "main")
+            )
         else:
             return f"Error: Tool {function_name} not implemented."
             
@@ -575,6 +601,17 @@ async def _handle_standard_message(message: "Message") -> None:
     except (httpx.TimeoutException, httpx.HTTPError) as e:
         logger.error(f"API Error getting LLM reply for {chat_id}: {e}")
         await _send_response(chat_id, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+        return
+    except llm_service.OpenRouterInsufficientCreditsError as e:
+        logger.warning(f"OpenRouter credits exhausted for {chat_id}: {e}")
+        error_msg = (
+            "🔴 *ยอดเงินใน OpenRouter ไม่เพียงพอ*\n\n"
+            "ไม่สามารถใช้โมเดลปัจจุบันได้เนื่องจากยอดเงินคงเหลือหมดครับ\n\n"
+            "💡 *คำแนะนำ:*\n"
+            "1. เติมเงินใน OpenRouter\n"
+            "2. สลับไปใช้โมเดลอื่น (เช่น Gemini ผ่าน Google SDK หรือโมเดลฟรี) โดยใช้คำสั่ง `/model`"
+        )
+        await _send_response(chat_id, error_msg)
         return
     except (ValueError, KeyError, TypeError) as e:
         logger.error(f"Malformed LLM response for {chat_id}: {e}")

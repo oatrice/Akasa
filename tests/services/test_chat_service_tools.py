@@ -233,6 +233,46 @@ async def test_handle_chat_message_with_delete_issue_tool_call(mock_github, mock
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
+async def test_handle_chat_message_with_create_pr_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+    """Test creating a GitHub Pull Request via tool call."""
+    mock_update = mock_update_base
+    mock_update.message.text = "เปิด PR จาก feat/login ไป main ใน oatrice/Akasa"
+
+    mock_redis.get_current_project = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    
+    tool_call = {
+        "id": "call_pr_1",
+        "type": "function",
+        "function": {
+            "name": "create_github_pr",
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Feat: Login", "body": "Add login page", "head": "feat/login", "base": "main"}'
+        }
+    }
+    
+    mock_llm.get_llm_reply = AsyncMock(side_effect=[
+        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+        "เปิด Pull Request ให้เรียบร้อยแล้วค่ะ"
+    ])
+
+    mock_github.pr_create = MagicMock(return_value="https://github.com/oatrice/Akasa/pull/55")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    mock_github.pr_create.assert_called_once_with(
+        repo="oatrice/Akasa", title="Feat: Login", body="Add login page", head="feat/login", base="main"
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.github_service")
 async def test_handle_chat_message_saves_full_tool_context_to_history(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
     """
     Verify that the full conversational turn (user prompt, tool call, tool result, and final reply)
