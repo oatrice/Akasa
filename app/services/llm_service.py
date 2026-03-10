@@ -8,28 +8,30 @@ import httpx
 import logging
 import asyncio
 import google.generativeai as genai
-from typing import Optional
+from typing import Optional, Any
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-async def get_llm_reply(messages: list[dict], model: Optional[str] = None) -> str:
+async def get_llm_reply(messages: list[dict], model: Optional[str] = None, tools: Optional[list] = None) -> Any:
     """
     Sends a list of messages to the LLM (OpenRouter or Google SDK) and returns the generated reply.
 
     Args:
         messages: list ของ message dicts รูปแบบ [{"role": "user/assistant/system", "content": "..."}]
         model: ชื่อ identifier ของโมเดลที่ต้องการใช้ (ถ้าเป็น None จะใช้ค่าจาก settings)
+        tools: รายการเครื่องมือ (tools) ที่ต้องการส่งให้ LLM
     """
     selected_model = model or settings.LLM_MODEL
     
     # 1. ถ้าเป็นโมเดลตระกูล gemini และมีการตั้งค่า GEMINI_API_KEY ไว้ ให้ใช้ Google SDK โดยตรง
-    if "gemini" in selected_model.lower() and settings.GEMINI_API_KEY:
+    # หมายเหตุ: ปัจจุบัน Google SDK ใน wrapper นี้ยังไม่รองรับ tools ดังนั้นถ้ามี tools ให้ใช้ OpenRouter แทน
+    if "gemini" in selected_model.lower() and settings.GEMINI_API_KEY and not tools:
         return await _get_google_gemini_reply(messages, selected_model)
     
     # 2. กรณีอื่นๆ ใช้ OpenRouter
-    return await _get_openrouter_reply(messages, selected_model)
+    return await _get_openrouter_reply(messages, selected_model, tools)
 
 
 async def _get_google_gemini_reply(messages: list[dict], model: str) -> str:
@@ -75,7 +77,7 @@ async def _get_google_gemini_reply(messages: list[dict], model: str) -> str:
     return response.text
 
 
-async def _get_openrouter_reply(messages: list[dict], model: str) -> str:
+async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optional[list] = None) -> Any:
     """เรียกใช้ OpenRouter API พร้อม Retry เมื่อเจอ Server Error"""
     headers = {
         "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
@@ -86,6 +88,8 @@ async def _get_openrouter_reply(messages: list[dict], model: str) -> str:
         "model": model,
         "messages": messages
     }
+    if tools:
+        payload["tools"] = tools
 
     print(f"--- [DEBUG] Sending payload to OpenRouter: {payload} ---")
 
@@ -113,13 +117,17 @@ async def _get_openrouter_reply(messages: list[dict], model: str) -> str:
                 data = response.json()
                 
                 try:
-                    return data["choices"][0]["message"]["content"]
+                    message = data["choices"][0]["message"]
+                    # ถ้ามี tool_calls ให้ส่งคืนทั้ง message dict เพื่อให้ ChatService นำไปใช้ต่อ
+                    if "tool_calls" in message and message["tool_calls"]:
+                        return message
+                    return message.get("content", "")
                 except (KeyError, IndexError) as e:
                     # ถ้า API ตอบกลับมาผิดฟอร์ม (เช่น error message ใน 200 OK)
                     if "error" in data:
                         error_msg = data["error"].get("message", "Unknown OpenRouter error")
                         print(f"--- [DEBUG] OpenRouter API Error: {data} ---")
-                        # ถ้าเป็น 5xx ในรูปแบบ JSON error ให้ลองใหม่ได้
+                        # ถ้าเป็น 500 ในรูปแบบ JSON error ให้ลองใหม่ได้
                         if data["error"].get("code") == 500 and attempt < max_retries - 1:
                              logger.warning(f"OpenRouter API returned 500 Error (attempt {attempt+1}). Retrying...")
                              await asyncio.sleep(retry_delay)

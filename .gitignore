@@ -16,3 +16,4 @@ prompt_*.txt
 # Error Logs
 error.log
 .error.log
+.luma_dev.json

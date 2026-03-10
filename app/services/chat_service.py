@@ -22,6 +22,41 @@ logger = logging.getLogger(__name__)
 # Initialize GitHub Service
 github_service = GitHubService()
 
+# --- Issue #32: GitHub Tool Definitions ---
+GITHUB_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_github_issue",
+            "description": "Creates a new issue in a specified GitHub repository.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "title": {"type": "string", "description": "The title of the issue."},
+                    "body": {"type": "string", "description": "The body content of the issue."},
+                },
+                "required": ["repo", "title", "body"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_github_open_prs",
+            "description": "Lists all open pull requests for a specified GitHub repository.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                },
+                "required": ["repo"],
+            },
+        },
+    },
+]
+# ------------------------------------------
+
 # Cache build info at startup
 _BUILD_INFO_CACHE = None
 
@@ -339,6 +374,33 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")
 
 
+async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
+    """ประมวลผลการเรียกใช้ Tool ตามที่ LLM ร้องขอ"""
+    import json
+    try:
+        args = json.loads(arguments_str)
+        print(f"--- [DEBUG] Executing tool: {function_name} with args: {args} ---")
+        
+        if function_name == "create_github_issue":
+            return github_service.create_issue(
+                repo=args.get("repo"),
+                title=args.get("title"),
+                body=args.get("body")
+            )
+        elif function_name == "list_github_open_prs":
+            prs = github_service.get_pr_status(repo=args.get("repo"))
+            if not prs:
+                return "No open pull requests found."
+            else:
+                return "\n".join([f"#{pr.number}: {pr.title} ({pr.url})" for pr in prs])
+        else:
+            return f"Error: Tool {function_name} not implemented."
+            
+    except Exception as e:
+        logger.error(f"Tool execution failed: {e}")
+        return f"Error executing {function_name}: {str(e)}"
+
+
 async def _handle_standard_message(message: "Message") -> None:
     """จัดการข้อความปกติ (ดึง history, เรียก LLM, บันทึก history)"""
     chat_id = message.chat.id
@@ -366,11 +428,61 @@ async def _handle_standard_message(message: "Message") -> None:
     custom_system_prompt = f"{settings.SYSTEM_PROMPT}\n\n[CONTEXT]\nYou are currently working on project: '{current_project}'."
     messages = [{"role": "system", "content": custom_system_prompt}] + history + [{"role": "user", "content": prompt}]
 
-    reply = ""
     try:
-        # 5. เรียก LLM พร้อมส่งโมเดลที่ผู้ใช้เลือก (ถ้ามี)
-        reply = await llm_service.get_llm_reply(messages, model=model_pref)
-        print(f"--- [DEBUG] Received reply from LLM: {reply} ---")
+        # 5. เรียก LLM พร้อมส่งโมเดลที่ผู้ใช้เลือก และส่ง GITHUB_TOOLS
+        response = await llm_service.get_llm_reply(messages, model=model_pref, tools=GITHUB_TOOLS)
+        
+        # --- Issue #32: Tool Calling Loop ---
+        while isinstance(response, dict) and "tool_calls" in response:
+            tool_calls = response["tool_calls"]
+            # เพิ่ม message ของ assistant ที่มี tool_calls ลงใน messages
+            messages.append(response)
+            
+            for tool_call in tool_calls:
+                function_name = tool_call["function"]["name"] if hasattr(tool_call, "__getitem__") else tool_call.function.name
+                arguments_str = tool_call["function"]["arguments"] if hasattr(tool_call, "__getitem__") else tool_call.function.arguments
+                call_id = tool_call["id"] if hasattr(tool_call, "__getitem__") else tool_call.id
+                
+                import json
+                args = json.loads(arguments_str)
+                print(f"--- [DEBUG] Executing tool: {function_name} with args: {args} ---")
+                
+                result = ""
+                try:
+                    if function_name == "create_github_issue":
+                        result = github_service.create_issue(
+                            repo=args.get("repo"),
+                            title=args.get("title"),
+                            body=args.get("body")
+                        )
+                    elif function_name == "list_github_open_prs":
+                        prs = github_service.get_pr_status(repo=args.get("repo"))
+                        if not prs:
+                            result = "No open pull requests found."
+                        else:
+                            result = "\n".join([f"#{pr.number}: {pr.title} ({pr.url})" for pr in prs])
+                    else:
+                        result = f"Error: Tool {function_name} not implemented."
+                except Exception as e:
+                    logger.error(f"Tool execution failed: {e}")
+                    result = f"Error: {str(e)}"
+                
+                # เพิ่มผลลัพธ์จาก Tool ลงใน messages
+                messages.append({
+                    "tool_call_id": call_id,
+                    "role": "tool",
+                    "name": function_name,
+                    "content": str(result),
+                })
+            
+            # เรียก LLM อีกครั้งเพื่อสรุปผล
+            response = await llm_service.get_llm_reply(messages, model=model_pref, tools=GITHUB_TOOLS)
+        
+        # หลังจบลูป response จะเป็น content string
+        reply = response
+        print(f"--- [DEBUG] Final reply from LLM: {reply} ---")
+        # ------------------------------------
+
     except (httpx.TimeoutException, httpx.HTTPError) as e:
         logger.error(f"API Error getting LLM reply for {chat_id}: {e}")
         await _send_response(chat_id, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
@@ -380,7 +492,7 @@ async def _handle_standard_message(message: "Message") -> None:
         await _send_response(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
         return
     except Exception as e:
-        logger.error(f"Unexpected error getting LLM reply for {chat_id}: {e}")
+        logger.exception(f"Unexpected error in _handle_standard_message for {chat_id}")
         await _send_response(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
         return
 
