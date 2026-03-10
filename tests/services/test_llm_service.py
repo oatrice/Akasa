@@ -135,3 +135,34 @@ async def test_get_llm_reply_uses_google_sdk_when_gemini_and_key_provided(monkey
     # ตรวจสอบว่ามีการเรียก start_chat และ send_message_async
     mock_model.start_chat.assert_called_once()
     mock_chat.send_message_async.assert_called_once_with("Hello Google")
+
+
+@pytest.mark.asyncio
+async def test_get_llm_reply_insufficient_credits(respx_mock):
+    """ทดสอบกรณี OpenRouter แจ้งเตือนเงินไม่พอ (Insufficient credits)"""
+    from app.services.llm_service import OpenRouterInsufficientCreditsError
+    
+    settings.OPENROUTER_API_KEY = "test_api_key"
+    messages = [{"role": "user", "content": "Hello"}]
+
+    # 1. จำลองกรณี 402 Payment Required
+    respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            402, 
+            json={"error": {"message": "Insufficient credits", "code": 402}}
+        )
+    )
+
+    with pytest.raises(OpenRouterInsufficientCreditsError):
+        await get_llm_reply(messages)
+
+    # 2. จำลองกรณี 400 Bad Request แต่ใน JSON บอกว่า Insufficient credits
+    respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            400, 
+            json={"error": {"message": "Credit balance too low", "code": 400}}
+        )
+    )
+
+    with pytest.raises(OpenRouterInsufficientCreditsError):
+        await get_llm_reply(messages)
