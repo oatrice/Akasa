@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0] - 2026-03-10
+
+### Added
+- **AI-Powered GitHub Tools**: Enabled LLM function-calling to allow the chat assistant to directly interact with GitHub. The assistant can now create pull requests, as well as create, get, and close issues.
+- **User Confirmation System**: Implemented a confirmation step for sensitive actions executed by the AI, ensuring user approval before proceeding.
+- **Expanded GitHub Models**: Added `body` to the `Issue` model and `author` to the `PullRequest` model to support richer GitHub interactions.
+- **Test Coverage**: Added comprehensive tests for the new GitHub tool-calling functionality in `test_chat_service_tools.py`.
+
+### Changed
+- **Chat Service Architecture**: Refactored `ChatService` to integrate the function-calling mechanism and manage the execution of GitHub tools.
+- **Error Handling**: Improved error handling and reporting for OpenRouter API calls within `LLMService`.
+
 ## [0.12.0](https://github.com/oatrice/Akasa/compare/v0.11.0...v0.12.0) (2026-03-09)
 
 
