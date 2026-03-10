@@ -6,6 +6,7 @@ class GitHubIssue(BaseModel):
     title: str
     state: str
     url: str
+    body: Optional[str] = None # Added body field
     author: Optional[dict] = None # gh issue list returns author as a dict {"id": "...", "login": "..."}
 
 class GitHubPR(BaseModel):
