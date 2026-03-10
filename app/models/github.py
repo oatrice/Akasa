@@ -6,8 +6,7 @@ class GitHubIssue(BaseModel):
     title: str
     state: str
     url: str
-    body: Optional[str] = None
-    author: Optional[dict] = None
+    author: Optional[dict] = None # gh issue list returns author as a dict {"id": "...", "login": "..."}
 
 class GitHubPR(BaseModel):
     number: int
@@ -16,7 +15,7 @@ class GitHubPR(BaseModel):
     url: str
     is_draft: bool = Field(False, alias="isDraft")
     mergeable: Optional[str] = None
-    author: Optional[dict] = None
+    author: Optional[dict] = None # Added for consistency and requirement
 
 class GitHubRepo(BaseModel):
     full_name: str = Field(..., alias="nameWithOwner")

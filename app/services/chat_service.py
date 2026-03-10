@@ -54,6 +54,82 @@ GITHUB_TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_github_comment",
+            "description": "Adds a comment to an existing GitHub issue or pull request.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "issue_number": {"type": "integer", "description": "The number of the issue or pull request."},
+                    "body": {"type": "string", "description": "The body content of the comment."},
+                },
+                "required": ["repo", "issue_number", "body"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "close_github_issue",
+            "description": "Closes an existing GitHub issue.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "issue_number": {"type": "integer", "description": "The number of the issue."},
+                },
+                "required": ["repo", "issue_number"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_github_issue",
+            "description": "Deletes an existing GitHub issue (Permanent).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "issue_number": {"type": "integer", "description": "The number of the issue."},
+                },
+                "required": ["repo", "issue_number"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_github_issue",
+            "description": "Gets details of a specific GitHub issue.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "issue_number": {"type": "integer", "description": "The number of the issue."},
+                },
+                "required": ["repo", "issue_number"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_github_issues",
+            "description": "Searches for GitHub issues based on a query.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "query": {"type": "string", "description": "The search query (e.g., 'bug', 'feature')."},
+                },
+                "required": ["repo", "query"],
+            },
+        },
+    },
 ]
 # ------------------------------------------
 
@@ -392,7 +468,41 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
             if not prs:
                 return "No open pull requests found."
             else:
-                return "\n".join([f"#{pr.number}: {pr.title} ({pr.url})" for pr in prs])
+                formatted_prs = []
+                for pr in prs:
+                    author_name = pr.author.get("login") if pr.author else "unknown"
+                    formatted_prs.append(f"#{pr.number}: {pr.title} by @{author_name} ({pr.url})")
+                return "\n".join(formatted_prs)
+        elif function_name == "create_github_comment":
+            return github_service.create_comment(
+                repo=args.get("repo"),
+                issue_number=args.get("issue_number"),
+                body=args.get("body")
+            )
+        elif function_name == "close_github_issue":
+            return github_service.close_issue(
+                repo=args.get("repo"),
+                issue_number=args.get("issue_number")
+            )
+        elif function_name == "delete_github_issue":
+            return github_service.delete_issue(
+                repo=args.get("repo"),
+                issue_number=args.get("issue_number")
+            )
+        elif function_name == "get_github_issue":
+            issue = github_service.get_issue(
+                repo=args.get("repo"),
+                issue_number=args.get("issue_number")
+            )
+            return f"Issue #{issue.number}: {issue.title}\nStatus: {issue.state}\nAuthor: @{issue.author.get('login') if issue.author else 'unknown'}\nURL: {issue.url}\n\nBody:\n{issue.body}"
+        elif function_name == "search_github_issues":
+            issues = github_service.search_issues(
+                repo=args.get("repo"),
+                query=args.get("query")
+            )
+            if not issues:
+                return "No issues matching the query found."
+            return "\n".join([f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})" for i in issues])
         else:
             return f"Error: Tool {function_name} not implemented."
             
@@ -439,33 +549,12 @@ async def _handle_standard_message(message: "Message") -> None:
             messages.append(response)
             
             for tool_call in tool_calls:
+                call_id = tool_call["id"] if hasattr(tool_call, "__getitem__") else tool_call.id
                 function_name = tool_call["function"]["name"] if hasattr(tool_call, "__getitem__") else tool_call.function.name
                 arguments_str = tool_call["function"]["arguments"] if hasattr(tool_call, "__getitem__") else tool_call.function.arguments
-                call_id = tool_call["id"] if hasattr(tool_call, "__getitem__") else tool_call.id
                 
-                import json
-                args = json.loads(arguments_str)
-                print(f"--- [DEBUG] Executing tool: {function_name} with args: {args} ---")
-                
-                result = ""
-                try:
-                    if function_name == "create_github_issue":
-                        result = github_service.create_issue(
-                            repo=args.get("repo"),
-                            title=args.get("title"),
-                            body=args.get("body")
-                        )
-                    elif function_name == "list_github_open_prs":
-                        prs = github_service.get_pr_status(repo=args.get("repo"))
-                        if not prs:
-                            result = "No open pull requests found."
-                        else:
-                            result = "\n".join([f"#{pr.number}: {pr.title} ({pr.url})" for pr in prs])
-                    else:
-                        result = f"Error: Tool {function_name} not implemented."
-                except Exception as e:
-                    logger.error(f"Tool execution failed: {e}")
-                    result = f"Error: {str(e)}"
+                # Use the refactored private method to execute the tool
+                result = await _execute_tool_call(function_name, arguments_str)
                 
                 # เพิ่มผลลัพธ์จาก Tool ลงใน messages
                 messages.append({
@@ -499,9 +588,39 @@ async def _handle_standard_message(message: "Message") -> None:
     # 6. ส่งคำตอบกลับหาผู้ใช้
     await _send_response(chat_id, reply)
 
-    # 7. บันทึก user message + assistant reply ลง Redis ในโปรเจ็กต์ปัจจุบัน
+    # 7. บันทึกประวัติการสนทนา (User Prompt + Tool Calls + Tool Results + Final Reply)
     try:
-        await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
-        await redis_service.add_message_to_history(chat_id, "assistant", reply, project_name=current_project)
+        # เริ่มต้นด้วยข้อความของ User
+        messages_to_save = [{"role": "user", "content": prompt}]
+
+        # ถ้ามีการเรียก Tool (response ในตอนแรกจะเป็น dict)
+        # เราต้องหาข้อความที่เพิ่มเข้ามาในระหว่าง loop
+        # หมายเหตุ: messages ในตอนแรกคือ [system, history, user]
+        # เราจะเริ่มบันทึกตั้งแต่ลำดับที่ต่อจาก user prompt
+        user_index = -1
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user" and msg.get("content") == prompt:
+                user_index = i
+                break
+        
+        if user_index != -1:
+            # เก็บข้อความทั้งหมดที่เกิดขึ้นหลังจาก User Prompt (เช่น Assistant Tool Call, Tool Result)
+            messages_to_save.extend(messages[user_index + 1:])
+        
+        # สุดท้ายเพิ่ม Assistant Final Reply (ซึ่งคือค่า reply string)
+        messages_to_save.append({"role": "assistant", "content": reply})
+
+        # บันทึกลง Redis ทีละข้อความ
+        for msg in messages_to_save:
+            role = msg.get("role")
+            # ถ้าเป็น assistant และมี tool_calls ให้ส่ง msg ทั้งก้อนไปให้ redis_service จัดการ
+            if role == "assistant" and "tool_calls" in msg:
+                await redis_service.add_message_to_history(chat_id, role, msg, project_name=current_project)
+            # ถ้าเป็น tool ให้ส่ง msg ทั้งก้อน (มี tool_call_id, name, content)
+            elif role == "tool":
+                await redis_service.add_message_to_history(chat_id, role, msg, project_name=current_project)
+            else:
+                await redis_service.add_message_to_history(chat_id, role, msg.get("content"), project_name=current_project)
+
     except Exception as e:
         logger.warning(f"Redis add_message_to_history failed for {chat_id} (Project: {current_project}): {e}")

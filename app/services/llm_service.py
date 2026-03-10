@@ -14,6 +14,11 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+class OpenRouterInsufficientCreditsError(Exception):
+    """Exception raised when OpenRouter reports insufficient credits."""
+    pass
+
+
 async def get_llm_reply(messages: list[dict], model: Optional[str] = None, tools: Optional[list] = None) -> Any:
     """
     Sends a list of messages to the LLM (OpenRouter or Google SDK) and returns the generated reply.
@@ -112,6 +117,10 @@ async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optiona
                     await asyncio.sleep(retry_delay)
                     retry_delay *= 2 # Exponential backoff
                     continue
+                
+                # ตรวจสอบกรณี 402 Payment Required (OpenRouter ใช้สำหรับเงินไม่พอ)
+                if response.status_code == 402:
+                    raise OpenRouterInsufficientCreditsError("OpenRouter: Insufficient credits.")
                     
                 response.raise_for_status()
                 data = response.json()
@@ -127,6 +136,11 @@ async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optiona
                     if "error" in data:
                         error_msg = data["error"].get("message", "Unknown OpenRouter error")
                         print(f"--- [DEBUG] OpenRouter API Error: {data} ---")
+                        
+                        # ตรวจสอบข้อความ error message (บางครั้งอาจมาในรูป 400 Bad Request แต่เนื้อหาคือเงินไม่พอ)
+                        if "credits" in error_msg.lower() or "balance" in error_msg.lower():
+                            raise OpenRouterInsufficientCreditsError(f"OpenRouter: {error_msg}")
+                        
                         # ถ้าเป็น 500 ในรูปแบบ JSON error ให้ลองใหม่ได้
                         if data["error"].get("code") == 500 and attempt < max_retries - 1:
                              logger.warning(f"OpenRouter API returned 500 Error (attempt {attempt+1}). Retrying...")

@@ -155,15 +155,12 @@ class GitHubService:
 
     def get_pr_status(self, repo: str) -> List[GitHubPR]:
         """Get the status of PRs in a repository."""
-        # Use 'status' instead of 'list' to match existing tests and models
-        args = ["pr", "status", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable,author"]
+        args = ["pr", "list", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable,author"]
         result = self._run_gh_command(args)
         
         try:
             data = json.loads(result.stdout)
-            # 'pr status' returns an object with 'pullRequests' key
-            prs_data = data.get("pullRequests", [])
-            return [GitHubPR(**pr) for pr in prs_data]
+            return [GitHubPR(**pr) for pr in data]
         except (json.JSONDecodeError, AttributeError, KeyError) as e:
             logger.error(f"Failed to parse GitHub PR status: {e}")
             raise GitHubServiceError(f"Failed to parse GitHub PR status: {str(e)}")
@@ -193,37 +190,3 @@ class GitHubService:
             return GitHubRepo(**data)
         except json.JSONDecodeError:
             raise GitHubServiceError("Failed to parse Repository info.")
-
-    # --- Git Operations via Shell (subprocess) ---
-    
-    def _run_git_command(self, args: List[str]) -> str:
-        """รันคำสั่ง git โดยตรงใน workspace"""
-        try:
-            result = subprocess.run(
-                ["git"] + args,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Git command failed: {e.stderr}")
-            raise GitHubServiceError(f"Git error: {e.stderr.strip()}")
-
-    def git_status(self) -> str:
-        """ตรวจสอบสถานะไฟล์ในเครื่อง"""
-        return self._run_git_command(["status", "--short"])
-
-    def git_add(self, path: str = ".") -> str:
-        """Stage ไฟล์"""
-        self._run_git_command(["add", path])
-        return f"Files at '{path}' added to staging."
-
-    def git_commit(self, message: str) -> str:
-        """บันทึกการเปลี่ยนแปลง"""
-        message = self.sanitize_input(message)
-        return self._run_git_command(["commit", "-m", message])
-
-    def git_push(self, branch: str = "main") -> str:
-        """ส่งข้อมูลขึ้น GitHub"""
-        return self._run_git_command(["push", "origin", branch])
