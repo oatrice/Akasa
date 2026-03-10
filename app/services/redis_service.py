@@ -214,3 +214,26 @@ async def get_chat_id_for_user(user_id: int) -> Optional[str]:
     """
     key = f"user_chat_id:{user_id}"
     return await redis_pool.get(key)
+
+
+# --- Pending Tool Calls (Action Confirmation) ---
+
+async def set_pending_tool_call(chat_id: int, tool_call: dict):
+    """เก็บคำสั่งที่รอยืนยันลง Redis (หมดอายุใน 10 นาที)"""
+    key = f"pending_tool:{chat_id}"
+    await redis_pool.set(key, json.dumps(tool_call), ex=600)
+
+
+async def get_pending_tool_call(chat_id: int) -> Optional[dict]:
+    """ดึงคำสั่งที่รอยืนยันออกมา"""
+    key = f"pending_tool:{chat_id}"
+    data = await redis_pool.get(key)
+    if data:
+        return json.loads(data)
+    return None
+
+
+async def clear_pending_tool_call(chat_id: int):
+    """ลบคำสั่งที่รอยืนยัน"""
+    key = f"pending_tool:{chat_id}"
+    await redis_pool.delete(key)
