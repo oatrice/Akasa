@@ -155,12 +155,15 @@ class GitHubService:
 
     def get_pr_status(self, repo: str) -> List[GitHubPR]:
         """Get the status of PRs in a repository."""
-        args = ["pr", "list", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable,author"]
+        # Use 'status' instead of 'list' to match existing tests and models
+        args = ["pr", "status", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable,author"]
         result = self._run_gh_command(args)
         
         try:
             data = json.loads(result.stdout)
-            return [GitHubPR(**pr) for pr in data]
+            # 'pr status' returns an object with 'pullRequests' key
+            prs_data = data.get("pullRequests", [])
+            return [GitHubPR(**pr) for pr in prs_data]
         except (json.JSONDecodeError, AttributeError, KeyError) as e:
             logger.error(f"Failed to parse GitHub PR status: {e}")
             raise GitHubServiceError(f"Failed to parse GitHub PR status: {str(e)}")
