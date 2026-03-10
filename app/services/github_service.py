@@ -190,3 +190,37 @@ class GitHubService:
             return GitHubRepo(**data)
         except json.JSONDecodeError:
             raise GitHubServiceError("Failed to parse Repository info.")
+
+    # --- Git Operations via Shell (subprocess) ---
+    
+    def _run_git_command(self, args: List[str]) -> str:
+        """รันคำสั่ง git โดยตรงใน workspace"""
+        try:
+            result = subprocess.run(
+                ["git"] + args,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Git command failed: {e.stderr}")
+            raise GitHubServiceError(f"Git error: {e.stderr.strip()}")
+
+    def git_status(self) -> str:
+        """ตรวจสอบสถานะไฟล์ในเครื่อง"""
+        return self._run_git_command(["status", "--short"])
+
+    def git_add(self, path: str = ".") -> str:
+        """Stage ไฟล์"""
+        self._run_git_command(["add", path])
+        return f"Files at '{path}' added to staging."
+
+    def git_commit(self, message: str) -> str:
+        """บันทึกการเปลี่ยนแปลง"""
+        message = self.sanitize_input(message)
+        return self._run_git_command(["commit", "-m", message])
+
+    def git_push(self, branch: str = "main") -> str:
+        """ส่งข้อมูลขึ้น GitHub"""
+        return self._run_git_command(["push", "origin", branch])
