@@ -54,7 +54,7 @@ async def get_chat_history(chat_id: int, project_name: str = "default") -> list[
     return history
 
 
-async def add_message_to_history(chat_id: int, role: str, content: str, project_name: str = "default"):
+async def add_message_to_history(chat_id: int, role: str, content: any, project_name: str = "default"):
     """เพิ่มข้อความลงในประวัติการสนทนาของ chat_id ในโปรเจ็กต์ที่กำหนด"""
     if settings.REDIS_HISTORY_LIMIT <= 0:
         return
@@ -63,12 +63,27 @@ async def add_message_to_history(chat_id: int, role: str, content: str, project_
     await _add_project_to_list(chat_id, project_name)
 
     history_key = f"chat_history:{chat_id}:{project_name}"
-    message = json.dumps({"role": role, "content": content})
+    
+    # สร้าง message dict
+    msg_dict = {"role": role}
+    
+    # ถ้าเป็นบทบาท assistant และมี tool_calls ให้เก็บโครงสร้างนั้นไว้
+    if role == "assistant" and isinstance(content, dict) and "tool_calls" in content:
+        msg_dict.update(content)
+    elif role == "tool":
+        msg_dict["tool_call_id"] = content.get("tool_call_id") if isinstance(content, dict) else None
+        msg_dict["name"] = content.get("name") if isinstance(content, dict) else None
+        msg_dict["content"] = content.get("content") if isinstance(content, dict) else str(content)
+    else:
+        msg_dict["content"] = str(content)
+
+    message_json = json.dumps(msg_dict)
+    
     # Push ข้อความใหม่ไปที่หัว list
-    await redis_pool.lpush(history_key, message)
+    await redis_pool.lpush(history_key, message_json)
     # ตัด list ให้เหลือไม่เกิน limit
     await redis_pool.ltrim(history_key, 0, settings.REDIS_HISTORY_LIMIT - 1)
-    # ตั้ง TTL เพื่อให้ key หมดอายุอัตโนมัติ (รีเซ็ตทุกครั้งที่มีข้อความใหม่)
+    # ตั้ง TTL เพื่อให้ key หมดอายุอัตโนมัติ
     await redis_pool.expire(history_key, settings.REDIS_TTL_SECONDS)
 
 
@@ -199,3 +214,26 @@ async def get_chat_id_for_user(user_id: int) -> Optional[str]:
     """
     key = f"user_chat_id:{user_id}"
     return await redis_pool.get(key)
+
+
+# --- Pending Tool Calls (Action Confirmation) ---
+
+async def set_pending_tool_call(chat_id: int, tool_call: dict):
+    """เก็บคำสั่งที่รอยืนยันลง Redis (หมดอายุใน 10 นาที)"""
+    key = f"pending_tool:{chat_id}"
+    await redis_pool.set(key, json.dumps(tool_call), ex=600)
+
+
+async def get_pending_tool_call(chat_id: int) -> Optional[dict]:
+    """ดึงคำสั่งที่รอยืนยันออกมา"""
+    key = f"pending_tool:{chat_id}"
+    data = await redis_pool.get(key)
+    if data:
+        return json.loads(data)
+    return None
+
+
+async def clear_pending_tool_call(chat_id: int):
+    """ลบคำสั่งที่รอยืนยัน"""
+    key = f"pending_tool:{chat_id}"
+    await redis_pool.delete(key)

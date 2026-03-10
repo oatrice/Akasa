@@ -44,7 +44,7 @@
 | # | Issue | Status |
 |---|---|---|
 | [#31](https://github.com/oatrice/Akasa/issues/31) | [Service] GithubService: CLI Wrapper | ✅ Complete |
-| [#32](https://github.com/oatrice/Akasa/issues/32) | [Feature] Define GitHub Function Calling for ChatService | 🔲 Todo |
+| [#32](https://github.com/oatrice/Akasa/issues/32) | [Feature] Define GitHub Function Calling for ChatService | ✅ Complete |
 | [#33](https://github.com/oatrice/Akasa/issues/33) | [Service] Async Deployment Service for Web & Backend | 🔲 Todo |
 | [#34](https://github.com/oatrice/Akasa/issues/34) | [Feature] Post-Build Notification System with URL Verification | 🔲 Todo |
 
@@ -64,6 +64,7 @@
 | # | Issue | Status |
 |---|---|---|
 | [#28](https://github.com/oatrice/Akasa/issues/28) | Web Dashboard & CLI Integration Hub (GitHub, Render, Vercel) | 🔲 Todo |
+| [#49](https://github.com/oatrice/Akasa/issues/49) | [Feature] Remote Action Confirmation via Akasa Bot (Telegram Integration) | 🔲 Todo |
 | [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | ✅ Complete |
 | [#11](https://github.com/oatrice/Akasa/issues/11) | เชื่อม GitHub API (อ่านโค้ด, review PR) | 🔲 Todo |
 | [#12](https://github.com/oatrice/Akasa/issues/12) | Code Sandbox (รันโค้ดได้จากแชท) | 🔲 Todo |

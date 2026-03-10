@@ -79,18 +79,42 @@ class GitHubService:
                 raise GitHubServiceError(f"Unexpected error: {str(e)}")
             raise
 
-    def list_issues(self, repo: str, limit: int = 10) -> List[GitHubIssue]:
-        """List issues for a specific repository."""
+    def get_issue(self, repo: str, issue_number: int) -> GitHubIssue:
+        """Get details of a specific issue."""
+        args = ["issue", "view", str(issue_number), "--repo", repo, "--json", "number,title,state,url,body,author"]
+        result = self._run_gh_command(args)
+
+        try:
+            data = json.loads(result.stdout)
+            return GitHubIssue(**data)
+        except (json.JSONDecodeError, AttributeError, KeyError) as e:
+            raise GitHubServiceError(f"Failed to parse issue details: {str(e)}")
+
+    def list_issues(self, repo: str, limit: int = 30) -> List[GitHubIssue]:
+        """List open issues in a repository."""
         args = ["issue", "list", "--repo", repo, "--limit", str(limit), "--json", "number,title,state,url,author"]
         result = self._run_gh_command(args)
-        
+
         try:
             data = json.loads(result.stdout)
             return [GitHubIssue(**issue) for issue in data]
-        except json.JSONDecodeError:
-            raise GitHubServiceError("Failed to parse GitHub CLI output as JSON.")
+        except (json.JSONDecodeError, AttributeError, KeyError):
+            raise GitHubServiceError("Failed to parse GitHub issues list.")
+
+    def search_issues(self, query: str, repo: str) -> List[GitHubIssue]:
+        """Search for issues in a repository."""
+        # gh issue list --search "query" --repo repo
+        args = ["issue", "list", "--repo", repo, "--search", query, "--json", "number,title,state,url,author"]
+        result = self._run_gh_command(args)
+
+        try:
+            data = json.loads(result.stdout)
+            return [GitHubIssue(**issue) for issue in data]
+        except (json.JSONDecodeError, AttributeError, KeyError):
+            raise GitHubServiceError("Failed to parse GitHub search results.")
 
     def create_issue(self, repo: str, title: str, body: str) -> str:
+
         """Create a new issue and return the URL."""
         title = self.sanitize_input(title)
         body = self.sanitize_input(body)
@@ -103,17 +127,46 @@ class GitHubService:
             return url
         raise GitHubServiceError(f"Unexpected output from issue creation: {url}")
 
+    def create_comment(self, repo: str, issue_number: int, body: str) -> str:
+        """Add a comment to an existing issue or pull request and return the URL."""
+        body = self.sanitize_input(body)
+        
+        # gh issue comment <number> --body "..."
+        args = ["issue", "comment", str(issue_number), "--repo", repo, "--body", body]
+        result = self._run_gh_command(args)
+        
+        url = result.stdout.strip()
+        if url.startswith("http"):
+            return url
+        raise GitHubServiceError(f"Unexpected output from comment creation: {url}")
+
+    def close_issue(self, repo: str, issue_number: int) -> str:
+        """Close an existing issue."""
+        args = ["issue", "close", str(issue_number), "--repo", repo]
+        result = self._run_gh_command(args)
+        return f"Successfully closed issue #{issue_number} in {repo}"
+
+    def delete_issue(self, repo: str, issue_number: int) -> str:
+        """Delete an existing issue (Permanent)."""
+        # gh issue delete <number> --repo <repo> --yes (to skip confirmation)
+        args = ["issue", "delete", str(issue_number), "--repo", repo, "--yes"]
+        result = self._run_gh_command(args)
+        return f"Successfully deleted issue #{issue_number} from {repo}"
+
     def get_pr_status(self, repo: str) -> List[GitHubPR]:
         """Get the status of PRs in a repository."""
-        args = ["pr", "status", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable"]
+        # Use 'status' instead of 'list' to match existing tests and models
+        args = ["pr", "status", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable,author"]
         result = self._run_gh_command(args)
         
         try:
             data = json.loads(result.stdout)
-            prs = data.get("pullRequests", [])
-            return [GitHubPR(**pr) for pr in prs]
-        except (json.JSONDecodeError, AttributeError, KeyError):
-            raise GitHubServiceError("Failed to parse GitHub PR status.")
+            # 'pr status' returns an object with 'pullRequests' key
+            prs_data = data.get("pullRequests", [])
+            return [GitHubPR(**pr) for pr in prs_data]
+        except (json.JSONDecodeError, AttributeError, KeyError) as e:
+            logger.error(f"Failed to parse GitHub PR status: {e}")
+            raise GitHubServiceError(f"Failed to parse GitHub PR status: {str(e)}")
 
     def pr_create(self, repo: str, title: str, body: str, base: str = "main", head: str = "") -> str:
         """Create a new Pull Request and return the URL."""
@@ -140,3 +193,37 @@ class GitHubService:
             return GitHubRepo(**data)
         except json.JSONDecodeError:
             raise GitHubServiceError("Failed to parse Repository info.")
+
+    # --- Git Operations via Shell (subprocess) ---
+    
+    def _run_git_command(self, args: List[str]) -> str:
+        """รันคำสั่ง git โดยตรงใน workspace"""
+        try:
+            result = subprocess.run(
+                ["git"] + args,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Git command failed: {e.stderr}")
+            raise GitHubServiceError(f"Git error: {e.stderr.strip()}")
+
+    def git_status(self) -> str:
+        """ตรวจสอบสถานะไฟล์ในเครื่อง"""
+        return self._run_git_command(["status", "--short"])
+
+    def git_add(self, path: str = ".") -> str:
+        """Stage ไฟล์"""
+        self._run_git_command(["add", path])
+        return f"Files at '{path}' added to staging."
+
+    def git_commit(self, message: str) -> str:
+        """บันทึกการเปลี่ยนแปลง"""
+        message = self.sanitize_input(message)
+        return self._run_git_command(["commit", "-m", message])
+
+    def git_push(self, branch: str = "main") -> str:
+        """ส่งข้อมูลขึ้น GitHub"""
+        return self._run_git_command(["push", "origin", branch])
