@@ -122,8 +122,27 @@ async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optiona
                 if response.status_code == 402:
                     raise OpenRouterInsufficientCreditsError("OpenRouter: Insufficient credits.")
                     
+                data = {}
+                try:
+                    data = response.json()
+                except Exception:
+                    pass
+
+                # ตรวจสอบข้อความ error message ใน JSON (บางครั้งอาจมาในรูป 400 Bad Request แต่เนื้อหาคือเงินไม่พอ)
+                if isinstance(data, dict) and "error" in data:
+                    error_msg = data["error"].get("message", "")
+                    if "credits" in error_msg.lower() or "balance" in error_msg.lower():
+                        raise OpenRouterInsufficientCreditsError(f"OpenRouter: {error_msg}")
+                    
+                    # ถ้าเป็น 500 ในรูปแบบ JSON error ให้ลองใหม่ได้
+                    if response.status_code == 500 and attempt < max_retries - 1:
+                         logger.warning(f"OpenRouter API returned 500 (attempt {attempt+1}). Retrying...")
+                         await asyncio.sleep(retry_delay)
+                         retry_delay *= 2
+                         continue
+                
+                # ถ้าไม่ใช่ error เรื่องเงิน ให้ raise ตามปกติ
                 response.raise_for_status()
-                data = response.json()
                 
                 try:
                     message = data["choices"][0]["message"]
@@ -132,21 +151,9 @@ async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optiona
                         return message
                     return message.get("content", "")
                 except (KeyError, IndexError) as e:
-                    # ถ้า API ตอบกลับมาผิดฟอร์ม (เช่น error message ใน 200 OK)
-                    if "error" in data:
+                    # ถ้า API ตอบกลับมาผิดฟอร์มแต่ไม่ได้ติด error credits
+                    if isinstance(data, dict) and "error" in data:
                         error_msg = data["error"].get("message", "Unknown OpenRouter error")
-                        print(f"--- [DEBUG] OpenRouter API Error: {data} ---")
-                        
-                        # ตรวจสอบข้อความ error message (บางครั้งอาจมาในรูป 400 Bad Request แต่เนื้อหาคือเงินไม่พอ)
-                        if "credits" in error_msg.lower() or "balance" in error_msg.lower():
-                            raise OpenRouterInsufficientCreditsError(f"OpenRouter: {error_msg}")
-                        
-                        # ถ้าเป็น 500 ในรูปแบบ JSON error ให้ลองใหม่ได้
-                        if data["error"].get("code") == 500 and attempt < max_retries - 1:
-                             logger.warning(f"OpenRouter API returned 500 Error (attempt {attempt+1}). Retrying...")
-                             await asyncio.sleep(retry_delay)
-                             retry_delay *= 2
-                             continue
                         raise Exception(f"OpenRouter API Error: {error_msg}")
                     
                     print(f"--- [DEBUG] Malformed OpenRouter response: {data} ---")
