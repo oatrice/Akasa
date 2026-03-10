@@ -512,7 +512,15 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
                 repo=args.get("repo"),
                 issue_number=args.get("issue_number")
             )
-            return f"Issue #{issue.number}: {issue.title}\nStatus: {issue.state}\nAuthor: @{issue.author.get('login') if issue.author else 'unknown'}\nURL: {issue.url}\n\nBody:\n{issue.body}"
+            # Use getattr or dict access to be safe if model is not updated in memory
+            title = getattr(issue, 'title', 'No Title')
+            state = getattr(issue, 'state', 'Unknown')
+            url = getattr(issue, 'url', '')
+            body = getattr(issue, 'body', 'No Description')
+            author_dict = getattr(issue, 'author', {})
+            author_name = author_dict.get('login') if author_dict else 'unknown'
+            
+            return f"Issue #{issue.number}: {title}\nStatus: {state}\nAuthor: @{author_name}\nURL: {url}\n\nBody:\n{body}"
         elif function_name == "search_github_issues":
             issues = github_service.search_issues(
                 repo=args.get("repo"),
