@@ -12,6 +12,7 @@ async def test_webhook_callback_query_confirmation():
     """ทดสอบว่า Webhook รับ callback_query และอัปเดตสถานะได้ถูกต้อง"""
     request_id = "req-999"
     callback_data = f"confirm:{request_id}:allow"
+    secret_token = "test-secret-123"
     
     # Mock update payload
     payload = {
@@ -28,10 +29,11 @@ async def test_webhook_callback_query_confirmation():
         }
     }
     
-    headers = {"X-Telegram-Bot-Api-Secret-Token": settings.WEBHOOK_SECRET_TOKEN}
+    headers = {"X-Telegram-Bot-Api-Secret-Token": secret_token}
     
-    # Mock Redis และ Telegram Service
-    with patch("app.services.redis_service.get_action_request", new_callable=AsyncMock) as mock_get, \
+    # Mock Redis, Telegram Service และ Patch Settings สำหรับ Token
+    with patch("app.routers.telegram.settings.WEBHOOK_SECRET_TOKEN", secret_token), \
+         patch("app.services.redis_service.get_action_request", new_callable=AsyncMock) as mock_get, \
          patch("app.services.redis_service.set_action_request", new_callable=AsyncMock) as mock_set, \
          patch("app.services.telegram_service.tg_service.edit_message_text", new_callable=AsyncMock) as mock_edit:
         

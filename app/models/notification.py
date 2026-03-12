@@ -10,12 +10,11 @@ class NotificationPayload(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
     def get_formatted_message(self) -> str:
-        prefix = ""
         if self.priority.lower() == "high":
-            prefix = "🚨 "
+            return f"🚨 *IMPORTANT NOTIFICATION* 🚨\n\n{self.message}"
         elif self.priority.lower() == "low":
-            prefix = "ℹ️ "
-        return f"{prefix}{self.message}"
+            return f"ℹ️ {self.message}"
+        return self.message
 
 class NotificationResponse(BaseModel):
     status: str
