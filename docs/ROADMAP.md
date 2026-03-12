@@ -64,7 +64,7 @@
 | # | Issue | Status |
 |---|---|---|
 | [#28](https://github.com/oatrice/Akasa/issues/28) | Web Dashboard & CLI Integration Hub (GitHub, Render, Vercel) | 🔲 Todo |
-| [#49](https://github.com/oatrice/Akasa/issues/49) | [Feature] Remote Action Confirmation via Akasa Bot (Telegram Integration) | 🔲 Todo |
+| [#49](https://github.com/oatrice/Akasa/issues/49) | [Feature] Remote Action Confirmation via Akasa Bot (Telegram Integration) | ✅ Complete |
 | [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | ✅ Complete |
 | [#11](https://github.com/oatrice/Akasa/issues/11) | เชื่อม GitHub API (อ่านโค้ด, review PR) | 🔲 Todo |
 | [#12](https://github.com/oatrice/Akasa/issues/12) | Code Sandbox (รันโค้ดได้จากแชท) | 🔲 Todo |

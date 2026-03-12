@@ -12,6 +12,7 @@
 
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
+- 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
 - 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks หรือข้อความจากระบบภายนอกสู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
@@ -64,6 +65,7 @@ akasa/
 │   ├── models/               # Pydantic models
 │   │   └── telegram.py
 │   ├── routers/              # API endpoints
+│   │   ├── actions.py        # Remote action confirmation
 │   │   ├── telegram.py       # Telegram webhook
 │   │   └── health.py         # Health check
 │   └── services/             # Business logic

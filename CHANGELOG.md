@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0] - 2026-03-12
+
+### Added
+- **Remote Action Confirmation**: Implemented a secure action confirmation system via Telegram. Sensitive actions initiated by the AI now generate an interactive message with "Approve" and "Deny" buttons, requiring user consent before execution (Closes #49).
+- **Action Callback Handling**: A new router (`app/routers/actions.py`) and endpoint were added to process the user's decision from the Telegram inline keyboard.
+
+### Changed
+- **Asynchronous Action Flow**: `ChatService` was significantly updated to await user confirmation for tool calls that require approval, pausing the conversation flow until the user responds.
+
+### Fixed
+- **GitHub Command Robustness**: Improved validation for GitHub tool commands to enforce the correct `owner/repo` format, preventing errors from invalid inputs.
+
 ## [0.13.0] - 2026-03-10
 
 ### Added
