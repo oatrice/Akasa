@@ -4,14 +4,14 @@ def escape_markdown_v2(text: str) -> str:
     """
     Escapes special characters in text for Telegram MarkdownV2 format.
     Characters inside inline or multi-line code blocks are preserved.
+    Formatting characters (*, _, `) are NOT escaped to allow for basic styling.
     """
     if not text:
         return text
 
-    # Characters to escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
-    # Using regex, we need to escape regex metacharacters in this list:
-    # \_ \* \[ \] \( \) \~ \` \> \# \+ \- \= \| \{ \} \. \!
-    chars_to_escape = r"_*[]()~`>#+-=|{}.!"
+    # Characters to escape: [ ] ( ) ~ > # + - = | { } . !
+    # We EXCLUDE *, _, ` from being escaped to allow user formatting
+    chars_to_escape = r"[]()~>#+-=|{}.!"
     escape_pattern = re.compile(rf"([{re.escape(chars_to_escape)}])")
 
     # Regular expression to match code blocks (both ``` and `)
@@ -30,6 +30,12 @@ def escape_markdown_v2(text: str) -> str:
         else:
             # This is normal text, escape special characters
             escaped_part = escape_pattern.sub(r"\\\1", part)
+            
+            # Additional check: If there are any backticks in this "normal" part, 
+            # they must be unclosed/unmatched (since matched ones were handled by re.split).
+            # Escape them to avoid Telegram parsing errors.
+            escaped_part = escaped_part.replace("`", r"\`")
+            
             escaped_parts.append(escaped_part)
 
     return "".join(escaped_parts)

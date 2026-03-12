@@ -5,7 +5,7 @@ Flow: Telegram → ดึง history จาก Redis → สร้าง message
 Graceful degradation: ถ้า Redis ล่ม ยังทำงานได้เป็น stateless
 """
 
-from app.models.telegram import Update, Message
+from app.models.telegram import Update, Message, CallbackQuery
 from app.models.agent_state import AgentState
 from app.services import redis_service
 from app.services.telegram_service import tg_service
@@ -252,22 +252,27 @@ async def _send_response(chat_id: int, text: str) -> None:
 
 
 async def handle_chat_message(update: Update) -> None:
-    if not update.message or not update.message.text:
+    # 1. จัดการ Message ปกติ
+    if update.message and update.message.text:
+        if update.message.from_user:
+            try:
+                await redis_service.set_user_chat_id_mapping(
+                    user_id=update.message.from_user.id,
+                    chat_id=update.message.chat.id
+                )
+            except Exception as e:
+                logger.warning(f"Failed to set user_chat_id mapping for user {update.message.from_user.id}: {e}")
+
+        if update.message.text.startswith("/"):
+            await _handle_command(update.message)
+        else:
+            await _handle_standard_message(update.message)
         return
 
-    if update.message.from_user:
-        try:
-            await redis_service.set_user_chat_id_mapping(
-                user_id=update.message.from_user.id,
-                chat_id=update.message.chat.id
-            )
-        except Exception as e:
-            logger.warning(f"Failed to set user_chat_id mapping for user {update.message.from_user.id}: {e}")
-
-    if update.message.text.startswith("/"):
-        await _handle_command(update.message)
-    else:
-        await _handle_standard_message(update.message)
+    # 2. จัดการ Callback Query (ปุ่มกด)
+    if update.callback_query:
+        await _handle_callback_query(update.callback_query)
+        return
 
 
 async def _handle_command(message: "Message") -> None:
@@ -586,3 +591,60 @@ async def _handle_standard_message(message: "Message") -> None:
         else:
             logger.exception("Error in standard message")
             await _send_response(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
+
+
+async def _handle_callback_query(callback: CallbackQuery) -> None:
+    """จัดการการกดปุ่ม Inline Keyboard สำหรับการยืนยัน Action"""
+    data = callback.data or ""
+    if not data.startswith("confirm:"):
+        return
+
+    # format: confirm:<request_id>:<decision>
+    parts = data.split(":")
+    if len(parts) < 3:
+        return
+
+    request_id = parts[1]
+    decision = parts[2]  # allow | session | deny
+    
+    # 1. ดึงสถานะปัจจุบันจาก Redis
+    state = await redis_service.get_action_request(request_id)
+    if not state or state.status != "pending":
+        # ถ้าไม่มีใน Redis หรือตัดสินไปแล้ว
+        return
+
+    # 2. อัปเดตสถานะ
+    user_name = callback.from_user.username or callback.from_user.first_name
+    state.decided_by = user_name
+    state.decided_at = datetime.now(timezone.utc)
+    
+    status_text = ""
+    if decision == "allow":
+        state.status = "allowed"
+        status_text = "✅ *Allowed*"
+    elif decision == "session":
+        state.status = "allowed"
+        status_text = "🛡️ *Allowed for Session*"
+        # บันทึกสิทธิ์ session (1 ชม.)
+        if state.session_id:
+            await redis_service.set_session_permission(state.session_id)
+    elif decision == "deny":
+        state.status = "denied"
+        status_text = "❌ *Denied*"
+
+    # 3. บันทึกกลับลง Redis
+    await redis_service.set_action_request(request_id, state)
+    
+    # 4. อัปเดตข้อความใน Telegram (Edit Message เพื่อเอาปุ่มออก)
+    if callback.message:
+        chat_id = callback.message.chat.id
+        msg_id = callback.message.message_id
+        original_text = callback.message.text or ""
+        
+        new_text = f"{original_text}\n\n{status_text} by {user_name}"
+        await tg_service.edit_message_text(
+            chat_id=chat_id,
+            message_id=msg_id,
+            text=new_text,
+            reply_markup=None  # เอาปุ่มออก
+        )

@@ -13,6 +13,7 @@ class TelegramUser(BaseModel):
     id: int
     is_bot: bool = False
     first_name: str = ""
+    username: Optional[str] = None
 
 
 class Chat(BaseModel):
@@ -30,8 +31,17 @@ class Message(BaseModel):
     text: Optional[str] = None
 
 
+class CallbackQuery(BaseModel):
+    """การกดปุ่ม Inline Keyboard"""
+    id: str
+    from_user: TelegramUser = Field(..., alias="from")
+    message: Optional[Message] = None
+    data: Optional[str] = None
+
+
 class Update(BaseModel):
     """Telegram Update object — payload หลักที่ส่งมาทาง Webhook"""
     update_id: int
     message: Optional[Message] = None
     edited_message: Optional[Message] = None
+    callback_query: Optional[CallbackQuery] = None

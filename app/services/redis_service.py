@@ -11,6 +11,7 @@ import logging
 from typing import Optional, List
 from app.config import settings
 from app.models.agent_state import AgentState
+from app.models.notification import ActionRequestState
 
 logger = logging.getLogger(__name__)
 
@@ -237,3 +238,39 @@ async def clear_pending_tool_call(chat_id: int):
     """ลบคำสั่งที่รอยืนยัน"""
     key = f"pending_tool:{chat_id}"
     await redis_pool.delete(key)
+
+
+# --- Remote Action Confirmation (Issue #49) ---
+
+async def set_action_request(request_id: str, state: ActionRequestState):
+    """บันทึกสถานะ Action Request ลง Redis (หมดอายุใน 1 ชั่วโมง)"""
+    key = f"action_request:{request_id}"
+    # ใช้ model_dump_json() สำหรับ Pydantic v2
+    await redis_pool.set(key, state.model_dump_json(), ex=3600)
+
+
+async def get_action_request(request_id: str) -> Optional[ActionRequestState]:
+    """ดึงสถานะ Action Request จาก Redis"""
+    key = f"action_request:{request_id}"
+    data = await redis_pool.get(key)
+    if not data:
+        return None
+    try:
+        return ActionRequestState.model_validate_json(data)
+    except Exception as e:
+        logger.error(f"Failed to decode ActionRequestState for {request_id}: {e}")
+        return None
+
+
+async def set_session_permission(session_id: str, ttl: int = 3600):
+    """บันทึกว่า Session นี้ได้รับอนุญาตให้รัน Sensitive Tool ได้ (TTL เป็นวินาที)"""
+    key = f"session_permission:{session_id}"
+    await redis_pool.set(key, "allowed", ex=ttl)
+
+
+async def has_session_permission(session_id: str) -> bool:
+    """ตรวจสอบว่า Session นี้ได้รับอนุญาตอยู่หรือไม่"""
+    if not session_id:
+        return False
+    key = f"session_permission:{session_id}"
+    return await redis_pool.exists(key) > 0
