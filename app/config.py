@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     AKASA_API_KEY: str = "default-dev-key"
     GITHUB_TOKEN: str = ""
+    ALLOWED_TELEGRAM_CHAT_IDS: str = ""  # Comma-separated list of Chat IDs (e.g., "123,456")
 
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "gemini": {"name": "Google Gemini 2.5 Flash", "identifier": "google/gemini-2.5-flash"},

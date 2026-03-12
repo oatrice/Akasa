@@ -12,7 +12,7 @@ class TelegramService:
         self.api_url = f"https://api.telegram.org/bot{bot_token}"
         self.client = httpx.AsyncClient()
 
-    async def send_message(self, chat_id: int, text: str) -> None:
+    async def send_message(self, chat_id: int, text: str, reply_markup: dict = None) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
         """
@@ -21,9 +21,44 @@ class TelegramService:
             "text": escape_markdown_v2(text),
             "parse_mode": "MarkdownV2"
         }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
 
         response = await self.client.post(
             f"{self.api_url}/sendMessage",
+            json=payload,
+            timeout=10.0
+        )
+        response.raise_for_status()
+
+    async def send_confirmation_message(self, chat_id: int, text: str, request_id: str):
+        """
+        ส่งข้อความยืนยันพร้อมปุ่ม Inline Keyboard (✅ Allow Once, 🛡️ Allow Session, ❌ Deny)
+        """
+        reply_markup = {
+            "inline_keyboard": [[
+                {"text": "✅ Allow Once", "callback_data": f"confirm:{request_id}:allow"},
+                {"text": "🛡️ Allow Session", "callback_data": f"confirm:{request_id}:session"},
+                {"text": "❌ Deny", "callback_data": f"confirm:{request_id}:deny"}
+            ]]
+        }
+        await self.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
+
+    async def edit_message_text(self, chat_id: int, message_id: int, text: str, reply_markup: dict = None):
+        """
+        แก้ไขข้อความเดิม (ใช้สำหรับอัปเดตสถานะหลังจากกดปุ่ม)
+        """
+        payload = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": escape_markdown_v2(text),
+            "parse_mode": "MarkdownV2"
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+
+        response = await self.client.post(
+            f"{self.api_url}/editMessageText",
             json=payload,
             timeout=10.0
         )

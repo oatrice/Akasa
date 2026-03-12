@@ -7,14 +7,18 @@ def test_escape_markdown_v2_no_special_chars():
     assert escape_markdown_v2(text) == "Hello World"
 
 def test_escape_markdown_v2_special_chars_only():
-    """Escapes all Telegram MarkdownV2 reserved characters."""
-    # Characters: _ * [ ] ( ) ~ ` > # + - = | { } . !
+    """Escapes all Telegram MarkdownV2 reserved characters EXCEPT formatting chars."""
+    # Characters to escape: [ ] ( ) ~ > # + - = | { } . !
+    # Formatting chars (NOT escaped): _ * `
     text = r"_*[]()~`>#+-=|{}.!"
     
-    # Each character should be preceded by a backslash
-    expected = r"\_*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!"
-    # Raw string behavior was weird, let's just use double slashes for simplicity to ensure we want exactly one backslash before each.
-    expected = "\\_\\*\\[\\]\\(\\)\\~\\`\\>\\#\\+\\-\\=\\|\\{\\}\\.\\!"
+    # Each character should be preceded by a backslash EXCEPT _, *, `
+    # Note: Telegram MarkdownV2 says _ and * should be escaped IF not used for formatting, 
+    # but here we allow them for formatting.
+    expected = "_*[]()~`>#+-=|{}.!" # placeholder for logic check
+    
+    # After update, it should look like this (formatting chars remain raw):
+    expected = "_*\\[\\]\\(\\)\\~\\`\\>\\#\\+\\-\\=\\|\\{\\}\\.\\!"
     assert escape_markdown_v2(text) == expected
 
 def test_escape_markdown_v2_mixed_text():

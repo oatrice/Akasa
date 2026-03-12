@@ -3,7 +3,8 @@ from typing import Literal, Optional, Dict, Any
 from datetime import datetime
 
 class NotificationPayload(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
+    chat_id: Optional[str] = None
     message: str
     priority: str = "medium"
     metadata: Optional[Dict[str, Any]] = None
