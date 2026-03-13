@@ -13,14 +13,15 @@ Environment Variables:
     AKASA_CHAT_ID     — Telegram Chat ID ที่ต้องการส่ง notification ไป
 """
 
-import httpx
+import asyncio
 import json
+import logging
+import os
 import sys
 import uuid
-import asyncio
-import os
-import logging
 from typing import Optional
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ async def request_remote_approval(
             "source": "antigravity",
             "description": description,
             "session_id": MCP_SESSION_ID,
-        }
+        },
     }
 
     headers = {"X-Akasa-API-Key": AKASA_API_KEY}
@@ -118,6 +119,58 @@ async def request_remote_approval(
     return {"status": "timeout", "request_id": request_id}
 
 
+async def notify_task_complete(
+    project: str,
+    task: str,
+    status: str,
+    duration: Optional[str] = None,
+    message: Optional[str] = None,
+    link: Optional[str] = None,
+) -> dict:
+    """
+    ส่งการแจ้งเตือนสรุปงานไปยัง Akasa Backend เพื่อส่งต่อให้ผู้ใช้ผ่าน Telegram
+
+    Args:
+        project: ชื่อโปรเจกต์ที่กำลังทำงานอยู่
+        task: คำอธิบายงานที่เพิ่งเสร็จสิ้น
+        status: สถานะงาน — "success", "failure", หรือ "partial"
+        duration: เวลาที่ใช้ทำงาน เช่น "5m 20s" (optional)
+        message: รายละเอียดเพิ่มเติมหรือสรุปผล (optional)
+        link: URL ของ PR, ไฟล์, หรือแหล่งข้อมูลที่เกี่ยวข้อง (optional)
+
+    Returns:
+        dict: {"delivered": bool, "timestamp": str}
+    """
+    if not AKASA_CHAT_ID:
+        raise ValueError("AKASA_CHAT_ID environment variable is not set")
+
+    payload: dict = {
+        "project": project,
+        "task": task,
+        "status": status,
+        "chat_id": AKASA_CHAT_ID,
+        "source": "AI Assistant",
+    }
+    if duration:
+        payload["duration"] = duration
+    if message:
+        payload["message"] = message
+    if link:
+        payload["link"] = link
+
+    headers = {"X-Akasa-API-Key": AKASA_API_KEY}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{AKASA_API_URL}/api/v1/notifications/task-complete",
+            json=payload,
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
 # --- MCP JSON-RPC Protocol (stdio) ---
 
 TOOL_DEFINITIONS = [
@@ -133,20 +186,57 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "The command to request approval for"
+                    "description": "The command to request approval for",
                 },
-                "cwd": {
-                    "type": "string",
-                    "description": "Current working directory"
-                },
+                "cwd": {"type": "string", "description": "Current working directory"},
                 "description": {
                     "type": "string",
-                    "description": "Optional description of what the command does"
-                }
+                    "description": "Optional description of what the command does",
+                },
             },
-            "required": ["command", "cwd"]
-        }
-    }
+            "required": ["command", "cwd"],
+        },
+    },
+    {
+        "name": "notify_task_complete",
+        "description": (
+            "Send a task completion notification to the user via Telegram. "
+            "ALWAYS call this tool as your FINAL action after completing any assigned task, "
+            "whether it succeeded, failed, or completed with warnings. "
+            "This lets the user know the outcome without needing to watch the terminal."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project": {
+                    "type": "string",
+                    "description": "The name of the project being worked on (e.g., 'Akasa', 'MyApp')",
+                },
+                "task": {
+                    "type": "string",
+                    "description": "A concise description of the task that was completed",
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["success", "failure", "partial"],
+                    "description": "The outcome: 'success' (fully done), 'failure' (could not complete), 'partial' (done with warnings)",
+                },
+                "duration": {
+                    "type": "string",
+                    "description": "How long the task took, e.g., '5m 20s' (optional)",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Optional additional details or summary of what was done",
+                },
+                "link": {
+                    "type": "string",
+                    "description": "Optional URL to a related resource, e.g., a PR or changed file",
+                },
+            },
+            "required": ["project", "task", "status"],
+        },
+    },
 ]
 
 
@@ -155,10 +245,9 @@ def make_response(req_id, result):
 
 
 def make_error(req_id, code, message):
-    return json.dumps({
-        "jsonrpc": "2.0", "id": req_id,
-        "error": {"code": code, "message": message}
-    })
+    return json.dumps(
+        {"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}}
+    )
 
 
 async def handle_rpc(request: dict) -> str:
@@ -168,11 +257,14 @@ async def handle_rpc(request: dict) -> str:
     params = request.get("params", {})
 
     if method == "initialize":
-        return make_response(req_id, {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {"tools": {}},
-            "serverInfo": {"name": "akasa-remote-approval", "version": "1.0.0"}
-        })
+        return make_response(
+            req_id,
+            {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "akasa-remote-approval", "version": "1.0.0"},
+            },
+        )
 
     elif method == "notifications/initialized":
         return None  # No response needed for notifications
@@ -199,17 +291,53 @@ async def handle_rpc(request: dict) -> str:
                 else:
                     text = f"⏰ Action TIMED OUT (request: {result['request_id']})"
 
-                return make_response(req_id, {
-                    "content": [{"type": "text", "text": text}]
-                })
+                return make_response(
+                    req_id, {"content": [{"type": "text", "text": text}]}
+                )
             except Exception as e:
                 # ใช้ make_response + isError ตาม MCP spec:
                 # JSON-RPC error = protocol-level error
                 # isError in tool result = tool execution failure
-                return make_response(req_id, {
-                    "content": [{"type": "text", "text": f"Error: {str(e)}"}],
-                    "isError": True
-                })
+                return make_response(
+                    req_id,
+                    {
+                        "content": [{"type": "text", "text": f"Error: {str(e)}"}],
+                        "isError": True,
+                    },
+                )
+
+        elif tool_name == "notify_task_complete":
+            try:
+                result = await notify_task_complete(
+                    project=arguments.get("project", "General"),
+                    task=arguments.get("task", ""),
+                    status=arguments.get("status", "success"),
+                    duration=arguments.get("duration"),
+                    message=arguments.get("message"),
+                    link=arguments.get("link"),
+                )
+                delivered = result.get("delivered", False)
+                if delivered:
+                    text = "✅ Task notification sent successfully to Telegram."
+                else:
+                    text = "⚠️ Notification request accepted but delivery could not be confirmed."
+                return make_response(
+                    req_id, {"content": [{"type": "text", "text": text}]}
+                )
+            except Exception as e:
+                return make_response(
+                    req_id,
+                    {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Failed to send task notification: {str(e)}",
+                            }
+                        ],
+                        "isError": True,
+                    },
+                )
+
         else:
             return make_error(req_id, -32601, f"Unknown tool: {tool_name}")
 
