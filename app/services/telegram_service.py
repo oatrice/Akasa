@@ -127,10 +127,27 @@ class TelegramService:
             "success": ("✅", "Task Completed\\!"),
             "failure": ("❌", "Task Failed\\!"),
             "partial": ("⚠️", "Task Completed with Warnings"),
+            "retrying": ("🔄", None),  # title built dynamically with retry counts
+            "limit_reached": ("🚫", None),  # title built dynamically with retry counts
         }
         emoji, title = status_config.get(
             request.status.lower(), ("🔔", "Task Notification")
         )
+
+        # Build dynamic title for retry statuses
+        if title is None:
+            if request.status == "retrying":
+                if request.retry_count is not None and request.max_retries is not None:
+                    title = f"Retrying\\.\\.\\. \\(Attempt {request.retry_count}/{request.max_retries}\\)"
+                else:
+                    title = "Retrying Task\\.\\.\\."
+            elif request.status == "limit_reached":
+                if request.max_retries is not None:
+                    title = f"Retry Limit Reached \\({request.max_retries}/{request.max_retries}\\)"
+                else:
+                    title = "Retry Limit Reached"
+            else:
+                title = "Task Notification"
 
         # Truncate long task descriptions (Telegram message limit: 4096 chars)
         task_desc = request.task
@@ -160,6 +177,11 @@ class TelegramService:
                 msg = msg[:297] + "..."
             safe_message = escape_markdown_v2_content(msg)
             lines.append(f"*Details:* {safe_message}")
+
+        if request.retry_count is not None and request.max_retries is not None:
+            if request.status not in ("retrying", "limit_reached"):
+                # Show retry summary on non-retry statuses (e.g., succeeded after 2 retries)
+                lines.append(f"*Attempts:* {request.retry_count}/{request.max_retries}")
 
         if request.link:
             safe_link = escape_markdown_v2_content(request.link)

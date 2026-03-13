@@ -422,6 +422,156 @@ async def test_send_task_notification_raises_on_telegram_error(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_send_task_notification_retrying_with_counts(monkeypatch):
+    """retrying + retry_count/max_retries → 🔄 title แสดง attempt count"""
+    from app.models.notification import TaskNotificationRequest
+
+    monkeypatch.setattr(
+        tg_service, "api_url", "https://api.telegram.org/bot_test_token"
+    )
+
+    request = TaskNotificationRequest(
+        project="Akasa",
+        task="Deploy to production",
+        status="retrying",
+        retry_count=2,
+        max_retries=3,
+        message="Docker daemon not responding",
+    )
+
+    with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_post.return_value = mock_response
+
+        await tg_service.send_task_notification(chat_id=12345, request=request)
+
+        text = mock_post.call_args.kwargs["json"]["text"]
+        assert "🔄" in text
+        assert "Retrying" in text
+        assert "2/3" in text  # retry count in title
+        assert "Attempt" in text
+        assert "Docker daemon" in text  # message field
+
+
+@pytest.mark.asyncio
+async def test_send_task_notification_retrying_without_counts(monkeypatch):
+    """retrying ไม่มี retry_count/max_retries → 🔄 title แบบ generic"""
+    from app.models.notification import TaskNotificationRequest
+
+    monkeypatch.setattr(
+        tg_service, "api_url", "https://api.telegram.org/bot_test_token"
+    )
+
+    request = TaskNotificationRequest(
+        project="Akasa",
+        task="Run test suite",
+        status="retrying",
+    )
+
+    with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_post.return_value = mock_response
+
+        await tg_service.send_task_notification(chat_id=12345, request=request)
+
+        text = mock_post.call_args.kwargs["json"]["text"]
+        assert "🔄" in text
+        assert "Retrying" in text
+        assert "Attempt" not in text  # ไม่มี count → ไม่แสดง
+
+
+@pytest.mark.asyncio
+async def test_send_task_notification_limit_reached_with_max(monkeypatch):
+    """limit_reached + max_retries → 🚫 title แสดง N/N"""
+    from app.models.notification import TaskNotificationRequest
+
+    monkeypatch.setattr(
+        tg_service, "api_url", "https://api.telegram.org/bot_test_token"
+    )
+
+    request = TaskNotificationRequest(
+        project="Akasa",
+        task="Deploy to production",
+        status="limit_reached",
+        max_retries=3,
+        message="Gave up after 3 attempts. Last error: timeout",
+    )
+
+    with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_post.return_value = mock_response
+
+        await tg_service.send_task_notification(chat_id=12345, request=request)
+
+        text = mock_post.call_args.kwargs["json"]["text"]
+        assert "🚫" in text
+        assert "Retry Limit Reached" in text
+        assert "3/3" in text  # max/max format
+        assert "Gave up" in text  # message field
+
+
+@pytest.mark.asyncio
+async def test_send_task_notification_limit_reached_without_max(monkeypatch):
+    """limit_reached ไม่มี max_retries → 🚫 title แบบ generic"""
+    from app.models.notification import TaskNotificationRequest
+
+    monkeypatch.setattr(
+        tg_service, "api_url", "https://api.telegram.org/bot_test_token"
+    )
+
+    request = TaskNotificationRequest(
+        project="Akasa",
+        task="Build APK",
+        status="limit_reached",
+    )
+
+    with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_post.return_value = mock_response
+
+        await tg_service.send_task_notification(chat_id=12345, request=request)
+
+        text = mock_post.call_args.kwargs["json"]["text"]
+        assert "🚫" in text
+        assert "Retry Limit Reached" in text
+        assert "/" not in text.split("*")[2]  # ไม่มี N/N ใน title
+
+
+@pytest.mark.asyncio
+async def test_send_task_notification_success_after_retries_shows_attempts(monkeypatch):
+    """success พร้อม retry_count/max_retries → แสดง *Attempts: 2/3* เพิ่มเติม"""
+    from app.models.notification import TaskNotificationRequest
+
+    monkeypatch.setattr(
+        tg_service, "api_url", "https://api.telegram.org/bot_test_token"
+    )
+
+    request = TaskNotificationRequest(
+        project="Akasa",
+        task="Deploy to production",
+        status="success",
+        retry_count=2,
+        max_retries=3,
+    )
+
+    with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = AsyncMock()
+        mock_post.return_value = mock_response
+
+        await tg_service.send_task_notification(chat_id=12345, request=request)
+
+        text = mock_post.call_args.kwargs["json"]["text"]
+        assert "✅" in text
+        assert "*Attempts:*" in text  # summary line สำหรับ non-retry statuses
+        assert "2/3" in text
+
+
+@pytest.mark.asyncio
 async def test_send_task_notification_raises_on_429(monkeypatch):
     """Telegram 429 Too Many Requests propagates as HTTPStatusError (router handles it)."""
     from app.models.notification import TaskNotificationRequest

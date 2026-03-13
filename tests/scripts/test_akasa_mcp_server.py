@@ -491,9 +491,200 @@ class TestNotifyTaskComplete:
         assert "duration" in properties
         assert "message" in properties
         assert "link" in properties
+        assert "retry_count" in properties
+        assert "max_retries" in properties
 
-        # status field ต้องมี enum ที่กำหนด
+        # status field ต้องมี enum ครบ 5 ค่า
         status_enum = properties["status"].get("enum", [])
         assert "success" in status_enum
         assert "failure" in status_enum
         assert "partial" in status_enum
+        assert "retrying" in status_enum
+        assert "limit_reached" in status_enum
+
+
+class TestNotifyTaskCompleteRetry:
+    """ทดสอบ retry statuses: retrying และ limit_reached"""
+
+    @pytest.mark.asyncio
+    async def test_notify_task_complete_retrying_with_counts(self):
+        """notify_task_complete ส่ง retry_count/max_retries ไปใน payload เมื่อ status=retrying"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            result = await notify_task_complete(
+                project="Akasa",
+                task="Deploy to production",
+                status="retrying",
+                message="Docker daemon not responding",
+                retry_count=2,
+                max_retries=3,
+            )
+
+        assert result["delivered"] is True
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert payload["status"] == "retrying"
+        assert payload["retry_count"] == 2
+        assert payload["max_retries"] == 3
+        assert payload["message"] == "Docker daemon not responding"
+
+    @pytest.mark.asyncio
+    async def test_notify_task_complete_limit_reached_with_max(self):
+        """notify_task_complete ส่ง max_retries ไปใน payload เมื่อ status=limit_reached"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            result = await notify_task_complete(
+                project="Akasa",
+                task="Deploy to production",
+                status="limit_reached",
+                message="Gave up after 3 attempts",
+                max_retries=3,
+            )
+
+        assert result["delivered"] is True
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert payload["status"] == "limit_reached"
+        assert payload["max_retries"] == 3
+        assert "retry_count" not in payload  # ไม่ได้ส่ง → ไม่ปรากฏใน payload
+
+    @pytest.mark.asyncio
+    async def test_notify_task_complete_retry_fields_excluded_when_none(self):
+        """retry_count/max_retries ต้องไม่ปรากฏใน payload เมื่อไม่ได้ระบุ"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            await notify_task_complete(
+                project="Akasa",
+                task="Some task",
+                status="retrying",
+            )
+
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert "retry_count" not in payload
+        assert "max_retries" not in payload
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_notify_task_complete_retrying(self):
+        """tools/call notify_task_complete status=retrying → response ปกติ (ไม่ใช่ error)"""
+        from scripts.akasa_mcp_server import handle_rpc
+
+        with patch(
+            "scripts.akasa_mcp_server.notify_task_complete",
+            new_callable=AsyncMock,
+            return_value={"delivered": True, "timestamp": "2026-03-13T10:00:00+00:00"},
+        ) as mock_notify:
+            result = await handle_rpc(
+                {
+                    "id": 30,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "notify_task_complete",
+                        "arguments": {
+                            "project": "Akasa",
+                            "task": "Deploy to production",
+                            "status": "retrying",
+                            "retry_count": 2,
+                            "max_retries": 3,
+                            "message": "Docker daemon not responding",
+                        },
+                    },
+                }
+            )
+
+        data = json.loads(result)
+        assert (
+            "isError" not in data["result"] or data["result"].get("isError") is not True
+        )
+        assert "sent successfully" in data["result"]["content"][0]["text"].lower()
+
+        # ตรวจว่า notify_task_complete ได้รับ retry args ถูกต้อง
+        call_kwargs = mock_notify.call_args.kwargs
+        assert call_kwargs["retry_count"] == 2
+        assert call_kwargs["max_retries"] == 3
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_notify_task_complete_limit_reached(self):
+        """tools/call notify_task_complete status=limit_reached → response ปกติ"""
+        from scripts.akasa_mcp_server import handle_rpc
+
+        with patch(
+            "scripts.akasa_mcp_server.notify_task_complete",
+            new_callable=AsyncMock,
+            return_value={"delivered": True, "timestamp": "2026-03-13T10:00:00+00:00"},
+        ) as mock_notify:
+            result = await handle_rpc(
+                {
+                    "id": 31,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "notify_task_complete",
+                        "arguments": {
+                            "project": "Akasa",
+                            "task": "Deploy to production",
+                            "status": "limit_reached",
+                            "max_retries": 3,
+                        },
+                    },
+                }
+            )
+
+        data = json.loads(result)
+        assert (
+            "isError" not in data["result"] or data["result"].get("isError") is not True
+        )
+
+        call_kwargs = mock_notify.call_args.kwargs
+        assert call_kwargs["max_retries"] == 3
+        assert call_kwargs["retry_count"] is None  # ไม่ได้ส่งมา → None

@@ -126,6 +126,8 @@ async def notify_task_complete(
     duration: Optional[str] = None,
     message: Optional[str] = None,
     link: Optional[str] = None,
+    retry_count: Optional[int] = None,
+    max_retries: Optional[int] = None,
 ) -> dict:
     """
     ส่งการแจ้งเตือนสรุปงานไปยัง Akasa Backend เพื่อส่งต่อให้ผู้ใช้ผ่าน Telegram
@@ -133,10 +135,12 @@ async def notify_task_complete(
     Args:
         project: ชื่อโปรเจกต์ที่กำลังทำงานอยู่
         task: คำอธิบายงานที่เพิ่งเสร็จสิ้น
-        status: สถานะงาน — "success", "failure", หรือ "partial"
+        status: สถานะงาน — "success", "failure", "partial", "retrying", หรือ "limit_reached"
         duration: เวลาที่ใช้ทำงาน เช่น "5m 20s" (optional)
         message: รายละเอียดเพิ่มเติมหรือสรุปผล (optional)
         link: URL ของ PR, ไฟล์, หรือแหล่งข้อมูลที่เกี่ยวข้อง (optional)
+        retry_count: หมายเลข attempt ปัจจุบัน นับจาก 1 เช่น 2 (optional)
+        max_retries: จำนวน retry สูงสุดที่อนุญาต เช่น 3 (optional)
 
     Returns:
         dict: {"delivered": bool, "timestamp": str}
@@ -157,6 +161,10 @@ async def notify_task_complete(
         payload["message"] = message
     if link:
         payload["link"] = link
+    if retry_count is not None:
+        payload["retry_count"] = retry_count
+    if max_retries is not None:
+        payload["max_retries"] = max_retries
 
     headers = {"X-Akasa-API-Key": AKASA_API_KEY}
 
@@ -218,8 +226,18 @@ TOOL_DEFINITIONS = [
                 },
                 "status": {
                     "type": "string",
-                    "enum": ["success", "failure", "partial"],
-                    "description": "The outcome: 'success' (fully done), 'failure' (could not complete), 'partial' (done with warnings)",
+                    "enum": [
+                        "success",
+                        "failure",
+                        "partial",
+                        "retrying",
+                        "limit_reached",
+                    ],
+                    "description": (
+                        "The outcome: 'success' (fully done), 'failure' (could not complete), "
+                        "'partial' (done with warnings), 'retrying' (failed but attempting again), "
+                        "'limit_reached' (gave up after max retries)"
+                    ),
                 },
                 "duration": {
                     "type": "string",
@@ -232,6 +250,14 @@ TOOL_DEFINITIONS = [
                 "link": {
                     "type": "string",
                     "description": "Optional URL to a related resource, e.g., a PR or changed file",
+                },
+                "retry_count": {
+                    "type": "integer",
+                    "description": "Current attempt number (1-based). Required when status is 'retrying' or 'limit_reached', e.g., 2",
+                },
+                "max_retries": {
+                    "type": "integer",
+                    "description": "Maximum number of retry attempts allowed, e.g., 3",
                 },
             },
             "required": ["project", "task", "status"],
@@ -315,6 +341,8 @@ async def handle_rpc(request: dict) -> str:
                     duration=arguments.get("duration"),
                     message=arguments.get("message"),
                     link=arguments.get("link"),
+                    retry_count=arguments.get("retry_count"),
+                    max_retries=arguments.get("max_retries"),
                 )
                 delivered = result.get("delivered", False)
                 if delivered:

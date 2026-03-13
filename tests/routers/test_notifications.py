@@ -425,3 +425,145 @@ def test_task_complete_status_is_case_insensitive(mock_tg_service, monkeypatch):
     )
 
     assert response.status_code == 200
+
+
+# === Retry Statuses (Issue #61 extension) ===
+
+
+@pytest.mark.asyncio
+async def test_task_complete_retrying_status_with_counts(mock_tg_service, monkeypatch):
+    """status='retrying' พร้อม retry_count/max_retries → delivered=True"""
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+    app.dependency_overrides[verify_api_key] = lambda: True
+    monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
+
+    response = client.post(
+        TASK_COMPLETE_URL,
+        json={
+            "project": "Akasa",
+            "task": "Deploy to production",
+            "status": "retrying",
+            "retry_count": 2,
+            "max_retries": 3,
+            "message": "Docker daemon not responding",
+        },
+        headers={"X-Akasa-API-Key": "valid-key"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["delivered"] is True
+    call_kwargs = mock_tg_service.send_task_notification.call_args.kwargs
+    assert call_kwargs["request"].status == "retrying"
+    assert call_kwargs["request"].retry_count == 2
+    assert call_kwargs["request"].max_retries == 3
+
+
+@pytest.mark.asyncio
+async def test_task_complete_retrying_status_without_counts(
+    mock_tg_service, monkeypatch
+):
+    """status='retrying' ไม่มี retry_count/max_retries → delivered=True เช่นกัน"""
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+    app.dependency_overrides[verify_api_key] = lambda: True
+    monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
+
+    response = client.post(
+        TASK_COMPLETE_URL,
+        json={
+            "project": "Akasa",
+            "task": "Run tests",
+            "status": "retrying",
+        },
+        headers={"X-Akasa-API-Key": "valid-key"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["delivered"] is True
+    call_kwargs = mock_tg_service.send_task_notification.call_args.kwargs
+    assert call_kwargs["request"].retry_count is None
+    assert call_kwargs["request"].max_retries is None
+
+
+@pytest.mark.asyncio
+async def test_task_complete_limit_reached_status(mock_tg_service, monkeypatch):
+    """status='limit_reached' + max_retries → delivered=True"""
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+    app.dependency_overrides[verify_api_key] = lambda: True
+    monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
+
+    response = client.post(
+        TASK_COMPLETE_URL,
+        json={
+            "project": "Akasa",
+            "task": "Deploy to production",
+            "status": "limit_reached",
+            "max_retries": 3,
+            "message": "Gave up after 3 attempts. Last error: timeout",
+        },
+        headers={"X-Akasa-API-Key": "valid-key"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["delivered"] is True
+    call_kwargs = mock_tg_service.send_task_notification.call_args.kwargs
+    assert call_kwargs["request"].status == "limit_reached"
+    assert call_kwargs["request"].max_retries == 3
+
+
+def test_task_complete_invalid_retry_status(mock_tg_service, monkeypatch):
+    """status ที่ไม่ใช่ค่าใน Literal ต้องคืนค่า 422 เสมอ"""
+    app.dependency_overrides[verify_api_key] = lambda: True
+    monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
+
+    response = client.post(
+        TASK_COMPLETE_URL,
+        json={"project": "Akasa", "task": "Test", "status": "retry"},  # typo
+        headers={"X-Akasa-API-Key": "valid-key"},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_task_complete_success_after_retries_passes_counts(
+    mock_tg_service, monkeypatch
+):
+    """success พร้อม retry_count/max_retries → service ได้รับ counts ครบ"""
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+    app.dependency_overrides[verify_api_key] = lambda: True
+    monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
+
+    response = client.post(
+        TASK_COMPLETE_URL,
+        json={
+            "project": "Akasa",
+            "task": "Deploy to production",
+            "status": "success",
+            "retry_count": 2,
+            "max_retries": 3,
+        },
+        headers={"X-Akasa-API-Key": "valid-key"},
+    )
+
+    assert response.status_code == 200
+    call_kwargs = mock_tg_service.send_task_notification.call_args.kwargs
+    assert call_kwargs["request"].retry_count == 2
+    assert call_kwargs["request"].max_retries == 3
+
+
+def test_task_complete_all_valid_statuses_pass_validation(mock_tg_service, monkeypatch):
+    """ทุก status ที่ถูกต้องต้องผ่าน validation ทั้งหมด 5 ค่า"""
+    app.dependency_overrides[verify_api_key] = lambda: True
+    monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+
+    valid_statuses = ["success", "failure", "partial", "retrying", "limit_reached"]
+    for status in valid_statuses:
+        response = client.post(
+            TASK_COMPLETE_URL,
+            json={"project": "Akasa", "task": "Test task", "status": status},
+            headers={"X-Akasa-API-Key": "valid-key"},
+        )
+        assert response.status_code == 200, (
+            f"Expected 200 for status='{status}', got {response.status_code}"
+        )
