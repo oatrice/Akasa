@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/oatrice/Akasa/compare/v0.13.0...v0.14.0) (2026-03-13)
+
+
+### Features
+
+* [Feature] Antigravity IDE Action Confirmation via ... ([#59](https://github.com/oatrice/Akasa/issues/59)) ([ade8b5e](https://github.com/oatrice/Akasa/commit/ade8b5e98f7b0025ca0631f07785d05f52d33bbf))
+
 ## [0.15.0] - 2026-03-13
 
 ### Added
