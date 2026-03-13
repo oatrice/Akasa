@@ -1,3 +1,5 @@
+อัปเดต README.md เพื่อสะท้อนถึงฟีเจอร์การแจ้งเตือนสถานะงานจาก AI Assistant (Issue #61) และการเพิ่มคอนฟิก `AKASA_CHAT_ID` ตามข้อมูลจาก commit ล่าสุด
+
 # 🌌 Akasa — AI Coding Assistant Chatbot
 
 > ผู้ช่วยเขียนโค้ดผ่าน Messaging App — เขียนโค้ดได้ทุกที่ ไม่ต้องอยู่หน้าคอม
@@ -13,7 +15,7 @@
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
 - 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
-- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks หรือข้อความจากระบบภายนอกสู่มือถือทันที
+- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks, การทำงานเสร็จสิ้นจาก AI Assistant (#61), หรือข้อความจากระบบภายนอกสู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
@@ -63,9 +65,11 @@ akasa/
 │   ├── main.py              # FastAPI entry point
 │   ├── config.py             # Settings & env vars
 │   ├── models/               # Pydantic models
-│   │   └── telegram.py
+│   │   ├── telegram.py
+│   │   └── notification.py   # Task & status notifications
 │   ├── routers/              # API endpoints
 │   │   ├── actions.py        # Remote action confirmation
+│   │   ├── notifications.py  # AI task completion notifications
 │   │   ├── telegram.py       # Telegram webhook
 │   │   └── health.py         # Health check
 │   └── services/             # Business logic
@@ -135,6 +139,7 @@ ENV=local
 # --- Secrets ---
 OPENROUTER_API_KEY=your_openrouter_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+AKASA_CHAT_ID=your_personal_chat_id
 WEBHOOK_SECRET_TOKEN=a_strong_random_secret
 
 # --- Services ---

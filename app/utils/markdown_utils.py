@@ -1,4 +1,29 @@
 import re
+from typing import Optional
+
+# Module-level compiled patterns (avoids recompilation on every call)
+_CONTENT_ESCAPE_CHARS = r"\_*[]()~`>#+-=|{}.!"
+_CONTENT_ESCAPE_PATTERN = re.compile(rf"([{re.escape(_CONTENT_ESCAPE_CHARS)}])")
+
+
+def escape_markdown_v2_content(text: Optional[str]) -> Optional[str]:
+    """
+    Escapes ALL Telegram MarkdownV2 special characters for use as dynamic content
+    inside a pre-structured MarkdownV2 message (e.g., embedded inside *bold* labels).
+
+    Unlike escape_markdown_v2(), this function also escapes * and _ to prevent
+    accidental formatting from arbitrary user-supplied strings such as project names,
+    task descriptions, or file paths.
+
+    Use this when YOU control the surrounding markdown structure and need to safely
+    embed untrusted content within it.
+
+    Characters escaped: _ * [ ] ( ) ~ ` > # + - = | { } . ! \\
+    """
+    if not text:
+        return text
+    return _CONTENT_ESCAPE_PATTERN.sub(r"\\\1", text)
+
 
 def escape_markdown_v2(text: str) -> str:
     """
@@ -30,12 +55,12 @@ def escape_markdown_v2(text: str) -> str:
         else:
             # This is normal text, escape special characters
             escaped_part = escape_pattern.sub(r"\\\1", part)
-            
-            # Additional check: If there are any backticks in this "normal" part, 
+
+            # Additional check: If there are any backticks in this "normal" part,
             # they must be unclosed/unmatched (since matched ones were handled by re.split).
             # Escape them to avoid Telegram parsing errors.
             escaped_part = escaped_part.replace("`", r"\`")
-            
+
             escaped_parts.append(escaped_part)
 
     return "".join(escaped_parts)
