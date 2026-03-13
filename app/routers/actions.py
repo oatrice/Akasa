@@ -40,7 +40,9 @@ async def create_action_request(
     authenticated: bool = Depends(verify_api_key)
 ):
     """รับคำขอ Action Confirmation จาก CLI"""
-    chat_id = payload.chat_id if hasattr(payload, "chat_id") else payload.user_id
+    chat_id = payload.chat_id or payload.user_id
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="Either chat_id or user_id is required")
     validate_chat_id(chat_id)
     
     metadata = payload.metadata
@@ -50,7 +52,12 @@ async def create_action_request(
     request_id = metadata.get("request_id")
     command = metadata.get("command")
     cwd = metadata.get("cwd")
+    if not all([request_id, command, cwd]):
+        raise HTTPException(status_code=400, detail="Missing required metadata fields: request_id, command, cwd")
+    
     session_id = metadata.get("session_id")
+    source = metadata.get("source")  # "antigravity" | "gemini_cli" | None
+    description = metadata.get("description")
     
     # 1. เช็ค Session Permission ก่อน
     if session_id and await has_session_permission(session_id):
@@ -73,6 +80,8 @@ async def create_action_request(
         command=command,
         cwd=cwd,
         session_id=session_id,
+        source=source,
+        description=description,
         status="pending"
     )
     await set_action_request(request_id, state)

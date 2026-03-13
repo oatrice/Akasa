@@ -2,7 +2,7 @@
 
 > ผู้ช่วยเขียนโค้ดผ่าน Messaging App — เขียนโค้ดได้ทุกที่ ไม่ต้องอยู่หน้าคอม
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -12,14 +12,14 @@
 
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
-- 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
+- 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
 - 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks หรือข้อความจากระบบภายนอกสู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
 - 📝 **Task Notes** — บันทึก Task ที่กำลังทำอยู่สำหรับโปรเจ็กต์ปัจจุบันด้วยคำสั่ง `/note <your task description>` เพื่อให้บอทจำบริบทได้แม่นยำขึ้น
 - 🔌 **Multi-LLM** — สลับโมเดล AI ได้ผ่านคำสั่ง `/model` (GPT-4o, Claude 3, Gemini, etc.)
-- 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl
+- 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl และรองรับ MCP (Model Context Protocol)
 - 📱 **Mobile-First UX** — ตอบสั้น กระชับ เหมาะกับหน้าจอมือถือ
 
 ---
@@ -76,6 +76,9 @@ akasa/
 │       └── redis_service.py    # Conversation history management
 │   └── utils/                # Utility functions
 │       └── markdown_utils.py
+├── scripts/
+│   ├── akasa_mcp_server.py  # MCP Server for IDE integration
+│   └── setup_local_bot.sh   # Local dev setup script
 ├── tests/
 │   ├── integration/          # Integration tests
 │   │   └── test_redis_integration.py
@@ -87,7 +90,6 @@ akasa/
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
-├── setup_local_bot.sh       # Local dev setup script
 ├── VERSION
 └── README.md
 ```
@@ -98,7 +100,7 @@ akasa/
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - [Docker](https://www.docker.com/) (to run Redis locally)
 - OpenRouter API Key ([สมัครที่นี่](https://openrouter.ai))
 - Telegram Bot Token ([สร้างที่ BotFather](https://t.me/BotFather))
@@ -154,8 +156,8 @@ docker run -d -p 6379:6379 redis
 uvicorn app.main:app --reload --port 8000
 
 # In a third terminal, run the setup script
-chmod +x setup_local_bot.sh
-./setup_local_bot.sh
+chmod +x scripts/setup_local_bot.sh
+./scripts/setup_local_bot.sh
 ```
 After the script runs successfully, you can send messages to your bot in the Telegram app.
 
@@ -200,6 +202,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ### Phase 3: Tools & RAG
 - [x] เชื่อม GitHub API (จัดการ Issue, สร้าง PR)
+- [x] MCP Server integration
 - [ ] Code Sandbox (รันโค้ดได้จากแชท)
 - [ ] RAG — สอนบอทให้รู้จัก codebase
 - [ ] Voice Note → Whisper → LLM

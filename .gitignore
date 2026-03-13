@@ -17,3 +17,4 @@ prompt_*.txt
 error.log
 .error.log
 .luma_dev.json
+luma_failed_prompt_*.md
