@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.0] - 2026-03-13
+
+### Added
+- **Akasa MCP Server**: เพิ่มการรองรับ Model Context Protocol (MCP) server เพื่อเชื่อมต่อกับ IDE (เช่น Antigravity) สำหรับการขออนุมัติการทำงาน (Action Confirmation) ผ่าน Telegram
+- **Enhanced Action Metadata**: เพิ่มฟิลด์ `source`, `description` และ `session_id` ในการส่งคำขออนุมัติ เพื่อให้ผู้ใช้เห็นรายละเอียดที่มาและคำอธิบายของคำสั่งก่อนตัดสินใจ
+
+### Changed
+- **Performance & Compatibility**: ปรับปรุงระบบ Validation และการจัดการ Async I/O ให้รองรับ Python 3.12 อย่างเต็มรูปแบบและทำงานได้เสถียรยิ่งขึ้น
+
+### Fixed
+- **Config Flexibility**: ปรับปรุงการโหลดค่าคอนฟิกให้รองรับฟิลด์เพิ่มเติมในไฟล์ `.env` (Extra fields) ป้องกันข้อผิดพลาดเมื่อมีการตั้งค่าส่วนขยายอื่นๆ
+
 ## [0.13.0](https://github.com/oatrice/Akasa/compare/v0.12.0...v0.13.0) (2026-03-12)
 
 
