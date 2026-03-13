@@ -101,3 +101,71 @@ async def test_get_action_request_status(valid_headers):
         
         assert response.status_code == 200
         assert response.json()["status"] == "allowed"
+
+
+@pytest.mark.asyncio
+async def test_create_action_request_with_source_antigravity(valid_headers):
+    """ทดสอบสร้าง Action Request พร้อม source=antigravity และ description"""
+    payload = {
+        "chat_id": "12345",
+        "message": "🤖 Antigravity: npm install",
+        "metadata": {
+            "request_id": "req-ag-1",
+            "command": "npm install",
+            "cwd": "/Users/dev/project",
+            "session_id": "ag-sess-1",
+            "source": "antigravity",
+            "description": "Installing dependencies for the project"
+        }
+    }
+    
+    with patch("app.routers.actions.settings.ALLOWED_TELEGRAM_CHAT_IDS", "12345"), \
+         patch("app.routers.actions.has_session_permission", new_callable=AsyncMock) as mock_session, \
+         patch("app.routers.actions.set_action_request", new_callable=AsyncMock) as mock_set, \
+         patch("app.routers.actions.tg_service.send_confirmation_message", new_callable=AsyncMock) as mock_tg:
+        
+        mock_session.return_value = False
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/api/v1/actions/request", json=payload, headers=valid_headers)
+        
+        assert response.status_code == 200
+        assert response.json()["request_id"] == "req-ag-1"
+        assert response.json()["status"] == "pending"
+        
+        # ตรวจสอบว่า ActionRequestState ถูกบันทึกพร้อม source และ description
+        saved_state = mock_set.call_args[0][1]  # arg ตัวที่ 2 คือ state
+        assert saved_state.source == "antigravity"
+        assert saved_state.description == "Installing dependencies for the project"
+
+
+@pytest.mark.asyncio
+async def test_create_action_request_without_source_backward_compatible(valid_headers):
+    """ทดสอบว่า payload แบบเดิม (ไม่มี source) ยังทำงานได้ปกติ — backward compatible"""
+    payload = {
+        "chat_id": "12345",
+        "message": "Action: ls -la",
+        "metadata": {
+            "request_id": "req-old-1",
+            "command": "ls -la",
+            "cwd": "."
+        }
+    }
+    
+    with patch("app.routers.actions.settings.ALLOWED_TELEGRAM_CHAT_IDS", "12345"), \
+         patch("app.routers.actions.has_session_permission", new_callable=AsyncMock) as mock_session, \
+         patch("app.routers.actions.set_action_request", new_callable=AsyncMock) as mock_set, \
+         patch("app.routers.actions.tg_service.send_confirmation_message", new_callable=AsyncMock) as mock_tg:
+        
+        mock_session.return_value = False
+        
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/api/v1/actions/request", json=payload, headers=valid_headers)
+        
+        assert response.status_code == 200
+        assert response.json()["status"] == "pending"
+        
+        # ตรวจสอบว่า source ได้ค่า default (None)
+        saved_state = mock_set.call_args[0][1]
+        assert saved_state.source is None
+        assert saved_state.description is None

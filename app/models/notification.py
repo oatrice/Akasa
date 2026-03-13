@@ -32,6 +32,8 @@ class ActionRequestState(BaseModel):
     command: str
     cwd: str
     session_id: Optional[str] = None
+    source: Optional[str] = None  # "antigravity" | "gemini_cli" | None
+    description: Optional[str] = None
     requested_at: datetime = Field(default_factory=datetime.utcnow)
     decided_by: Optional[str] = None
     decided_at: Optional[datetime] = None

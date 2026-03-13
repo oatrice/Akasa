@@ -51,6 +51,8 @@ async def create_action_request(
     command = metadata.get("command")
     cwd = metadata.get("cwd")
     session_id = metadata.get("session_id")
+    source = metadata.get("source")  # "antigravity" | "gemini_cli" | None
+    description = metadata.get("description")
     
     # 1. เช็ค Session Permission ก่อน
     if session_id and await has_session_permission(session_id):
@@ -73,6 +75,8 @@ async def create_action_request(
         command=command,
         cwd=cwd,
         session_id=session_id,
+        source=source,
+        description=description,
         status="pending"
     )
     await set_action_request(request_id, state)
