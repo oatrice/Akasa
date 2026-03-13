@@ -48,6 +48,12 @@ class TestAkasaRemoteApproval:
 
         assert result["status"] == "allowed"
         assert result["request_id"] == "req-123"
+        
+        # Verify that session_id was sent in the metadata payload
+        post_kwargs = mock_client.post.call_args.kwargs
+        metadata = post_kwargs["json"]["metadata"]
+        assert "session_id" in metadata
+        assert metadata["session_id"] is not None
 
     @pytest.mark.asyncio
     async def test_request_remote_approval_denied(self):

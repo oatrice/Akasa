@@ -32,6 +32,9 @@ AKASA_CHAT_ID = os.getenv("AKASA_CHAT_ID", "")
 MAX_POLL_ATTEMPTS = 10  # 10 attempts × 30s long-poll = ~5 minutes
 POLL_INTERVAL = 1.0  # Wait between poll attempts (seconds)
 
+# Session config
+MCP_SESSION_ID = str(uuid.uuid4())
+
 
 async def request_remote_approval(
     command: str,
@@ -69,6 +72,7 @@ async def request_remote_approval(
             "cwd": cwd,
             "source": "antigravity",
             "description": description,
+            "session_id": MCP_SESSION_ID,
         }
     }
 
