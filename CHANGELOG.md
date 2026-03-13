@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0] - 2026-03-13
+
+### Added
+- **AI Task Completion Notification**: เพิ่มระบบแจ้งเตือนเมื่อ AI ทำงานเสร็จสิ้น (Task Completion Notification) ผ่าน Telegram โดยรองรับข้อมูล Project, Task, Status และ Duration (#61)
+- **Akasa MCP Server**: เพิ่มการรองรับ Model Context Protocol (MCP) server เพื่อเชื่อมต่อกับ IDE สำหรับการขออนุมัติการทำงาน (Action Confirmation) ผ่าน Telegram
+- **Retry Tracking**: เพิ่มการติดตามจำนวนครั้งที่พยายามส่งแจ้งเตือน (`retry_count`) ในระบบ Notification เพื่อความแม่นยำในการตรวจสอบสถานะ
+- **AKASA_CHAT_ID Config**: เพิ่มการรองรับ `AKASA_CHAT_ID` ในไฟล์คอนฟิก สำหรับกำหนดปลายทางการแจ้งเตือนหลักของเซิร์ฟเวอร์
+
+### Changed
+- **Graceful Shutdown**: ปรับปรุงกระบวนการปิดระบบ (Shutdown procedure) ให้มีความปลอดภัยและจัดการทรัพยากรได้สมบูรณ์ยิ่งขึ้น ทั้งในส่วนของ FastAPI และ MCP Server
+- **Enhanced Validation**: ปรับปรุงระบบตรวจสอบความถูกต้องของข้อมูล (Validation) และการจัดการ Markdown Formatting สำหรับการแจ้งเตือนให้มีความเสถียรมากขึ้น
+
 ## [0.14.0](https://github.com/oatrice/Akasa/compare/v0.13.0...v0.14.0) (2026-03-13)
 
 
