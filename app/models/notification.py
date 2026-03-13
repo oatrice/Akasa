@@ -33,8 +33,12 @@ class TaskNotificationRequest(BaseModel):
     link: Optional[str] = None  # PR link, file, etc.
     source: Optional[str] = None  # "Gemini CLI", "Luma CLI", etc.
     chat_id: Optional[str] = None  # if not provided, backend uses AKASA_CHAT_ID
-    retry_count: Optional[int] = None  # current attempt number, 1-based (e.g., 2)
-    max_retries: Optional[int] = None  # maximum retry attempts allowed (e.g., 3)
+    retry_count: Optional[int] = Field(
+        default=None, ge=1
+    )  # current attempt number, 1-based (e.g., 2)
+    max_retries: Optional[int] = Field(
+        default=None, ge=1
+    )  # maximum retry attempts allowed (e.g., 3)
 
     @field_validator("task")
     @classmethod

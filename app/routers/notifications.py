@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.config import settings
 from app.exceptions import BotBlockedException, UserChatIdNotFoundException

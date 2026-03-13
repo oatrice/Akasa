@@ -1,7 +1,12 @@
 import re
+from typing import Optional
+
+# Module-level compiled patterns (avoids recompilation on every call)
+_CONTENT_ESCAPE_CHARS = r"\_*[]()~`>#+-=|{}.!"
+_CONTENT_ESCAPE_PATTERN = re.compile(rf"([{re.escape(_CONTENT_ESCAPE_CHARS)}])")
 
 
-def escape_markdown_v2_content(text: str) -> str:
+def escape_markdown_v2_content(text: Optional[str]) -> Optional[str]:
     """
     Escapes ALL Telegram MarkdownV2 special characters for use as dynamic content
     inside a pre-structured MarkdownV2 message (e.g., embedded inside *bold* labels).
@@ -17,10 +22,7 @@ def escape_markdown_v2_content(text: str) -> str:
     """
     if not text:
         return text
-    # All MarkdownV2 special chars including formatting ones (* and _) and backslash
-    chars_to_escape = r"\_*[]()~`>#+-=|{}.!"
-    escape_pattern = re.compile(rf"([{re.escape(chars_to_escape)}])")
-    return escape_pattern.sub(r"\\\1", text)
+    return _CONTENT_ESCAPE_PATTERN.sub(r"\\\1", text)
 
 
 def escape_markdown_v2(text: str) -> str:

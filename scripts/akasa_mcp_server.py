@@ -253,7 +253,7 @@ TOOL_DEFINITIONS = [
                 },
                 "retry_count": {
                     "type": "integer",
-                    "description": "Current attempt number (1-based). Required when status is 'retrying' or 'limit_reached', e.g., 2",
+                    "description": "Current attempt number (1-based), e.g., 2. Recommended when status is 'retrying' or 'limit_reached' for richer messages, but optional.",
                 },
                 "max_retries": {
                     "type": "integer",

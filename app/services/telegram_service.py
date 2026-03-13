@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import httpx
 
@@ -20,7 +20,7 @@ class TelegramService:
         self.client = httpx.AsyncClient()
 
     async def send_message(
-        self, chat_id: int, text: str, reply_markup: dict = None
+        self, chat_id: int, text: str, reply_markup: Optional[dict] = None
     ) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
@@ -60,7 +60,11 @@ class TelegramService:
         await self.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
 
     async def edit_message_text(
-        self, chat_id: int, message_id: int, text: str, reply_markup: dict = None
+        self,
+        chat_id: int,
+        message_id: int,
+        text: str,
+        reply_markup: Optional[dict] = None,
     ):
         """
         แก้ไขข้อความเดิม (ใช้สำหรับอัปเดตสถานะหลังจากกดปุ่ม)
@@ -130,9 +134,7 @@ class TelegramService:
             "retrying": ("🔄", None),  # title built dynamically with retry counts
             "limit_reached": ("🚫", None),  # title built dynamically with retry counts
         }
-        emoji, title = status_config.get(
-            request.status.lower(), ("🔔", "Task Notification")
-        )
+        emoji, title = status_config.get(request.status, ("🔔", "Task Notification"))
 
         # Build dynamic title for retry statuses
         if title is None:
