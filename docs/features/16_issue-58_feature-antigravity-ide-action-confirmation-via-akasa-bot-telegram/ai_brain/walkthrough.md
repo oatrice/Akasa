@@ -67,6 +67,19 @@ render_diffs(file:///Users/oatrice/Software-projects/Akasa/tests/routers/test_ac
 
 ---
 
+## การปรับปรุง Luma CLI (Artifact Archiving)
+
+เพื่อให้ Luma CLI (Step 5: Archive Artifacts) สามารถทำงานร่วมกับ AI Brain (Antigravity และ Gemini CLI) ได้อย่างสมบูรณ์และปลอดภัย ได้ทำการปรับปรุงโค้ดในโปรเจกต์ Luma ดังนี้:
+
+### 1. [luma_core/actions.py](file:///Users/oatrice/Software-projects/Luma/luma_core/actions.py)
+- **Integration**: เพิ่มการเรียกใช้ `AntigravityBrain.sync_to_repo()` และ `GeminiCLIBrain.sync_to_repo()` ในฟังก์ชัน `action_archive_artifacts` ให้ทำงานอัตโนมัติใน Step 5
+
+### 2. [luma_core/ai_brain_sync.py](file:///Users/oatrice/Software-projects/Luma/luma_core/ai_brain_sync.py)
+- **Session Protection**: ปรับปรุงฟังก์ชัน `get_latest_session()` เพื่อป้องกันปัญหา Copy ผิด Session โดยเพิ่มลอจิก Content-based matching
+- การเช็คจะเปิดอ่านไฟล์ `task.md` หรือ `.json` session ย้อนหลัง และตรวจสอบว่ามี `project_name` (`Akasa`) หรือ `issue_number` (`58`) อยู่ในเนื้อหาหรือไม่ ถึงจะดึงไปใช้งาน
+
+---
+
 ## Test Results
 
 ```

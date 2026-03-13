@@ -10,3 +10,7 @@
 - [x] 🟢 Fix 6: `Optional[str]` type hint for `description` (akasa_mcp_server.py)
 - [x] 🟢 Fix 7: `datetime.utcnow` → `datetime.now(timezone.utc)` (notification.py)
 - [x] 🧪 Fix 8: Add test coverage for `handle_rpc` (test_akasa_mcp_server.py)
+
+## Improvements
+- [x] Integrate AI Brain syncing into `luma_core/actions.py` Step 5.
+- [x] Add content-based matching to `ai_brain_sync.py` to prevent copying wrong sessions.
