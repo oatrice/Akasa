@@ -20,6 +20,7 @@ import uuid
 import asyncio
 import os
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ MCP_SESSION_ID = str(uuid.uuid4())
 async def request_remote_approval(
     command: str,
     cwd: str,
-    description: str = None,
+    description: Optional[str] = None,
 ) -> dict:
     """
     ส่ง action confirmation request ไปยัง Akasa Backend
@@ -53,6 +54,9 @@ async def request_remote_approval(
     Returns:
         dict: {"status": "allowed" | "denied" | "timeout", "request_id": str}
     """
+    if not AKASA_CHAT_ID:
+        raise ValueError("AKASA_CHAT_ID environment variable is not set")
+
     request_id = str(uuid.uuid4())
 
     # 1. Format message สำหรับ Telegram
@@ -199,6 +203,9 @@ async def handle_rpc(request: dict) -> str:
                     "content": [{"type": "text", "text": text}]
                 })
             except Exception as e:
+                # ใช้ make_response + isError ตาม MCP spec:
+                # JSON-RPC error = protocol-level error
+                # isError in tool result = tool execution failure
                 return make_response(req_id, {
                     "content": [{"type": "text", "text": f"Error: {str(e)}"}],
                     "isError": True
@@ -211,11 +218,20 @@ async def handle_rpc(request: dict) -> str:
 
 
 async def main():
-    """Main loop: read JSON-RPC from stdin, respond via stdout"""
+    """Main loop: read JSON-RPC from stdin, respond via stdout (non-blocking)"""
     logger.info("Akasa MCP Server started (stdio mode)")
 
-    for line in sys.stdin:
-        line = line.strip()
+    loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+
+    while True:
+        line_bytes = await reader.readline()
+        if not line_bytes:
+            break  # EOF
+
+        line = line_bytes.decode().strip()
         if not line:
             continue
 

@@ -39,7 +39,8 @@ class TestAkasaRemoteApproval:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client):
+        with patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client), \
+             patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "12345"):
             result = await request_remote_approval(
                 command="npm install",
                 cwd="/Users/dev/project",
@@ -83,7 +84,8 @@ class TestAkasaRemoteApproval:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client):
+        with patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client), \
+             patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "12345"):
             result = await request_remote_approval(
                 command="rm -rf /tmp/data",
                 cwd="/tmp"
@@ -121,6 +123,7 @@ class TestAkasaRemoteApproval:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client), \
+             patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "12345"), \
              patch("scripts.akasa_mcp_server.MAX_POLL_ATTEMPTS", 2), \
              patch("scripts.akasa_mcp_server.POLL_INTERVAL", 0.01):
             result = await request_remote_approval(
@@ -129,3 +132,81 @@ class TestAkasaRemoteApproval:
             )
 
         assert result["status"] == "timeout"
+
+
+class TestHandleRpc:
+    """ทดสอบ handle_rpc JSON-RPC protocol"""
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_initialize(self):
+        """ทดสอบ initialize method คืน server info"""
+        from scripts.akasa_mcp_server import handle_rpc
+        result = await handle_rpc({"id": 1, "method": "initialize", "params": {}})
+        data = json.loads(result)
+        assert data["id"] == 1
+        assert data["result"]["protocolVersion"] == "2024-11-05"
+        assert data["result"]["serverInfo"]["name"] == "akasa-remote-approval"
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_tools_list(self):
+        """ทดสอบ tools/list คืน tool definitions"""
+        from scripts.akasa_mcp_server import handle_rpc
+        result = await handle_rpc({"id": 2, "method": "tools/list", "params": {}})
+        data = json.loads(result)
+        assert len(data["result"]["tools"]) == 1
+        assert data["result"]["tools"][0]["name"] == "request_remote_approval"
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_unknown_method(self):
+        """ทดสอบ unknown method คืน JSON-RPC error"""
+        from scripts.akasa_mcp_server import handle_rpc
+        result = await handle_rpc({"id": 3, "method": "nonexistent", "params": {}})
+        data = json.loads(result)
+        assert "error" in data
+        assert data["error"]["code"] == -32601
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_tool_call_error(self):
+        """ทดสอบ tool call ที่เกิด exception คืน isError=True (MCP spec)"""
+        from scripts.akasa_mcp_server import handle_rpc
+        with patch("scripts.akasa_mcp_server.request_remote_approval",
+                    side_effect=Exception("Connection failed")):
+            result = await handle_rpc({
+                "id": 4, "method": "tools/call",
+                "params": {"name": "request_remote_approval",
+                           "arguments": {"command": "ls", "cwd": "."}}
+            })
+        data = json.loads(result)
+        assert data["result"]["isError"] is True
+        assert "Connection failed" in data["result"]["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_unknown_tool(self):
+        """ทดสอบ unknown tool คืน JSON-RPC error"""
+        from scripts.akasa_mcp_server import handle_rpc
+        result = await handle_rpc({
+            "id": 5, "method": "tools/call",
+            "params": {"name": "nonexistent_tool", "arguments": {}}
+        })
+        data = json.loads(result)
+        assert "error" in data
+        assert data["error"]["code"] == -32601
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_notifications_initialized(self):
+        """ทดสอบ notifications/initialized คืน None (ไม่ต้อง response)"""
+        from scripts.akasa_mcp_server import handle_rpc
+        result = await handle_rpc({"method": "notifications/initialized", "params": {}})
+        assert result is None
+
+
+class TestChatIdValidation:
+    """ทดสอบ AKASA_CHAT_ID validation"""
+
+    @pytest.mark.asyncio
+    async def test_request_remote_approval_no_chat_id(self):
+        """ถ้า AKASA_CHAT_ID ว่าง ต้อง raise ValueError"""
+        from scripts.akasa_mcp_server import request_remote_approval
+        with patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", ""):
+            with pytest.raises(ValueError, match="AKASA_CHAT_ID"):
+                await request_remote_approval(command="ls", cwd=".")

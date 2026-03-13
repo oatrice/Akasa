@@ -169,3 +169,32 @@ async def test_create_action_request_without_source_backward_compatible(valid_he
         saved_state = mock_set.call_args[0][1]
         assert saved_state.source is None
         assert saved_state.description is None
+
+
+@pytest.mark.asyncio
+async def test_create_action_request_missing_metadata_fields(valid_headers):
+    """ทดสอบว่า metadata ที่ขาด required fields (command, cwd) คืน 400"""
+    payload = {
+        "chat_id": "12345",
+        "message": "test",
+        "metadata": {"request_id": "r1"}  # missing command, cwd
+    }
+    with patch("app.routers.actions.settings.ALLOWED_TELEGRAM_CHAT_IDS", "12345"):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/api/v1/actions/request", json=payload, headers=valid_headers)
+        assert response.status_code == 400
+        assert "Missing required metadata fields" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_action_request_missing_chat_id(valid_headers):
+    """ทดสอบว่า payload ที่ขาดทั้ง chat_id และ user_id คืน 400"""
+    payload = {
+        "message": "test",
+        "metadata": {"request_id": "r1", "command": "ls", "cwd": "."}
+    }
+    with patch("app.routers.actions.settings.ALLOWED_TELEGRAM_CHAT_IDS", ""):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/api/v1/actions/request", json=payload, headers=valid_headers)
+        assert response.status_code == 400
+        assert "chat_id or user_id" in response.json()["detail"]

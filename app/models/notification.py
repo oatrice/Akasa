@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 class NotificationPayload(BaseModel):
     user_id: Optional[str] = None
@@ -34,7 +34,7 @@ class ActionRequestState(BaseModel):
     session_id: Optional[str] = None
     source: Optional[str] = None  # "antigravity" | "gemini_cli" | None
     description: Optional[str] = None
-    requested_at: datetime = Field(default_factory=datetime.utcnow)
+    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     decided_by: Optional[str] = None
     decided_at: Optional[datetime] = None
 
