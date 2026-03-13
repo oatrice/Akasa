@@ -1,68 +1,87 @@
-# Walkthrough: Lock UI สำหรับ Wisdom Garden
+# Walkthrough: Code Review Fixes (Issue #58)
 
-## สิ่งที่ทำ
+## สรุป
 
-### 1. Admin Sidebar Nav Link
-เพิ่ม "Practice Config" ใน Settings section
+แก้ไข 8 ประเด็นจาก code review ของ Antigravity IDE Action Confirmation feature ตามกระบวนการ TDD (Red → Green → Refactor)
 
-render_diffs(file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/app/admin/layout.tsx)
+**ผลลัพธ์: ✅ 18 tests passed, 0 failed**
 
-### 2. Unit Tests (TDD) — Admin Practice Config Handler
+---
 
-| Test | Status |
-|------|--------|
-| `TestGetAdminPracticeConfig_Success` | ✅ PASS |
-| `TestPutAdminPracticeConfig_Success` | ✅ PASS |
-| `TestPutAdminPracticeConfig_InvalidMode` | ✅ PASS |
+## ไฟล์ที่แก้ไข
 
-### 3. Lock UI — Frontend
+### 1. [akasa_mcp_server.py](file:///Users/oatrice/Software-projects/Akasa/scripts/akasa_mcp_server.py)
 
-#### [WeekSelector.tsx](file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/components/features/wisdom-garden/WeekSelector.tsx)
-- รับ `weekStatuses` prop จาก 8-week progress API
-- Locked weeks → 🔒 icon + disabled + opacity
-- Passed weeks → ✅ checkmark + สีเขียว
+| Fix | รายละเอียด |
+|-----|-----------|
+| 🔴 Non-blocking stdin | เปลี่ยนจาก `for line in sys.stdin` (blocking) → `asyncio.StreamReader` (async) |
+| 🔴 MCP spec comment | เพิ่ม comment อธิบายว่า `isError` ใน tool result ถูกต้องตาม MCP spec |
+| 🟡 AKASA_CHAT_ID validation | เพิ่ม `ValueError` ถ้า env var ว่าง |
+| 🟢 Optional type hint | `description: str = None` → `description: Optional[str] = None` |
 
-### Fix: Backend Panic (`Index Out of Range`)
-- **Fix:** Discovered a 500 error in `/api/v1/wisdom-garden/progress/8-weeks` when `practice_repo.go` accessed `stats[len(stats)-1]` while the array was empty.
-- **Resolution:** Added a check `len(stats) > 0` before accessing the array element to prevent panics during progression lock checks.
+render_diffs(file:///Users/oatrice/Software-projects/Akasa/scripts/akasa_mcp_server.py)
 
-### Feature: Home Dashboard Lock UI (`app/page.tsx`)
-- **Problem:** The Wisdom Garden home page (dashboard) lacked the lock interface.
-- **Implementation:**
-  - Sent `weekStatuses={eightWeekProgress?.weeks}` down to `AppHeader`.
-  - Added the exact `isLocked` logic as in the Practice Room.
-  - Replaced the "Weekly Check-in Summary" top section with a "Week Locked" banner (🔒) if the current week hasn't been unlocked.
-  - Set `readOnly={!user || isLocked}` on the `PracticeChecklist` underneath.
-- **Update:** Removed `disabled={isLocked}` from `WeekSelector.tsx` so users can click on locked weeks to see the "Unlock Date" banner information.
-#### [weekly-practices/page.tsx](file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/app/weekly-practices/page.tsx)
-- ใช้ `eightWeekProgress` จาก hook (มีอยู่แล้ว แค่ไม่ถูกใช้)
-- แสดง **Lock Banner** พร้อม lockReason + unlockDate
-- ส่ง `readOnly={true}` ให้ PracticeChecklist เมื่อ locked
-- Toast warning เมื่อ user พยายาม toggle item ใน locked week
+---
 
-#### [AppHeader.tsx](file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/components/features/wisdom-garden/AppHeader.tsx)
-- ส่งผ่าน `weekStatuses` ไปยัง WeekSelector
+### 2. [actions.py](file:///Users/oatrice/Software-projects/Akasa/app/routers/actions.py)
 
-## Browser Verification ✅
+| Fix | รายละเอียด |
+|-----|-----------|
+| 🟡 Metadata validation | เพิ่มเช็ค `request_id`, `command`, `cwd` → return 400 ถ้าขาด |
+| 🟡 chat_id check | `hasattr(payload, "chat_id")` → `payload.chat_id or payload.user_id` |
 
-### 1. Lock UI Notification (Toast - High Contrast)
-เมื่อคลิกสัปดาห์ที่โดนล็อคจาก `WeekSelector` ระบบจะแสดงผลในรูปแบบ Toast ที่กลางหน้าจอด้านล่าง โดยได้ปรับสไตล์ สีพื้นหลัง และตัวอักษรให้มี Contrast ที่ชัดเจนขึ้นทั้งใน Light Mode และ Dark Mode
+render_diffs(file:///Users/oatrice/Software-projects/Akasa/app/routers/actions.py)
 
-**Light Mode:**
-![Home Page - Toast notification (Light Mode)](./locked_week_toast_appearance_1773390990841.png)
+---
 
-**Dark Mode:**
-![Home Page - Toast notification (Dark Mode)](./locked_week_toast_dark_mode_1773391004009.png)
+### 3. [notification.py](file:///Users/oatrice/Software-projects/Akasa/app/models/notification.py)
 
-### 2. Lock UI Placeholder (Dashboard & Practice Room)
-เมื่อ Selected Week ปัจจุบันยังคงโดนล็อคอยู่ หน้าจอจะแสดง Placeholder รูป 🔒 พร้อมข้อความแจ้งเตือน "เนื้อหาสัปดาห์ที่ X ยังถูกล็อคอยู่" และซ่อนตาราง Checklist ทั้งหมดออกเพื่อให้ดูสบายตา
+| Fix | รายละเอียด |
+|-----|-----------|
+| 🟢 datetime deprecation | `datetime.utcnow` → `datetime.now(timezone.utc)` |
 
-![Browser Recording - Testing Lock UI Interaction](./verify_lock_ui_click_1773389768367.webp)
+render_diffs(file:///Users/oatrice/Software-projects/Akasa/app/models/notification.py)
+
+---
+
+### 4. [test_akasa_mcp_server.py](file:///Users/oatrice/Software-projects/Akasa/tests/scripts/test_akasa_mcp_server.py) — 7 tests เพิ่มใหม่
+
+- `test_handle_rpc_initialize` — ทดสอบ initialize method
+- `test_handle_rpc_tools_list` — ทดสอบ tools/list method
+- `test_handle_rpc_unknown_method` — ทดสอบ unknown method error
+- `test_handle_rpc_tool_call_error` — ทดสอบ tool exception → isError
+- `test_handle_rpc_unknown_tool` — ทดสอบ unknown tool error
+- `test_handle_rpc_notifications_initialized` — ทดสอบ notification → None
+- `test_request_remote_approval_no_chat_id` — ทดสอบ AKASA_CHAT_ID empty validation
+
+render_diffs(file:///Users/oatrice/Software-projects/Akasa/tests/scripts/test_akasa_mcp_server.py)
+
+---
+
+### 5. [test_actions_router.py](file:///Users/oatrice/Software-projects/Akasa/tests/routers/test_actions_router.py) — 2 tests เพิ่มใหม่
+
+- `test_create_action_request_missing_metadata_fields` — ทดสอบ metadata ขาด required fields
+- `test_create_action_request_missing_chat_id` — ทดสอบ payload ไม่มี chat_id/user_id
+
+render_diffs(file:///Users/oatrice/Software-projects/Akasa/tests/routers/test_actions_router.py)
+
+---
+
+## การปรับปรุง Luma CLI (Artifact Archiving)
+
+เพื่อให้ Luma CLI (Step 5: Archive Artifacts) สามารถทำงานร่วมกับ AI Brain (Antigravity และ Gemini CLI) ได้อย่างสมบูรณ์และปลอดภัย ได้ทำการปรับปรุงโค้ดในโปรเจกต์ Luma ดังนี้:
+
+### 1. [luma_core/actions.py](file:///Users/oatrice/Software-projects/Luma/luma_core/actions.py)
+- **Integration**: เพิ่มการเรียกใช้ `AntigravityBrain.sync_to_repo()` และ `GeminiCLIBrain.sync_to_repo()` ในฟังก์ชัน `action_archive_artifacts` ให้ทำงานอัตโนมัติใน Step 5
+
+### 2. [luma_core/ai_brain_sync.py](file:///Users/oatrice/Software-projects/Luma/luma_core/ai_brain_sync.py)
+- **Session Protection**: ปรับปรุงฟังก์ชัน `get_latest_session()` เพื่อป้องกันปัญหา Copy ผิด Session โดยเพิ่มลอจิก Content-based matching
+- การเช็คจะเปิดอ่านไฟล์ `task.md` หรือ `.json` session ย้อนหลัง และตรวจสอบว่ามี `project_name` (`Akasa`) หรือ `issue_number` (`58`) อยู่ในเนื้อหาหรือไม่ ถึงจะดึงไปใช้งาน
+
+---
 
 ## Test Results
+
 ```
-ok  github.com/oatrice/TheMiddleWay-Backend/internal/handler     0.569s
-ok  github.com/oatrice/TheMiddleWay-Backend/internal/middleware   (cached)
-ok  github.com/oatrice/TheMiddleWay-Backend/internal/repository   (cached)
-ok  github.com/oatrice/TheMiddleWay-Backend/internal/service      (cached)
+======================== 18 passed, 5 warnings in 2.60s ========================
 ```
