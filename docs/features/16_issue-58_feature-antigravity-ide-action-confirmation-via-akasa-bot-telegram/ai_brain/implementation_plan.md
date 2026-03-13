@@ -1,41 +1,39 @@
-# Lock UI สำหรับ Wisdom Garden & Practice Room
+# Fix Luma Code Review Prompt & Analyze `code_review.md`
 
-## สรุปปัญหา
-Backend ส่ง `status`, `lockReason`, `unlockDate` ผ่าน `/progress/8-weeks` แล้ว แต่ Frontend **ไม่ได้ใช้ข้อมูลนั้น** — ทุกสัปดาห์แสดงและ editable เท่ากันหมด
+## 1. การวิเคราะห์ความถูกต้องของ `code_review.md`
+เนื้อหาใน `code_review.md` ปัจจุบัน **"ไม่ถูกต้อง"** และมีสาเหตุมาจากบั๊กใน Luma CLI ครับ:
+- Luma CLI อ่าน **ไฟล์เต็มทั้งหมด** แทนที่จะอ่านเฉพาะ **git diff** (บรรทัดที่ที่มีการเปลี่ยนแปลง)
+- แถมยังมีการตัดข้อความ (truncate) เหลือแค่ 3000 ตัวอักษร
+- ทำให้ AI มองไม่เห็นว่าโค้ดมีการแก้ไขอะไรไปบ้าง จึงตอบกลับมาว่า "ผมต้องการข้อมูลเกี่ยวกับการเปลี่ยนแปลงโค้ดที่คุณต้องการให้ผมวิเคราะห์ก่อนครับ"
 
-## Proposed Changes
+## 2. แผนการแก้ไข `code_review_prompt.txt`
+เราจะปรับปรุง Luma CLI ให้สร้าง prompt ที่ชี้เป้าไปที่ git diff ตรงๆ โดยอาศัยฟังก์ชัน `generate_draft_code_review` ที่มีอยู่แล้วใน Luma CLI เพื่อสร้างไฟล์ `draft_code_review.md` (ซึ่งรวม git diff เอาไว้) แล้วให้ prompt อ้างอิงไฟล์นั้น
 
-### 1. Week Selector — แสดง Lock/Status Icon
+### `luma_core/actions.py`
+#### [MODIFY] `luma_core/actions.py`
+เพิ่มการเรียก `generate_draft_code_review` ก่อนสร้างข้อความ Prompt และแก้ไขโครงสร้าง prompt ให้ชัดเจน:
+```python
+            # สร้าง draft_code_review.md (ซึ่งมี git diff)
+            from luma_core.tools import generate_draft_code_review
+            draft_path = generate_draft_code_review(target_dir=target_dir)
 
-#### [MODIFY] [WeekSelector.tsx](file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/components/features/wisdom-garden/WeekSelector.tsx)
-- รับ props `weekStatuses?: WeekStatus[]` จาก `eightWeekProgress.weeks`
-- สัปดาห์ที่ `status === "Locked"` → แสดง 🔒 icon + disabled + opacity + ไม่ให้คลิก
-- สัปดาห์ที่ `status === "Passed"` → แสดง ✅ badge + สีเขียว
-- สัปดาห์ `"In Progress"` → behaviour ปกติ (สี primary)
+            # Print the prompt for the user to copy and paste to the AI assistant
+            print("\n" + "="*60)
+            print("💡 COPY THIS PROMPT FOR THE AI ASSISTANT:")
+            print("="*60)
+            
+            prompt_text = f"โปรดอ่านผลการรีวิวจาก {report_path} และรายละเอียด Code Changes (git diff) จาก {draft_path} มาอธิบาย สรุปประเด็นสำคัญ ถามเพื่อ clarify และให้ทำตาม Test suggestion ทั้งหมดด้วยกระบวนการ TDD"
+            
+            print(prompt_text)
+            print("="*60)
+```
 
----
-
-### 2. Weekly Practices Page — ใช้ Lock Data
-
-#### [MODIFY] [page.tsx (weekly-practices)](file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/app/weekly-practices/page.tsx)
-- ดึง `eightWeekProgress` จาก `useWisdomGarden()` hook (มีอยู่แล้ว แค่ไม่ได้ใช้)
-- ส่ง `weekStatuses` ให้ `WeekSelector`
-- คำนวณ `isLocked` จาก `eightWeekProgress.weeks[selectedWeek-1].status === "Locked"`
-- เมื่อ `isLocked`:
-  - แสดง **Lock Banner** (🔒 สัปดาห์นี้ยังล็อคอยู่ + lockReason + unlockDate)
-  - ส่ง `readOnly={true}` ให้ `PracticeChecklist`
-
----
-
-### 3. AppHeader — ส่งผ่าน weekStatuses
-
-#### [MODIFY] [AppHeader.tsx](file:///Users/oatrice/Software-projects/The%20Middle%20Way%20-Metadata/Platforms/Web/components/features/wisdom-garden/AppHeader.tsx)
-- รับ `weekStatuses` prop แล้วส่งต่อให้ `WeekSelector`
+## 3. (Optional) แผนแก้ไข `luma_core/agents/reviewer.py` ให้วิเคราะห์ชี้ตรงจุด
+ถ้าต้องการให้ผลลัพธ์ใน `code_review.md` แนะนำ Test Suggestion ได้ถูกต้อง เราควรส่ง `git diff` ไปให้ `reviewer_agent` ด้วยแทนที่จะส่งโครงสร้างไฟล์เต็มแบบปัจจุบัน หากเห็นด้วยสามารถแจ้งให้แก้ไขเพิ่มได้เลยครับ
 
 ## Verification Plan
-
-### Browser Testing
-1. ตั้ง mode เป็น `PROGRESS_ONLY` ผ่าน Admin Practice Config
-2. เปิดหน้า Weekly Practices → Week 2+ ควรแสดง 🔒 ใน selector
-3. คลิก week ที่ locked → ควรไม่สามารถคลิกได้ หรือแสดง lock banner
-4. ทำ Week 1 ครบ → Week 2 ควร unlock
+### Automated Tests
+- ไม่มี automated tests สำหรับส่วนนี้
+### Manual Verification
+- รัน CLI Luma เลือกทำ code review และตรวจสอบไฟล์ `code_review_prompt.txt` ว่ามีข้อความที่ครอบคลุมถึง file `draft_code_review.md` ตามที่ตั้งใจหรือไม่
+- ตรวจสอบ `code_review.md` และ `draft_code_review.md` ว่าสร้างสำเร็จและอยู่ใน path ที่ถูกต้อง

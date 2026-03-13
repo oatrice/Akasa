@@ -1,33 +1,12 @@
-# Task Checklist: Lock UI สำหรับ Wisdom Garden
+# Task: Fix Code Review Issues (Issue #58)
 
-## งานก่อนหน้า (เสร็จแล้ว)
-- [x] เพิ่ม nav link "Practice Config" ใน `layout.tsx`
-- [x] เขียน 3 unit tests สำหรับ Admin Practice Config handler
-- [x] `go test ./...` ผ่านทั้งหมด
+## TDD Fixes from Code Review
 
-## Lock UI Implementation
-- [x] อัปเดต `WeekSelector.tsx` — รับ `weekStatuses`, แสดง lock/passed icon
-- [x] อัปเดต `AppHeader.tsx` — ส่งผ่าน `weekStatuses`
-## 2. Frontend: Wisdom Garden Home Page (app/page.tsx)
-- [x] Fetch `eightWeekProgress` via `useWisdomGarden`
-- [x] Pass `weekStatuses` to `AppHeader` to show lock icons in the week selector
-- [x] Determine if the current selected week is locked
-- [x] Display a Lock Banner when the selected week is locked (Reason & Unlock Date)
-- [x] Pass `readOnly` state and warning handler to `PracticeChecklist`
-🔒
-- [x] อัปเดต `weekly-practices/page.tsx` — ใช้ `eightWeekProgress`, แสดง lock banner, ส่ง `readOnly`
-- [x] Browser test: ✅ Lock UI แสดงผลถูกต้อง — week 1 active, week 2-8 locked 🔒
-
-## Bug Fix: Free Mode ยังแสดง Lock
-- [x] ค้นหาสาเหตุ — `CalculateStatus()` ใน `progress_service.go` override ค่าที่ repo คืนมา
-- [x] แก้ไข `CalculateStatus()` ให้เคารพ status จาก `GetUser8WeekStats()`
-- [x] เทสต์ทั้งหมดผ่าน
-- [x] Restart Backend Server
-- [/] ตรวจสอบผล Browser — รอผู้ใช้ทดสอบ
-
-## Bug Fix 2: Progress Only ไม่ Lock สัปดาห์ก่อนหน้า
-- [x] ค้นหาสาเหตุ — `highWatermark` จาก Free mode ค้างอยู่ ทำให้ bypass เงื่อนไข Lock ของโหมด Progress / Time
-- [x] แก้ไข `practice_repo.go` ให้ตรวจสอบเงื่อนไข Progress และ Time แบบคร่าวครัดโดยไม่สนใจ `highWatermark` 
-- [x] รัน Unit Test ตรวจสอบ (`go test ./...`)
-- [x] Restart Backend Server
-- [/] ตรวจสอบผล Browser — รอผู้ใช้ทดสอบ
+- [x] 🔴 Fix 1: Non-blocking stdin in `main()` (akasa_mcp_server.py)
+- [x] 🔴 Fix 2: Add comment for `isError` pattern in `handle_rpc` (akasa_mcp_server.py)
+- [x] 🟡 Fix 3: Validate metadata fields in `create_action_request` (actions.py)
+- [x] 🟡 Fix 4: Fix `hasattr` → value check for `chat_id` (actions.py)
+- [x] 🟡 Fix 5: Validate `AKASA_CHAT_ID` (akasa_mcp_server.py)
+- [x] 🟢 Fix 6: `Optional[str]` type hint for `description` (akasa_mcp_server.py)
+- [x] 🟢 Fix 7: `datetime.utcnow` → `datetime.now(timezone.utc)` (notification.py)
+- [x] 🧪 Fix 8: Add test coverage for `handle_rpc` (test_akasa_mcp_server.py)
