@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/oatrice/Akasa/compare/v0.12.0...v0.13.0) (2026-03-12)
+
+
+### Features
+
+* [Feature] Remote Action Confirmation via Akasa Bot... ([#56](https://github.com/oatrice/Akasa/issues/56)) ([9e3fe60](https://github.com/oatrice/Akasa/commit/9e3fe60bee926202d478e57c160ae3af8884eeea))
+
 ## [0.14.0] - 2026-03-12
 
 ### Added
