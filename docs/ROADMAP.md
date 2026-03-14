@@ -52,6 +52,7 @@
 | [#61](https://github.com/oatrice/Akasa/issues/61) | Task Completion Notification for AI Assistants (MCP) | ✅ Complete |
 | [#33](https://github.com/oatrice/Akasa/issues/33) | Async Deployment Service for Web & Backend | ✅ Complete |
 | [#34](https://github.com/oatrice/Akasa/issues/34) | Post-Build Notification System with URL Verification | ✅ Complete |
+| [#66](https://github.com/oatrice/Akasa/issues/66) | Telegram → Local Tools Command Queue (Bidirectional Control) | 🔲 Todo |
 
 ---
 
@@ -85,7 +86,7 @@
 | Phase 1 — Foundation | 4 | 1 | 5 |
 | Phase 2 — Chat Experience | 5 | 2 | 7 |
 | Phase 3 — Remote Dev Core | 4 | 0 | 4 |
-| Phase 4 — Orchestration & Build | 7 | 0 | 7 |
+| Phase 4 — Orchestration & Build | 7 | 1 | 8 |
 | Phase 5 — Mobile Visual | 0 | 2 | 2 |
 | Phase 6 — Scale & Cross-Platform | 0 | 7 | 7 |
-| **Total** | **20** | **12** | **32** |
+| **Total** | **20** | **13** | **33** |
