@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/oatrice/Akasa/compare/v0.15.0...v0.16.0) (2026-03-14)
+
+
+### Features
+
+* [Service] Async Deployment Service for Web & Backe... ([#64](https://github.com/oatrice/Akasa/issues/64)) ([849e197](https://github.com/oatrice/Akasa/commit/849e197cfa4e6aa387d8e4bd230233ad52cda602))
+
 ## [0.17.0] - 2026-03-14
 
 ### Added
