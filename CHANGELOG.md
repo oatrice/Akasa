@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/oatrice/Akasa/compare/v0.14.0...v0.15.0) (2026-03-13)
+
+
+### Features
+
+* [Feature] Task Completion Notification for AI Assi... ([#62](https://github.com/oatrice/Akasa/issues/62)) ([dbb2c45](https://github.com/oatrice/Akasa/commit/dbb2c45907c2b2273f005c771f3940806c35d9bd))
+
 ## [0.16.0] - 2026-03-13
 
 ### Added
