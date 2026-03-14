@@ -261,12 +261,23 @@ async def enqueue_command(
     payload_json = payload.model_dump_json()
 
     try:
-        # 1. Push payload to the queue list (LPUSH = stack, but daemon uses BRPOP
-        #    which pops from the right — giving FIFO order when combined with LPUSH)
-        await redis_pool.rpush(_queue_key(tool), payload_json)
+        # 1. Push payload to the queue list (RPUSH for FIFO with daemon's BRPOP)
+        queue_key = _queue_key(tool)
+        logger.info(f"[ENQUEUE] Pushing to queue key: {queue_key}")
+        await redis_pool.rpush(queue_key, payload_json)
+        await redis_pool.expire(queue_key, ttl)
+        logger.info(f"[ENQUEUE] Set TTL {ttl}s on queue key: {queue_key}")
 
         # 2. Set the TTL meta key so the daemon can verify freshness
-        await redis_pool.set(_meta_key(command_id), "1", ex=ttl)
+        meta_key = _meta_key(command_id)
+        logger.info(f"[ENQUEUE] Setting meta key: {meta_key}")
+        await redis_pool.set(meta_key, "1", ex=ttl)
+        logger.info(f"[ENQUEUE] Set TTL {ttl}s on meta key: {meta_key}")
+        
+        # Debug: Verify TTL was set correctly
+        actual_queue_ttl = await redis_pool.ttl(queue_key)
+        actual_meta_ttl = await redis_pool.ttl(meta_key)
+        logger.info(f"[ENQUEUE] Verified TTLs - Queue: {actual_queue_ttl}s, Meta: {actual_meta_ttl}s")
 
         # 3. Persist initial status in a Redis Hash (TTL = command TTL + 5 min buffer)
         status_data = {

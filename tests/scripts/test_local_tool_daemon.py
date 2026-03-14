@@ -69,11 +69,12 @@ async def test_daemon_success_flow(mock_redis, mock_subprocess, mock_httpx_post)
     
     # 3. Assertions
     # It should have checked the meta key
-    mock_redis.exists.assert_called_with("akasa:commands:meta:cmd_123")
+    mock_redis.exists.assert_called_with("akasa:cmd_meta:cmd_123")
     
-    # It should have executed the command based on the whitelist config
+    # It should have executed the command via the tool executable
     mock_subprocess.assert_called_once()
-    assert "run_task" in mock_subprocess.call_args[0][0] # checking the executable
+    assert "gemini" == mock_subprocess.call_args[0][0] # tool executable
+    assert "run_task" == mock_subprocess.call_args[0][1] # command name
     
     # It should have reported the result back
     mock_httpx_post.assert_called_once()

@@ -1,11 +1,18 @@
 import asyncio
 import json
 import logging
+import os
+import sys
 import time
 import httpx
 import shutil
 from pathlib import Path
 from redis.asyncio import Redis
+
+# Add project root to path for imports when running script directly
+_PROJECT_ROOT = Path(__file__).parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 from app.config import settings
 from app.services.command_queue_service import get_command_whitelist_entry, _load_whitelist
@@ -83,7 +90,7 @@ async def report_result(command_id: str, status: str, output: str, exit_code: in
         payload["duration"] = duration
 
     headers = {
-        "X-Akasa-Daemon-Secret": settings.AKASA_DAEMON_SECRET,
+        "X-Daemon-Secret": settings.AKASA_DAEMON_SECRET,
         "Content-Type": "application/json"
     }
     
@@ -109,7 +116,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             payload = json.loads(item.decode("utf-8"))
             
             command_id = payload["command_id"]
-            meta_key = f"akasa:commands:meta:{command_id}"
+            meta_key = f"akasa:cmd_meta:{command_id}"
             
             if not await redis.exists(meta_key):
                 logger.warning(f"Command {command_id} has expired. Skipping.")

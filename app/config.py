@@ -39,7 +39,7 @@ class Settings(BaseSettings):
         ""  # Comma-separated Telegram user_ids allowed to queue commands (e.g., "123,456").
         # Falls back to AKASA_CHAT_ID if empty.
     )
-    COMMAND_QUEUE_TTL_SECONDS: int = 300  # Default command TTL: 5 minutes
+    COMMAND_QUEUE_TTL_SECONDS: int = 600  # Default command TTL: 10 minutes (temporarily increased for testing)
     COMMAND_QUEUE_RATE_LIMIT: int = 10  # Max commands per user per minute
 
     # --- Feature: AI Agent Timeout Observer ---
