@@ -1,3 +1,4 @@
+```markdown
 อัปเดต README.md เพื่อสะท้อนถึงฟีเจอร์การแจ้งเตือนสถานะงานจาก AI Assistant (Issue #61) และการเพิ่มคอนฟิก `AKASA_CHAT_ID` ตามข้อมูลจาก commit ล่าสุด
 
 # 🌌 Akasa — AI Coding Assistant Chatbot
@@ -13,9 +14,9 @@
 ## ✨ Features
 
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
-- 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
+- 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy **แบบ Asynchronous**, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
 - 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
-- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks, การทำงานเสร็จสิ้นจาก AI Assistant (#61), หรือข้อความจากระบบภายนอกสู่มือถือทันที
+- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks, การทำงานเสร็จสิ้นจาก AI Assistant (#61), **การแจ้งเตือนสถานะการ Deploy แบบ Asynchronous**, หรือข้อความจากระบบภายนอกสู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
@@ -66,16 +67,19 @@ akasa/
 │   ├── config.py             # Settings & env vars
 │   ├── models/               # Pydantic models
 │   │   ├── telegram.py
-│   │   └── notification.py   # Task & status notifications
+│   │   ├── notification.py   # Task & status notifications
+│   │   └── deployment.py     # Asynchronous deployment models
 │   ├── routers/              # API endpoints
 │   │   ├── actions.py        # Remote action confirmation
 │   │   ├── notifications.py  # AI task completion notifications
 │   │   ├── telegram.py       # Telegram webhook
+│   │   ├── deployments.py    # Asynchronous deployment endpoints
 │   │   └── health.py         # Health check
 │   └── services/             # Business logic
 │       ├── chat_service.py     # Chat orchestration
 │       ├── github_service.py   # GitHub API communication
 │       ├── llm_service.py      # LLM provider integration
+│       ├── deploy_service.py   # Asynchronous deployment logic
 │       ├── telegram_service.py # Telegram API communication
 │       └── redis_service.py    # Conversation history management
 │   └── utils/                # Utility functions
@@ -208,6 +212,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### Phase 3: Tools & RAG
 - [x] เชื่อม GitHub API (จัดการ Issue, สร้าง PR)
 - [x] MCP Server integration
+- [x] Asynchronous Deployment Service
 - [ ] Code Sandbox (รันโค้ดได้จากแชท)
 - [ ] RAG — สอนบอทให้รู้จัก codebase
 - [ ] Voice Note → Whisper → LLM
@@ -239,3 +244,4 @@ This is a personal project by [@oatrice](https://github.com/oatrice).
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
+```
