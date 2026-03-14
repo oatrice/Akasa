@@ -119,6 +119,52 @@ async def request_remote_approval(
     return {"status": "timeout", "request_id": request_id}
 
 
+async def notify_pending_review(
+    project: str,
+    task: str,
+    files_changed: Optional[list] = None,
+    summary: Optional[str] = None,
+) -> dict:
+    """
+    ส่งการแจ้งเตือน "Changes Ready for Review" ไปยัง Akasa Backend
+    เพื่อแจ้งผู้ใช้ผ่าน Telegram ว่า AI ได้ generate/แก้ไขโค้ดเสร็จแล้ว
+    และกำลังรอให้ผู้ใช้กด Accept / Reject ใน Zed IDE
+
+    Args:
+        project: ชื่อโปรเจกต์ที่กำลังทำงานอยู่
+        task: คำอธิบายว่า AI เพิ่งทำอะไรเสร็จ (เช่น "Implement command queue service")
+        files_changed: รายชื่อไฟล์ที่ถูกแก้ไข (optional)
+        summary: คำอธิบายสั้นๆ เกี่ยวกับการเปลี่ยนแปลง (optional)
+
+    Returns:
+        dict: {"delivered": bool, "timestamp": str}
+    """
+    if not AKASA_CHAT_ID:
+        raise ValueError("AKASA_CHAT_ID environment variable is not set")
+
+    payload: dict = {
+        "project": project,
+        "task": task,
+        "chat_id": AKASA_CHAT_ID,
+    }
+    if files_changed:
+        payload["files_changed"] = files_changed
+    if summary:
+        payload["summary"] = summary
+
+    headers = {"X-Akasa-API-Key": AKASA_API_KEY}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{AKASA_API_URL}/api/v1/notifications/review-ready",
+            json=payload,
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
 async def notify_task_complete(
     project: str,
     task: str,
@@ -182,6 +228,38 @@ async def notify_task_complete(
 # --- MCP JSON-RPC Protocol (stdio) ---
 
 TOOL_DEFINITIONS = [
+    {
+        "name": "notify_pending_review",
+        "description": (
+            "Notify the user via Telegram that code changes are ready for review in Zed IDE. "
+            "Call this tool IMMEDIATELY after you finish generating or editing files, "
+            "BEFORE waiting for the user to Accept / Reject in the editor. "
+            "This ensures the user knows to open Zed even when they are away from their desk."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project": {
+                    "type": "string",
+                    "description": "The name of the project being worked on (e.g., 'Akasa')",
+                },
+                "task": {
+                    "type": "string",
+                    "description": "Concise description of what was just implemented or changed (e.g., 'Implement command queue service')",
+                },
+                "files_changed": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of file paths that were created or modified",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "Optional short summary of the changes made",
+                },
+            },
+            "required": ["project", "task"],
+        },
+    },
     {
         "name": "request_remote_approval",
         "description": (
@@ -302,7 +380,37 @@ async def handle_rpc(request: dict) -> str:
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
 
-        if tool_name == "request_remote_approval":
+        if tool_name == "notify_pending_review":
+            try:
+                result = await notify_pending_review(
+                    project=arguments.get("project", "General"),
+                    task=arguments.get("task", ""),
+                    files_changed=arguments.get("files_changed"),
+                    summary=arguments.get("summary"),
+                )
+                delivered = result.get("delivered", False)
+                if delivered:
+                    text = "✅ Review notification sent to Telegram. Waiting for user to open Zed."
+                else:
+                    text = "⚠️ Notification request accepted but delivery could not be confirmed."
+                return make_response(
+                    req_id, {"content": [{"type": "text", "text": text}]}
+                )
+            except Exception as e:
+                return make_response(
+                    req_id,
+                    {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Failed to send review notification: {str(e)}",
+                            }
+                        ],
+                        "isError": True,
+                    },
+                )
+
+        elif tool_name == "request_remote_approval":
             try:
                 result = await request_remote_approval(
                     command=arguments.get("command", ""),

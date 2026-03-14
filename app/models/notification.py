@@ -58,6 +58,30 @@ class TaskNotificationResponse(BaseModel):
     timestamp: str  # ISO 8601 format
 
 
+class ReviewReadyRequest(BaseModel):
+    project: Optional[str] = "General"
+    task: str = Field(..., description="What the AI just finished doing")
+    files_changed: Optional[list[str]] = Field(
+        default=None, description="List of files modified"
+    )
+    summary: Optional[str] = Field(
+        default=None, description="Optional description of the changes"
+    )
+    chat_id: Optional[str] = None  # if not provided, backend uses AKASA_CHAT_ID
+
+    @field_validator("task")
+    @classmethod
+    def task_must_not_be_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("task must not be empty")
+        return v
+
+
+class ReviewReadyResponse(BaseModel):
+    delivered: bool
+    timestamp: str  # ISO 8601 format
+
+
 class ActionRequestMetadata(BaseModel):
     request_id: str
     command: str

@@ -9,6 +9,8 @@ from app.exceptions import BotBlockedException, UserChatIdNotFoundException
 from app.models.notification import (
     NotificationPayload,
     NotificationResponse,
+    ReviewReadyRequest,
+    ReviewReadyResponse,
     TaskNotificationRequest,
     TaskNotificationResponse,
 )
@@ -149,4 +151,73 @@ async def task_complete_notification(
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred during task notification dispatch.",
+        )
+
+
+@router.post("/review-ready", response_model=ReviewReadyResponse)
+async def review_ready_notification(
+    payload: ReviewReadyRequest,
+    authenticated: bool = Depends(verify_api_key),
+):
+    """
+    รับการแจ้งเตือน "Changes Ready for Review" จาก Zed AI (ผ่าน MCP tool notify_pending_review)
+    และส่งข้อความ "✏️ Changes Ready for Review" ไปยัง Telegram
+
+    เรียกใช้เมื่อ AI ใน Zed Agent mode ทำการ generate/แก้ไขโค้ดเสร็จแล้ว
+    และกำลังรอให้ผู้ใช้กด Accept / Reject ใน IDE
+
+    Chat ID routing:
+      1. ใช้ chat_id จาก payload ถ้ามี
+      2. Fallback ไปใช้ AKASA_CHAT_ID จาก server config
+    """
+    chat_id_str = payload.chat_id or settings.AKASA_CHAT_ID
+    if not chat_id_str:
+        raise HTTPException(
+            status_code=400,
+            detail="No chat_id provided and AKASA_CHAT_ID is not configured on the server.",
+        )
+
+    try:
+        chat_id = int(chat_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid chat_id format. Must be numeric.",
+        )
+
+    logger.info(
+        f"Review-ready notification received — project: {payload.project!r}, "
+        f"task: {payload.task!r}, files: {len(payload.files_changed or [])} file(s)"
+    )
+
+    try:
+        await tg_service.send_review_notification(chat_id=chat_id, request=payload)
+        return ReviewReadyResponse(
+            delivered=True,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 429:
+            logger.warning(
+                f"Telegram rate limit hit while sending review-ready notification to chat_id {chat_id}: {e}"
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="Telegram rate limit exceeded. Please retry after a moment.",
+            )
+        logger.error(
+            f"Telegram API error in review_ready_notification (chat_id={chat_id}): {e}",
+            exc_info=True,
+        )
+        return ReviewReadyResponse(
+            delivered=False,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in review_ready_notification: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred during review-ready notification dispatch.",
         )

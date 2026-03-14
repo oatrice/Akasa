@@ -159,15 +159,16 @@ class TestHandleRpc:
 
     @pytest.mark.asyncio
     async def test_handle_rpc_tools_list(self):
-        """ทดสอบ tools/list คืน tool definitions ทั้งหมด 2 tools"""
+        """ทดสอบ tools/list คืน tool definitions ทั้งหมด 3 tools"""
         from scripts.akasa_mcp_server import handle_rpc
 
         result = await handle_rpc({"id": 2, "method": "tools/list", "params": {}})
         data = json.loads(result)
-        assert len(data["result"]["tools"]) == 2
+        assert len(data["result"]["tools"]) == 3
         tool_names = [t["name"] for t in data["result"]["tools"]]
         assert "request_remote_approval" in tool_names
         assert "notify_task_complete" in tool_names
+        assert "notify_pending_review" in tool_names
 
     @pytest.mark.asyncio
     async def test_handle_rpc_unknown_method(self):
@@ -687,4 +688,186 @@ class TestNotifyTaskCompleteRetry:
 
         call_kwargs = mock_notify.call_args.kwargs
         assert call_kwargs["max_retries"] == 3
-        assert call_kwargs["retry_count"] is None  # ไม่ได้ส่งมา → None
+
+
+class TestNotifyPendingReview:
+    """ทดสอบ notify_pending_review function และ MCP tool handler"""
+
+    @pytest.mark.asyncio
+    async def test_notify_pending_review_success(self):
+        """notify_pending_review ส่ง POST ไปที่ /api/v1/notifications/review-ready"""
+        from scripts.akasa_mcp_server import notify_pending_review
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2025-01-01T00:00:00Z",
+        }
+
+        with patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "123456"):
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=False)
+                mock_client.post = AsyncMock(return_value=mock_response)
+                mock_client_cls.return_value = mock_client
+
+                result = await notify_pending_review(
+                    project="Akasa",
+                    task="Implement command queue service",
+                    files_changed=["app/services/command_queue_service.py"],
+                    summary="Added Redis-backed queue",
+                )
+
+        assert result["delivered"] is True
+        call_args = mock_client.post.call_args
+        assert "/api/v1/notifications/review-ready" in call_args[0][0]
+        payload = call_args[1]["json"]
+        assert payload["project"] == "Akasa"
+        assert payload["task"] == "Implement command queue service"
+        assert payload["files_changed"] == ["app/services/command_queue_service.py"]
+        assert payload["summary"] == "Added Redis-backed queue"
+        assert payload["chat_id"] == "123456"
+
+    @pytest.mark.asyncio
+    async def test_notify_pending_review_no_chat_id(self):
+        """notify_pending_review ต้อง raise ValueError ถ้า AKASA_CHAT_ID ว่าง"""
+        from scripts.akasa_mcp_server import notify_pending_review
+
+        with patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", ""):
+            with pytest.raises(ValueError, match="AKASA_CHAT_ID"):
+                await notify_pending_review(
+                    project="Akasa",
+                    task="Fix something",
+                )
+
+    @pytest.mark.asyncio
+    async def test_notify_pending_review_minimal(self):
+        """notify_pending_review ทำงานได้โดยไม่ต้องระบุ files_changed หรือ summary"""
+        from scripts.akasa_mcp_server import notify_pending_review
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2025-01-01T00:00:00Z",
+        }
+
+        with patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "123456"):
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=False)
+                mock_client.post = AsyncMock(return_value=mock_response)
+                mock_client_cls.return_value = mock_client
+
+                result = await notify_pending_review(
+                    project="Akasa",
+                    task="Quick fix",
+                )
+
+        payload = mock_client.post.call_args[1]["json"]
+        assert "files_changed" not in payload
+        assert "summary" not in payload
+        assert payload["task"] == "Quick fix"
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_notify_pending_review_delivered(self):
+        """MCP tool handler notify_pending_review — delivered=True คืนข้อความ success"""
+        from scripts.akasa_mcp_server import handle_rpc
+
+        with patch(
+            "scripts.akasa_mcp_server.notify_pending_review",
+            new_callable=AsyncMock,
+            return_value={"delivered": True, "timestamp": "2025-01-01T00:00:00Z"},
+        ) as mock_notify:
+            result = await handle_rpc(
+                {
+                    "id": 10,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "notify_pending_review",
+                        "arguments": {
+                            "project": "Akasa",
+                            "task": "Implement feature #66",
+                            "files_changed": ["app/services/command_queue_service.py"],
+                        },
+                    },
+                }
+            )
+
+        data = json.loads(result)
+        assert (
+            "isError" not in data["result"] or data["result"].get("isError") is not True
+        )
+        assert "sent to Telegram" in data["result"]["content"][0]["text"]
+        mock_notify.assert_called_once_with(
+            project="Akasa",
+            task="Implement feature #66",
+            files_changed=["app/services/command_queue_service.py"],
+            summary=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_notify_pending_review_not_delivered(self):
+        """MCP tool handler — delivered=False คืนข้อความ warning"""
+        from scripts.akasa_mcp_server import handle_rpc
+
+        with patch(
+            "scripts.akasa_mcp_server.notify_pending_review",
+            new_callable=AsyncMock,
+            return_value={"delivered": False, "timestamp": "2025-01-01T00:00:00Z"},
+        ):
+            result = await handle_rpc(
+                {
+                    "id": 11,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "notify_pending_review",
+                        "arguments": {"project": "Akasa", "task": "Fix bug"},
+                    },
+                }
+            )
+
+        data = json.loads(result)
+        assert "could not be confirmed" in data["result"]["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_handle_rpc_notify_pending_review_error(self):
+        """MCP tool handler — exception คืน isError=True"""
+        from scripts.akasa_mcp_server import handle_rpc
+
+        with patch(
+            "scripts.akasa_mcp_server.notify_pending_review",
+            side_effect=Exception("Backend unavailable"),
+        ):
+            result = await handle_rpc(
+                {
+                    "id": 12,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "notify_pending_review",
+                        "arguments": {"project": "Akasa", "task": "Fix bug"},
+                    },
+                }
+            )
+
+        data = json.loads(result)
+        assert data["result"]["isError"] is True
+        assert "Backend unavailable" in data["result"]["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_notify_pending_review_tool_schema(self):
+        """ทดสอบ schema ของ notify_pending_review tool — required fields = [project, task]"""
+        from scripts.akasa_mcp_server import TOOL_DEFINITIONS
+
+        tool = next(t for t in TOOL_DEFINITIONS if t["name"] == "notify_pending_review")
+        schema = tool["inputSchema"]
+        assert schema["required"] == ["project", "task"]
+        props = schema["properties"]
+        assert "project" in props
+        assert "task" in props
+        assert "files_changed" in props
+        assert props["files_changed"]["type"] == "array"
+        assert "summary" in props

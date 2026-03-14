@@ -10,7 +10,7 @@ from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_cont
 
 if TYPE_CHECKING:
     from app.models.deployment import DeploymentRecord
-    from app.models.notification import TaskNotificationRequest
+    from app.models.notification import ReviewReadyRequest, TaskNotificationRequest
 
 from datetime import datetime
 
@@ -282,6 +282,66 @@ class TelegramService:
         logger.info(
             f"Deployment notification sent to chat_id={chat_id}, "
             f"status={record.status}, url={record.url!r}"
+        )
+
+    async def send_review_notification(
+        self, chat_id: int, request: "ReviewReadyRequest"
+    ) -> None:
+        """
+        Send a "Changes Ready for Review" notification to Telegram.
+
+        Called by the MCP tool `notify_pending_review` when Zed AI has finished
+        generating changes and is waiting for the user to Accept / Reject them
+        in the IDE.
+
+        Args:
+            chat_id: Telegram chat ID to send the notification to.
+            request: ReviewReadyRequest containing task and change details.
+        """
+        safe_project = escape_markdown_v2_content(request.project or "General")
+        safe_task = escape_markdown_v2_content(request.task)
+
+        lines = [
+            "✏️ *Changes Ready for Review*",
+            "",
+            f"*Project:* {safe_project}",
+            f"*Task:* {safe_task}",
+        ]
+
+        if request.files_changed:
+            # Show up to 10 files; truncate the rest
+            shown = request.files_changed[:10]
+            rest = len(request.files_changed) - len(shown)
+            files_text = "\n".join(
+                f"  • {escape_markdown_v2_content(f)}" for f in shown
+            )
+            if rest > 0:
+                files_text += f"\n  \\.\\.\\. \\+{rest} more"
+            lines.append(f"*Files Changed:*\n{files_text}")
+
+        if request.summary:
+            summary = request.summary
+            if len(summary) > 300:
+                summary = summary[:297] + "..."
+            lines.append(f"*Summary:* {escape_markdown_v2_content(summary)}")
+
+        lines += ["", "👆 *Open Zed to Accept / Reject*"]
+
+        text = "\n".join(lines)
+
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "MarkdownV2",
+        }
+        response = await self.client.post(
+            f"{self.api_url}/sendMessage",
+            json=payload,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info(
+            f"Review-ready notification sent to chat_id: {chat_id}, task: {request.task!r}"
         )
 
 
