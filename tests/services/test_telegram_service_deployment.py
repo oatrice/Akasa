@@ -65,7 +65,7 @@ async def test_success_sends_check_emoji(monkeypatch):
     record = _make_record(status="success")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -78,7 +78,7 @@ async def test_success_title_contains_succeeded(monkeypatch):
     record = _make_record(status="success")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -91,7 +91,7 @@ async def test_success_with_url_includes_url_in_text(monkeypatch):
     record = _make_record(status="success", url="https://myapp.vercel.app")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -107,7 +107,7 @@ async def test_success_with_url_attaches_inline_keyboard(monkeypatch):
     record = _make_record(status="success", url="https://myapp.vercel.app")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -127,7 +127,7 @@ async def test_success_without_url_has_no_reply_markup(monkeypatch):
     record = _make_record(status="success", url=None)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -140,7 +140,7 @@ async def test_project_name_appears_in_message(monkeypatch):
     record = _make_record(project="MyUniqueProject")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -153,7 +153,7 @@ async def test_command_appears_in_message(monkeypatch):
     record = _make_record(command="render deploy --service my-backend")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -171,7 +171,7 @@ async def test_failure_sends_cross_emoji(monkeypatch):
     record = _make_record(status="failed", exit_code=1)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -184,7 +184,7 @@ async def test_failure_title_contains_failed(monkeypatch):
     record = _make_record(status="failed", exit_code=1)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -201,7 +201,7 @@ async def test_failure_with_stderr_shows_error_preview(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -218,7 +218,7 @@ async def test_failure_without_stderr_no_error_field(monkeypatch):
     record = _make_record(status="failed", stderr="")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -232,7 +232,7 @@ async def test_failure_has_no_url_button(monkeypatch):
     record = _make_record(status="failed", url=None, stderr="deploy failed")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -247,7 +247,7 @@ async def test_failure_long_stderr_is_truncated(monkeypatch):
     record = _make_record(status="failed", stderr=very_long_stderr)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -273,7 +273,7 @@ async def test_duration_shown_in_seconds(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -291,7 +291,7 @@ async def test_duration_shown_in_minutes_and_seconds(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -305,7 +305,7 @@ async def test_duration_not_shown_when_timestamps_missing(monkeypatch):
     record = _make_record(status="success", started_at=None, finished_at=None)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -323,7 +323,7 @@ async def test_duration_not_shown_when_only_started_at_present(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -341,7 +341,7 @@ async def test_zero_second_deployment_duration(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -360,7 +360,7 @@ async def test_payload_uses_markdownv2(monkeypatch):
     record = _make_record()
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -373,7 +373,7 @@ async def test_correct_chat_id_sent(monkeypatch):
     record = _make_record()
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=987654321, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -386,7 +386,7 @@ async def test_correct_sendmessage_endpoint_called(monkeypatch):
     record = _make_record()
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     called_url = mock_post.call_args.args[0]
@@ -400,7 +400,7 @@ async def test_timeout_is_set(monkeypatch):
     record = _make_record()
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     timeout = mock_post.call_args.kwargs.get("timeout")
@@ -421,7 +421,7 @@ async def test_url_appears_in_both_text_and_button(monkeypatch):
     record = _make_record(status="success", url=url)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -443,7 +443,7 @@ async def test_inline_keyboard_button_is_url_type_not_callback(monkeypatch):
     record = _make_record(status="success", url="https://example.com")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     button = mock_post.call_args.kwargs["json"]["reply_markup"]["inline_keyboard"][0][0]
@@ -464,7 +464,7 @@ async def test_special_chars_in_project_are_escaped(monkeypatch):
     record = _make_record(project="my-app.v2_prod")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         # Must not raise, Telegram API call should succeed
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
@@ -478,7 +478,7 @@ async def test_special_chars_in_command_are_escaped(monkeypatch):
     record = _make_record(command="deploy.sh --env=prod (v1.2.3)")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     mock_post.assert_awaited_once()
@@ -555,7 +555,7 @@ async def test_empty_project_name_does_not_crash(monkeypatch):
     record = _make_record(project="")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     mock_post.assert_awaited_once()
@@ -569,7 +569,7 @@ async def test_very_long_command_is_included_in_message(monkeypatch):
     record = _make_record(command=long_cmd)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     payload = mock_post.call_args.kwargs["json"]
@@ -583,7 +583,7 @@ async def test_post_called_exactly_once(monkeypatch):
     record = _make_record()
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     mock_post.assert_awaited_once()
@@ -596,7 +596,7 @@ async def test_success_with_url_does_not_show_success_as_failed(monkeypatch):
     record = _make_record(status="success", url="https://example.com")
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     text = mock_post.call_args.kwargs["json"]["text"]
@@ -610,7 +610,7 @@ async def test_failed_deployment_does_not_show_succeeded(monkeypatch):
     record = _make_record(status="failed", exit_code=1)
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = AsyncMock(raise_for_status=AsyncMock())
+        mock_post.return_value = MagicMock()
         await tg_service.send_deployment_notification(chat_id=111, record=record)
 
     text = mock_post.call_args.kwargs["json"]["text"]
