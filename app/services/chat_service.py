@@ -12,6 +12,8 @@ from app.services.telegram_service import tg_service
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
+from app.services import command_queue_service
+from app.models.command import CommandQueueRequest
 import httpx
 import logging
 import os
@@ -289,9 +291,57 @@ async def _handle_command(message: "Message") -> None:
         await _handle_note_command(chat_id, args)
     elif cmd == "/github":
         await _handle_github_command(chat_id, args)
+    elif cmd == "/queue":
+        await _handle_queue_command(message, args)
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
 
+
+async def _handle_queue_command(message: "Message", args: list[str]) -> None:
+    chat_id = message.chat.id
+    user_id = message.from_user.id if message.from_user else 0
+    
+    if len(args) < 2:
+        await _send_response(chat_id, "❌ Usage: `/queue <tool> <command> [args_json]`")
+        return
+        
+    tool = args[0]
+    command = args[1]
+    payload_str = " ".join(args[2:]) if len(args) > 2 else "{}"
+    
+    try:
+        payload = json.loads(payload_str)
+    except json.JSONDecodeError:
+        await _send_response(chat_id, "❌ Invalid JSON payload.")
+        return
+        
+    request = CommandQueueRequest(
+        tool=tool,
+        command=command,
+        args=payload
+    )
+    
+    # Check rate limit
+    allowed, retry_after = await command_queue_service.check_rate_limit(user_id)
+    if not allowed:
+        await _send_response(chat_id, f"❌ Rate limit exceeded. Retry after {retry_after}s.")
+        return
+        
+    try:
+        result = await command_queue_service.enqueue_command(
+            request, 
+            user_id=user_id, 
+            chat_id=chat_id
+        )
+        msg = f"⏳ *Command Enqueued*\nID: `{result.command_id}`\nTool: {tool}\nCommand: {command}"
+        await _send_response(chat_id, msg)
+    except ValueError as e:
+        await _send_response(chat_id, f"❌ {e}")
+    except ConnectionError:
+        await _send_response(chat_id, "❌ Queue service unavailable.")
+    except Exception as e:
+        logger.error(f"Error enqueuing command from Telegram: {e}")
+        await _send_response(chat_id, "❌ Internal error.")
 
 async def _handle_github_command(chat_id: int, args: list[str]) -> None:
     if not args:
