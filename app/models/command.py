@@ -82,6 +82,7 @@ class CommandStatusResponse(BaseModel):
     completed_at: Optional[str] = None  # ISO 8601
     result: Optional[str] = None
     error: Optional[str] = None
+    chat_id: Optional[int] = None  # For routing notifications to correct user
 
 
 # ---------------------------------------------------------------------------

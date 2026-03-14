@@ -156,8 +156,12 @@ async def report_command_result(
             output_preview = result.output[:500]
             msg += f"\n*Output:*\n```\n{output_preview}\n```"
 
+        # Use the chat_id from the original command payload for notification
+        # Fallback to AKASA_CHAT_ID if original chat_id is somehow missing
+        target_chat_id = status.chat_id if status.chat_id else int(settings.AKASA_CHAT_ID)
+
         await tg_service.send_message(
-            chat_id=int(settings.AKASA_CHAT_ID),
+            chat_id=target_chat_id,
             text=msg,
         )
         notification_sent = True

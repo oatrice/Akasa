@@ -124,6 +124,17 @@ def is_command_whitelisted(tool: str, command: str) -> bool:
     return command in get_allowed_commands(tool.lower())
 
 
+def get_command_whitelist_entry(tool: str, command: str) -> Optional[dict]:
+    """
+    Return the whitelist entry for a (tool, command) pair.
+    Returns None if not found. Used by local_tool_daemon for validation.
+    """
+    allowed = get_allowed_commands(tool.lower())
+    if command in allowed:
+        return {"tool": tool.lower(), "command": command}
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Redis key helpers
 # ---------------------------------------------------------------------------
@@ -268,6 +279,7 @@ async def enqueue_command(
             "completed_at": "",
             "result": "",
             "error": "",
+            "chat_id": str(chat_id),  # Store for routing notifications
         }
         status_key = _status_key(command_id)
         await redis_pool.hset(status_key, mapping=status_data)
@@ -355,6 +367,9 @@ async def get_command_status(command_id: str) -> Optional[CommandStatusResponse]
     def _opt(val: str) -> Optional[str]:
         return val if val else None
 
+    def _opt_int(val: str) -> Optional[int]:
+        return int(val) if val else None
+
     return CommandStatusResponse(
         command_id=data.get("command_id", command_id),
         status=data.get("status", "queued"),  # type: ignore[arg-type]
@@ -365,6 +380,7 @@ async def get_command_status(command_id: str) -> Optional[CommandStatusResponse]
         completed_at=_opt(data.get("completed_at", "")),
         result=_opt(data.get("result", "")),
         error=_opt(data.get("error", "")),
+        chat_id=_opt_int(data.get("chat_id", "")),
     )
 
 

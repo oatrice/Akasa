@@ -3,32 +3,58 @@ import json
 import logging
 import time
 import httpx
+import shutil
+from pathlib import Path
 from redis.asyncio import Redis
 
 from app.config import settings
-from app.services.command_queue_service import is_command_whitelisted
+from app.services.command_queue_service import get_command_whitelist_entry, _load_whitelist
 
 logger = logging.getLogger(__name__)
 
 def get_redis() -> Redis:
     return Redis.from_url(settings.REDIS_URL, decode_responses=False)
 
+# Tool executable mapping - only gemini has CLI for now
+# luma and zed are placeholder tools without actual executables
+TOOL_EXECUTABLES = {
+    "gemini": "gemini",  # gemini CLI exists
+    # "luma": None,  # No CLI yet
+    # "zed": None,   # No CLI yet
+}
+
+
+def is_tool_executable(tool: str) -> bool:
+    """Check if tool has an executable configured."""
+    return tool in TOOL_EXECUTABLES and TOOL_EXECUTABLES[tool] is not None
+
+
 async def execute_command(command_id: str, tool: str, command: str, args: dict) -> tuple[int, str]:
-    if not is_command_whitelisted(tool, command):
+    # Whitelist check and argument validation
+    whitelist_entry = get_command_whitelist_entry(tool, command)
+    if not whitelist_entry:
         msg = f"Command '{command}' is not allowed for tool '{tool}'"
         logger.error(msg)
         return -1, msg
 
-    cmd_args = [command]
+    # Check if tool has executable
+    if not is_tool_executable(tool):
+        msg = f"Tool '{tool}' does not have a CLI executable configured yet"
+        logger.warning(msg)
+        return -1, msg
+
+    executable = TOOL_EXECUTABLES[tool]
     
-    # Flatten args dict into a list. Just taking values here for simplicity of the test.
-    # In a real shell/tool, we might map to specific keys.
-    for val in args.values():
-        cmd_args.append(str(val))
-        
+    # Build command parts: [executable, command, --arg-name value, ...]
+    cmd_parts = [executable, command]
+    for arg_name, arg_value in args.items():
+        # Convert snake_case to kebab-case for CLI args
+        arg_flag = f"--{arg_name.replace('_', '-')}"
+        cmd_parts.extend([arg_flag, str(arg_value)])
+
     try:
         process = await asyncio.create_subprocess_exec(
-            *cmd_args,
+            *cmd_parts,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -39,8 +65,10 @@ async def execute_command(command_id: str, tool: str, command: str, args: dict) 
         if stderr:
             output += stderr.decode('utf-8')
         return process.returncode, output
+    except FileNotFoundError:
+        return -1, f"Tool '{executable}' not found. Is '{executable}' installed and in PATH?"
     except Exception as e:
-        logger.error(f"Error executing command: {e}")
+        logger.error(f"Error executing command '{' '.join(cmd_parts)}': {e}")
         return -1, str(e)
 
 async def report_result(command_id: str, status: str, output: str, exit_code: int = None, duration: float = None) -> None:
@@ -108,7 +136,26 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
 
 async def main():
     logging.basicConfig(level=logging.INFO)
-    await poll_queue("gemini", timeout=0)
+    
+    # Load whitelist to get all tools that this daemon should poll for
+    whitelist = _load_whitelist()
+    tools_to_poll = list(whitelist.keys())
+    
+    if not tools_to_poll:
+        logger.warning("No tools configured in whitelist. Daemon will not poll any queues.")
+        return
+
+    # Filter to only tools that have executables
+    executable_tools = [t for t in tools_to_poll if is_tool_executable(t)]
+    if not executable_tools:
+        logger.warning("No tools with configured executables. Nothing to poll.")
+        return
+
+    logger.info(f"Daemon configured to poll queues for tools: {', '.join(executable_tools)}")
+    
+    # Create a polling task for each tool and run them concurrently
+    polling_tasks = [poll_queue(tool, timeout=1) for tool in executable_tools]
+    await asyncio.gather(*polling_tasks)
 
 if __name__ == "__main__":
     asyncio.run(main())

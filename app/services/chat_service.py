@@ -10,6 +10,7 @@ from app.models.agent_state import AgentState
 from app.services import redis_service
 from app.services.telegram_service import tg_service
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
+from app.utils.markdown_utils import escape_markdown_v2_content
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
 from app.services import command_queue_service
@@ -251,6 +252,40 @@ async def _send_response(chat_id: int, text: str) -> None:
         await tg_service.send_message(chat_id, final_text)
     except Exception as e:
         logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
+        logger.debug(f"Failed message content: {final_text[:200]}...")
+
+
+async def _send_escaped_response(chat_id: int, text: str) -> None:
+    """
+    Helper สำหรับส่งข้อความที่ escape แล้วโดยตรง (ไม่ผ่าน send_message)
+    ใช้สำหรับ error messages ที่มีอักขระพิเศษเยอะ เช่น `_`, `*`, `[]`
+    
+    NOTE: ไม่ลบ function นี้ตาม code review suggestion เพราะ:
+    - escape_markdown_v2() ไม่ escape `_` (underscore) เพื่อ preserve italic formatting
+    - แต่ `_` ใน command names เช่น 'delete_all', 'run_task' ทำให้ Telegram ตีความเป็น italic ผิด
+    - ส่งผลให้ได้ 400 Bad Request เวลาส่ง error messages ที่มี command names
+    - Function นี้ใช้ escape_markdown_v2_content() ที่ escape ทุกอย่างรวมถึง `_` และ `*`
+    """
+    # Escape ALL special characters including _ and *
+    safe_text = escape_markdown_v2_content(text)
+    
+    if settings.ENVIRONMENT == "development":
+        build_info = get_build_info()
+        safe_build = escape_markdown_v2_content(build_info)
+        safe_text = f"{safe_text}\n\n\\-\\-\\-\n*Local Dev Info*\n{safe_build}"
+    
+    try:
+        await tg_service.client.post(
+            f"{tg_service.api_url}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": safe_text,
+                "parse_mode": "MarkdownV2",
+            },
+            timeout=10.0,
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error sending escaped message to Telegram for {chat_id}: {e}")
 
 
 async def handle_chat_message(update: Update) -> None:
@@ -333,10 +368,12 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
             user_id=user_id, 
             chat_id=chat_id
         )
-        msg = f"⏳ *Command Enqueued*\nID: `{result.command_id}`\nTool: {tool}\nCommand: {command}"
+        safe_tool = escape_markdown_v2_content(tool)
+        safe_command = escape_markdown_v2_content(command)
+        msg = f"⏳ *Command Enqueued*\nID: `{result.command_id}`\nTool: {safe_tool}\nCommand: {safe_command}"
         await _send_response(chat_id, msg)
     except ValueError as e:
-        await _send_response(chat_id, f"❌ {e}")
+        await _send_escaped_response(chat_id, f"❌ {e}")
     except ConnectionError:
         await _send_response(chat_id, "❌ Queue service unavailable.")
     except Exception as e:
