@@ -1,0 +1,43 @@
+# Command Whitelist — Akasa Feature #66
+# Defines which commands each local tool daemon is permitted to execute.
+# Unknown commands will be rejected with HTTP 400 before anything is enqueued.
+
+tools:
+  gemini:
+    allowed_commands:
+      - name: run_task
+        description: "Run a Gemini CLI task"
+        allowed_args: [task, pr_number, branch]
+      - name: check_status
+        description: "Check Gemini CLI status"
+        allowed_args: []
+      - name: list_issues
+        description: "List GitHub issues via Gemini"
+        allowed_args: [state, label]
+      - name: summarize_session
+        description: "Summarize the current AI session"
+        allowed_args: []
+
+  luma:
+    allowed_commands:
+      - name: update_issue
+        description: "Update a Luma issue status"
+        allowed_args: [issue_id, status, comment]
+      - name: list_issues
+        description: "List open Luma issues"
+        allowed_args: [project, state]
+      - name: create_issue
+        description: "Create a new Luma issue"
+        allowed_args: [title, description, project]
+
+  zed:
+    allowed_commands:
+      - name: open_file
+        description: "Open a file in Zed IDE"
+        allowed_args: [path]
+      - name: run_task
+        description: "Run a Zed task"
+        allowed_args: [task_name]
+      - name: show_notification
+        description: "Show a notification in Zed IDE"
+        allowed_args: [message]
