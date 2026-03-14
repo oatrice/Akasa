@@ -507,3 +507,197 @@ class TestRunDeployment:
         # Command not found → non-zero exit or failed status
         assert final_data["status"] in ("failed", "success")
         assert final_data["finished_at"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Security: command injection prevention (shlex.split + create_subprocess_exec)
+# ---------------------------------------------------------------------------
+
+
+import asyncio
+import shlex
+
+
+class TestCommandInjectionPrevention:
+    """
+    ตรวจสอบว่า run_deployment ใช้ create_subprocess_exec + shlex.split
+    และป้องกัน shell injection จาก user-provided command string
+    """
+
+    # --- shlex.split behaviour (unit) ---
+
+    def test_shlex_split_simple_command(self):
+        assert shlex.split("echo hello") == ["echo", "hello"]
+
+    def test_shlex_split_command_with_args(self):
+        assert shlex.split("vercel deploy --prod --yes") == [
+            "vercel",
+            "deploy",
+            "--prod",
+            "--yes",
+        ]
+
+    def test_shlex_split_quoted_argument_stays_single_token(self):
+        parts = shlex.split('echo "hello world"')
+        assert parts == ["echo", "hello world"]
+
+    def test_shlex_split_semicolon_becomes_literal_arg(self):
+        """
+        'echo safe; echo injected' → ['echo', 'safe;', 'echo', 'injected']
+        Semicolon ไม่ถูก interpret เป็น command separator
+        """
+        parts = shlex.split("echo safe; echo injected")
+        assert ";" not in parts  # ไม่ใช่ standalone token
+        assert "safe;" in parts  # ติดอยู่กับ token ก่อนหน้า
+
+    def test_shlex_split_double_ampersand_becomes_literal_arg(self):
+        """'echo a && echo b' → && ถูก parse เป็น token ปกติ ไม่ใช่ shell AND"""
+        parts = shlex.split("echo a && echo b")
+        assert "&&" in parts  # standalone token แต่จะถูกส่งเป็น arg ให้ echo ปกติ
+
+    def test_shlex_split_pipe_becomes_literal_arg(self):
+        """'echo a | cat' → | ถูก parse เป็น literal arg ไม่ใช่ pipe"""
+        parts = shlex.split("echo a | cat")
+        assert "|" in parts
+
+    # --- subprocess-level injection prevention (integration via real subprocess) ---
+
+    @pytest.mark.asyncio
+    async def test_semicolon_injection_does_not_run_second_command(self):
+        """
+        'echo safe; echo INJECTED' ผ่าน create_subprocess_exec + shlex.split
+        → stdout ควรมีเนื้อหา literal 'safe; echo INJECTED' ทั้งหมดในบรรทัดเดียว
+        ไม่ใช่ 'safe\\nINJECTED\\n' (ซึ่งจะเกิดถ้าใช้ shell=True)
+        """
+        record = DeploymentRecord(
+            deployment_id="inject-semi",
+            status="pending",
+            command="echo safe; echo INJECTED",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("inject-semi")
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        stdout = final_data["stdout"]
+
+        # ถ้าใช้ shell injection จะได้ 'safe\nINJECTED\n' (สองบรรทัด)
+        # ถ้าป้องกันถูกต้อง echo จะรับ 'safe;', 'echo', 'INJECTED' เป็น args → 'safe; echo INJECTED\n'
+        assert stdout.count("\n") <= 1, (
+            "Semicolon was interpreted as a shell command separator — "
+            "possible shell injection via create_subprocess_shell"
+        )
+
+    @pytest.mark.asyncio
+    async def test_double_ampersand_injection_does_not_chain_commands(self):
+        """
+        'echo first && echo SECOND' → ไม่ควรรัน echo SECOND แยก
+        output ควรเป็น 'first && echo SECOND' ในบรรทัดเดียว
+        """
+        record = DeploymentRecord(
+            deployment_id="inject-and",
+            status="pending",
+            command="echo first && echo SECOND",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("inject-and")
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        stdout = final_data["stdout"]
+
+        assert stdout.count("\n") <= 1, (
+            "&& was interpreted as shell AND operator — "
+            "possible shell injection via create_subprocess_shell"
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_subprocess_exec_is_used_not_shell(self):
+        """
+        ตรวจสอบว่า run_deployment เรียก create_subprocess_exec
+        และไม่เรียก create_subprocess_shell เลย
+        """
+        record = DeploymentRecord(
+            deployment_id="check-exec",
+            status="pending",
+            command="echo verify_exec",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            with (
+                patch("asyncio.create_subprocess_shell") as mock_shell,
+                patch(
+                    "asyncio.create_subprocess_exec",
+                    wraps=asyncio.create_subprocess_exec,
+                ) as mock_exec,
+            ):
+                await run_deployment("check-exec")
+
+        mock_shell.assert_not_called()
+        mock_exec.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_exec_receives_split_args_not_raw_string(self):
+        """
+        ตรวจสอบว่า create_subprocess_exec ได้รับ list of args จาก shlex.split
+        ไม่ใช่ raw command string ทั้งก้อน
+        """
+        record = DeploymentRecord(
+            deployment_id="check-args",
+            status="pending",
+            command="echo hello world",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        captured_args = {}
+
+        original_exec = asyncio.create_subprocess_exec
+
+        async def capture_exec(*args, **kwargs):
+            captured_args["args"] = args
+            return await original_exec(*args, **kwargs)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            with patch("asyncio.create_subprocess_exec", side_effect=capture_exec):
+                await run_deployment("check-args")
+
+        # exec ต้องได้รับ args แยก ไม่ใช่ string เดียว
+        assert captured_args["args"] == ("echo", "hello", "world"), (
+            f"Expected ('echo', 'hello', 'world') but got {captured_args['args']}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_quoted_path_with_spaces_parsed_correctly(self):
+        """
+        Command ที่มี quoted path เช่น 'echo "my project"'
+        shlex.split ต้องรักษา space ภายใน quotes ให้เป็น single token
+        """
+        record = DeploymentRecord(
+            deployment_id="inject-quoted",
+            status="pending",
+            command='echo "my project"',
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        captured_args = {}
+
+        original_exec = asyncio.create_subprocess_exec
+
+        async def capture_exec(*args, **kwargs):
+            captured_args["args"] = args
+            return await original_exec(*args, **kwargs)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            with patch("asyncio.create_subprocess_exec", side_effect=capture_exec):
+                await run_deployment("inject-quoted")
+
+        # 'echo "my project"' → ['echo', 'my project'] → exec('echo', 'my project')
+        assert captured_args["args"] == ("echo", "my project")

@@ -1,13 +1,14 @@
 """
 Deploy Service — Async Deployment Service (Issue #33)
 
-รันคำสั่ง Build/Deploy แบบ Asynchronous ด้วย asyncio.create_subprocess_shell
+รันคำสั่ง Build/Deploy แบบ Asynchronous ด้วย asyncio.create_subprocess_exec
 และเก็บสถานะการ Build ลงใน Redis เพื่อให้ Client poll ได้
 """
 
 import asyncio
 import logging
 import re
+import shlex
 import uuid
 from datetime import datetime, timezone
 from typing import Callable, Optional
@@ -134,8 +135,13 @@ async def run_deployment(
     logger.info(f"Deployment {deployment_id} started: {record.command!r}")
 
     try:
-        proc = await asyncio.create_subprocess_shell(
-            record.command,
+        # SECURITY: ใช้ create_subprocess_exec แทน create_subprocess_shell
+        # เพื่อป้องกัน command injection จาก user-provided command string
+        # shlex.split แปลง string → list of args โดยเข้าใจ quoting/escaping
+        # แต่ไม่ผ่าน shell → metacharacters เช่น ; && | ไม่ถูก interpret
+        command_parts = shlex.split(record.command)
+        proc = await asyncio.create_subprocess_exec(
+            *command_parts,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=record.cwd,
