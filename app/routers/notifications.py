@@ -14,6 +14,7 @@ from app.models.notification import (
     TaskNotificationRequest,
     TaskNotificationResponse,
 )
+from app.services.agent_task_service import create_task, update_task
 from app.services.redis_service import redis_pool
 from app.services.telegram_service import tg_service
 
@@ -96,6 +97,10 @@ async def task_complete_notification(
     รับการแจ้งเตือน Task Completion จาก AI Assistants (MCP Tool หรือ CLI)
     และส่งข้อความสรุปงานไปยัง Telegram
 
+    Status handling:
+      - 'starting': Create task log in Redis for timeout tracking (no Telegram notification)
+      - 'success'/'failure'/'partial'/'timeout': Update task log and send Telegram notification
+
     Chat ID routing:
       1. ใช้ chat_id จาก payload ถ้ามี (caller-specified)
       2. Fallback ไปใช้ AKASA_CHAT_ID จาก server config
@@ -121,6 +126,43 @@ async def task_complete_notification(
         f"task: {payload.task!r}, status: {payload.status}, source: {payload.source!r}"
     )
 
+    # Handle 'starting' status - create task log for timeout tracking
+    if payload.status == "starting":
+        try:
+            task_log = await create_task(
+                project=payload.project or "General",
+                task=payload.task,
+                source=payload.source,
+                chat_id=chat_id_str,
+                task_id=payload.task_id,
+            )
+            logger.info(f"Task log created: {task_log.task_id} for timeout tracking")
+            return TaskNotificationResponse(
+                delivered=True,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        except Exception as e:
+            logger.error(f"Failed to create task log: {e}", exc_info=True)
+            # Don't fail the request - just log the error
+            return TaskNotificationResponse(
+                delivered=True,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+
+    # Update task log for completion statuses
+    if payload.task_id and payload.status in ("success", "failure", "partial", "timeout"):
+        try:
+            await update_task(
+                task_id=payload.task_id,
+                status=payload.status,
+                duration=payload.duration,
+                message=payload.message,
+                link=payload.link,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update task log {payload.task_id}: {e}")
+
+    # Send Telegram notification for all non-starting statuses
     try:
         await tg_service.send_task_notification(chat_id=chat_id, request=payload)
         return TaskNotificationResponse(

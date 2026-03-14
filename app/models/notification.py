@@ -27,12 +27,13 @@ class NotificationResponse(BaseModel):
 class TaskNotificationRequest(BaseModel):
     project: Optional[str] = "General"
     task: str
-    status: Literal["success", "failure", "partial", "retrying", "limit_reached"]
+    status: Literal["starting", "success", "failure", "partial", "retrying", "limit_reached", "timeout"]
     duration: Optional[str] = None  # e.g., "5m 20s"
     message: Optional[str] = None  # additional details / summary
     link: Optional[str] = None  # PR link, file, etc.
     source: Optional[str] = None  # "Gemini CLI", "Luma CLI", etc.
     chat_id: Optional[str] = None  # if not provided, backend uses AKASA_CHAT_ID
+    task_id: Optional[str] = None  # unique task ID for tracking (auto-generated if not provided)
     retry_count: Optional[int] = Field(
         default=None, ge=1
     )  # current attempt number, 1-based (e.g., 2)

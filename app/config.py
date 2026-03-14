@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     COMMAND_QUEUE_TTL_SECONDS: int = 300  # Default command TTL: 5 minutes
     COMMAND_QUEUE_RATE_LIMIT: int = 10  # Max commands per user per minute
 
+    # --- Feature: AI Agent Timeout Observer ---
+    AGENT_TIMEOUT_THRESHOLD_MINUTES: int = 15  # Minutes before a task is considered timed out
+    AGENT_TIMEOUT_CHECK_INTERVAL_MINUTES: int = 5  # How often to check for timed out tasks
+
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "gemini": {
             "name": "Google Gemini 2.5 Flash",

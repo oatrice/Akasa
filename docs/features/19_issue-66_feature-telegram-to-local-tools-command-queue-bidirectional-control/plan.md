@@ -283,12 +283,12 @@ docs/features/19_issue-66_.../
 
 | Phase | Task | Days | Status |
 |-------|------|------|--------|
-| 1 | Redis Queue Service | 2 | 🔲 Todo |
-| 2 | FastAPI Endpoint + Telegram | 1 | 🔲 Todo |
-| 3 | Local Tool Daemon | 2 | 🔲 Todo |
-| 4 | Security Hardening | 2 | 🔲 Todo |
-| 5 | Tests | 2 | 🔲 Todo |
-| 6 | Docs & Roadmap | 1 | 🔲 Todo |
+| 1 | Redis Queue Service | 2 | ✅ Done |
+| 2 | FastAPI Endpoint + Telegram | 1 | ✅ Done |
+| 3 | Local Tool Daemon | 2 | ✅ Done |
+| 4 | Security Hardening | 2 | ✅ Done |
+| 5 | Tests | 2 | ✅ Done |
+| 6 | Docs & Roadmap | 1 | ✅ Done |
 | **Total** | | **10 days** | |
 
 ---
@@ -307,11 +307,11 @@ docs/features/19_issue-66_.../
 
 ## ✅ Definition of Done
 
-- [ ] All 6 phases implemented
-- [ ] All new tests pass (unit + integration)
-- [ ] Security review completed
-- [ ] No arbitrary shell commands possible
-- [ ] Daemon can be started and stopped cleanly
-- [ ] Telegram `/queue` command working end-to-end
-- [ ] Result notification arrives in Telegram within 10 seconds
-- [ ] ROADMAP.md updated
+- [x] All 6 phases implemented
+- [x] All new tests pass (unit + integration)
+- [x] Security review completed
+- [x] No arbitrary shell commands possible
+- [x] Daemon can be started and stopped cleanly
+- [x] Telegram `/queue` command working end-to-end
+- [x] Result notification arrives in Telegram within 10 seconds
+- [x] ROADMAP.md updated

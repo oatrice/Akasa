@@ -21,7 +21,18 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan: startup and graceful shutdown."""
+    # Startup: Start the timeout watcher background task
+    from app.services.timeout_watcher_service import timeout_watcher
+
+    await timeout_watcher.start()
+    logger.info("Timeout watcher started.")
+
     yield
+
+    # Shutdown: Stop the timeout watcher
+    await timeout_watcher.stop()
+    logger.info("Timeout watcher stopped.")
+
     # Gracefully close the shared httpx.AsyncClient used by TelegramService
     from app.services.telegram_service import tg_service
 

@@ -136,6 +136,7 @@ class TelegramService:
             "partial": ("⚠️", "Task Completed with Warnings"),
             "retrying": ("🔄", None),  # title built dynamically with retry counts
             "limit_reached": ("🚫", None),  # title built dynamically with retry counts
+            "timeout": ("⏰", "Task Timed Out\\!"),
         }
         emoji, title = status_config.get(request.status, ("🔔", "Task Notification"))
 
