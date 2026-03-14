@@ -701,3 +701,456 @@ class TestCommandInjectionPrevention:
 
         # 'echo "my project"' → ['echo', 'my project'] → exec('echo', 'my project')
         assert captured_args["args"] == ("echo", "my project")
+
+
+# ---------------------------------------------------------------------------
+# URL extraction — real-world CLI output scenarios
+# ---------------------------------------------------------------------------
+
+
+class TestExtractUrlRealWorldCLI:
+    """
+    ตรวจสอบ extract_url ด้วย output จริงจาก deployment CLIs ต่างๆ
+    เพื่อให้มั่นใจว่า regex ครอบคลุม pattern จากเครื่องมือที่ใช้งานจริง
+    """
+
+    # --- Vercel CLI ---
+
+    def test_vercel_production_url(self):
+        output = (
+            "Vercel CLI 32.5.0\n"
+            "🔍  Inspect: https://vercel.com/my-team/my-app/AbCdEf [3s]\n"
+            "✅  Production: https://my-app.vercel.app [3s]\n"
+            "📝  Deployed to production. Run `vercel --prod` to overwrite later.\n"
+        )
+        url = extract_url(output)
+        assert url is not None
+        assert "vercel.com" in url
+
+    def test_vercel_preview_url(self):
+        output = (
+            "Vercel CLI 32.5.0\n🔗  Preview: https://my-app-abc123def.vercel.app [2s]\n"
+        )
+        url = extract_url(output)
+        assert url == "https://my-app-abc123def.vercel.app"
+
+    def test_vercel_url_with_team_scope(self):
+        output = "Deployed to https://my-app-team.vercel.app/dashboard"
+        url = extract_url(output)
+        assert url == "https://my-app-team.vercel.app/dashboard"
+
+    # --- Render CLI ---
+
+    def test_render_service_url(self):
+        output = (
+            "==> Deploying service my-backend\n"
+            "==> Build successful 🎉\n"
+            "==> Your service is live at https://my-backend.onrender.com\n"
+        )
+        url = extract_url(output)
+        assert url == "https://my-backend.onrender.com"
+
+    def test_render_url_with_path(self):
+        output = "Service deployed: https://my-backend.onrender.com/api/v1/health\n"
+        url = extract_url(output)
+        assert url == "https://my-backend.onrender.com/api/v1/health"
+
+    # --- Railway CLI ---
+
+    def test_railway_deployment_url(self):
+        output = (
+            "  Railway  Deployment successful\n"
+            "  Domain: https://my-app-production.up.railway.app\n"
+        )
+        url = extract_url(output)
+        assert url == "https://my-app-production.up.railway.app"
+
+    # --- Netlify CLI ---
+
+    def test_netlify_deploy_url(self):
+        output = (
+            "Deploy path: /dist\n"
+            "Deploying to main site URL...\n"
+            "✔ Finished hashing 23 files\n"
+            "Website URL: https://amazing-site-abc123.netlify.app\n"
+        )
+        url = extract_url(output)
+        assert url == "https://amazing-site-abc123.netlify.app"
+
+    def test_netlify_draft_url(self):
+        output = "Website draft URL: https://deploy-preview-42--my-site.netlify.app\n"
+        url = extract_url(output)
+        assert url == "https://deploy-preview-42--my-site.netlify.app"
+
+    # --- URL shape edge cases ---
+
+    def test_url_with_port_number(self):
+        output = "Server live at https://api.example.com:8443/health"
+        url = extract_url(output)
+        assert url == "https://api.example.com:8443/health"
+
+    def test_url_with_hash_fragment(self):
+        # Hash is part of URL but shlex/browser splits it — regex stops at #
+        output = "Open https://docs.example.com/guide#installation for details"
+        url = extract_url(output)
+        # regex stops before # (space before "for")
+        assert url is not None
+        assert url.startswith("https://docs.example.com")
+
+    def test_url_with_query_string(self):
+        output = "Preview at https://staging.example.com/app?branch=main&build=42"
+        url = extract_url(output)
+        assert url == "https://staging.example.com/app?branch=main&build=42"
+
+    def test_url_inside_parentheses_strips_closing_paren(self):
+        # Markdown-style: (https://example.com) — closing ) should be stripped
+        output = "See the deployment (https://example.com)"
+        url = extract_url(output)
+        assert url == "https://example.com"
+
+    def test_url_with_hyphenated_subdomain(self):
+        output = "Deployed to https://my-cool-app.fly.dev"
+        url = extract_url(output)
+        assert url == "https://my-cool-app.fly.dev"
+
+    def test_url_at_end_of_line_no_trailing_chars(self):
+        output = "Done.\nhttps://clean-url.example.com"
+        url = extract_url(output)
+        assert url == "https://clean-url.example.com"
+
+    def test_first_url_returned_when_multiple_present(self):
+        output = (
+            "Inspect: https://first.vercel.com/inspect\n"
+            "Live:    https://second.vercel.app\n"
+        )
+        url = extract_url(output)
+        assert "first.vercel.com" in url
+
+    def test_no_url_in_typical_build_log(self):
+        output = (
+            "Installing dependencies...\n"
+            "Build step 1/5: Compiling TypeScript\n"
+            "Build step 2/5: Running tests\n"
+            "All 42 tests passed.\n"
+            "Build complete.\n"
+        )
+        assert extract_url(output) is None
+
+    def test_http_only_url_is_ignored(self):
+        """Only HTTPS URLs should be extracted; plain HTTP is not trusted."""
+        output = "Legacy URL: http://old.example.com — please use HTTPS."
+        assert extract_url(output) is None
+
+    def test_real_vercel_multiline_success_output(self):
+        """Simulate a full vercel deploy stdout with mixed content."""
+        output = (
+            "Vercel CLI 32.5.0\n"
+            '? Set up and deploy "/home/user/projects/my-app"? [Y/n] y\n'
+            "? Which scope do you want to deploy to? my-team\n"
+            "? Link to existing project? [y/N] n\n"
+            "? What's your project's name? my-app\n"
+            "? In which directory is your code located? ./\n"
+            "Auto-detected Project Settings (Next.js):\n"
+            "- Build Command: `next build` or `build`\n"
+            "- Development Command: next\n"
+            "- Install Command: `yarn install`, `pnpm install`, `npm install`, or `bun install`\n"
+            "- Output Directory: Next.js default\n"
+            "? Want to modify these settings? [y/N] n\n"
+            "🔗  Linked to my-team/my-app (created .vercel)\n"
+            "🔍  Inspect: https://vercel.com/my-team/my-app/BxYz1234abcd [4s]\n"
+            "✅  Production: https://my-app-deploy.vercel.app [4s]\n"
+        )
+        url = extract_url(output)
+        assert url is not None
+        assert url.startswith("https://")
+
+
+# ---------------------------------------------------------------------------
+# Status transition integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestStatusTransitions:
+    """
+    ตรวจสอบลำดับ state transitions ของ run_deployment:
+    pending → running → success/failed
+
+    ใช้ _make_mock_redis เพื่อ capture ทุก Redis write
+    และตรวจสอบว่า status เปลี่ยนถูกต้องตาม lifecycle
+    """
+
+    @pytest.mark.asyncio
+    async def test_happy_path_transition_order(self):
+        """
+        รัน command ที่สำเร็จ → ลำดับต้องเป็น running → success
+        (pending ถูก set ก่อนโดย create_deployment, ไม่ใช่ run_deployment)
+        """
+        record = DeploymentRecord(
+            deployment_id="t-happy",
+            status="pending",
+            command="echo ok",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+        saved_statuses = []
+
+        original_side_effect = mock_redis.set.side_effect
+
+        async def capture(key, value, ex=None):
+            data = json.loads(value)
+            saved_statuses.append(data["status"])
+            await original_side_effect(key, value, ex=ex)
+
+        mock_redis.set.side_effect = capture
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-happy")
+
+        assert saved_statuses[0] == "running", "First save must mark task as running"
+        assert saved_statuses[-1] == "success", "Last save must mark task as success"
+
+    @pytest.mark.asyncio
+    async def test_failure_transition_order(self):
+        """command ที่ fail → running → failed"""
+        record = DeploymentRecord(
+            deployment_id="t-fail",
+            status="pending",
+            command="exit 1",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+        saved_statuses = []
+
+        original_side_effect = mock_redis.set.side_effect
+
+        async def capture(key, value, ex=None):
+            data = json.loads(value)
+            saved_statuses.append(data["status"])
+            await original_side_effect(key, value, ex=ex)
+
+        mock_redis.set.side_effect = capture
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-fail")
+
+        assert saved_statuses[0] == "running"
+        assert saved_statuses[-1] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_started_at_set_on_running_transition(self):
+        """started_at ต้องถูก set ตอนที่ status เปลี่ยนเป็น running"""
+        record = DeploymentRecord(
+            deployment_id="t-start-ts",
+            status="pending",
+            command="echo ts",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+        running_save = {}
+
+        original_side_effect = mock_redis.set.side_effect
+
+        async def capture(key, value, ex=None):
+            data = json.loads(value)
+            if data["status"] == "running" and not running_save:
+                running_save.update(data)
+            await original_side_effect(key, value, ex=ex)
+
+        mock_redis.set.side_effect = capture
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-start-ts")
+
+        assert running_save.get("started_at") is not None
+        # Validate it's a parseable ISO timestamp
+        datetime.fromisoformat(running_save["started_at"])
+
+    @pytest.mark.asyncio
+    async def test_finished_at_set_on_terminal_transition(self):
+        """finished_at ต้องถูก set ตอน status เปลี่ยนเป็น success หรือ failed"""
+        record = DeploymentRecord(
+            deployment_id="t-finish-ts",
+            status="pending",
+            command="echo done",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-finish-ts")
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        assert final_data["finished_at"] is not None
+        datetime.fromisoformat(final_data["finished_at"])
+
+    @pytest.mark.asyncio
+    async def test_started_at_not_set_before_running(self):
+        """ก่อน status เปลี่ยนเป็น running, started_at ต้องยังเป็น None"""
+        record = DeploymentRecord(
+            deployment_id="t-ts-order",
+            status="pending",
+            command="echo ordered",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+        first_save_data = {}
+
+        original_side_effect = mock_redis.set.side_effect
+        call_count = {"n": 0}
+
+        async def capture(key, value, ex=None):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                first_save_data.update(json.loads(value))
+            await original_side_effect(key, value, ex=ex)
+
+        mock_redis.set.side_effect = capture
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-ts-order")
+
+        # First save is the "running" state — started_at must already be set there
+        assert first_save_data["status"] == "running"
+        assert first_save_data["started_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_finished_at_greater_than_started_at(self):
+        """finished_at ต้องมาหลัง started_at เสมอ"""
+        record = DeploymentRecord(
+            deployment_id="t-ts-order-2",
+            status="pending",
+            command="echo timing",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-ts-order-2")
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        started = datetime.fromisoformat(final_data["started_at"])
+        finished = datetime.fromisoformat(final_data["finished_at"])
+        assert finished >= started
+
+    @pytest.mark.asyncio
+    async def test_exit_code_zero_on_success(self):
+        record = DeploymentRecord(
+            deployment_id="t-exit-ok",
+            status="pending",
+            command="true",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-exit-ok")
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        assert final_data["exit_code"] == 0
+        assert final_data["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_nonzero_exit_code_on_failure(self):
+        record = DeploymentRecord(
+            deployment_id="t-exit-fail",
+            status="pending",
+            command="false",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-exit-fail")
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        assert final_data["exit_code"] != 0
+        assert final_data["status"] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_url_set_in_final_state_not_running_state(self):
+        """
+        URL ต้องถูก set ใน final state (success) เท่านั้น
+        ไม่ควรปรากฏใน running state (เพราะ command ยังไม่เสร็จ)
+        """
+        record = DeploymentRecord(
+            deployment_id="t-url-timing",
+            status="pending",
+            command="echo 'Live at https://url-timing.vercel.app'",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+        running_save = {}
+
+        original_side_effect = mock_redis.set.side_effect
+
+        async def capture(key, value, ex=None):
+            data = json.loads(value)
+            if data["status"] == "running" and not running_save:
+                running_save.update(data)
+            await original_side_effect(key, value, ex=ex)
+
+        mock_redis.set.side_effect = capture
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-url-timing")
+
+        # URL must NOT be in running state
+        assert running_save.get("url") is None, (
+            "url should not be populated during 'running' state — "
+            "subprocess hasn't finished yet"
+        )
+
+        # URL must be in final state
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        assert final_data["url"] == "https://url-timing.vercel.app"
+
+    @pytest.mark.asyncio
+    async def test_stdout_empty_in_running_state(self):
+        """stdout/stderr ต้องว่างเปล่าใน running state — จับได้หลัง communicate()"""
+        record = DeploymentRecord(
+            deployment_id="t-stdout-timing",
+            status="pending",
+            command="echo captured",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+        running_save = {}
+
+        original_side_effect = mock_redis.set.side_effect
+
+        async def capture(key, value, ex=None):
+            data = json.loads(value)
+            if data["status"] == "running" and not running_save:
+                running_save.update(data)
+            await original_side_effect(key, value, ex=ex)
+
+        mock_redis.set.side_effect = capture
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-stdout-timing")
+
+        assert running_save.get("stdout", "") == ""
+
+        final_data = json.loads(mock_redis.set.call_args_list[-1][0][1])
+        assert "captured" in final_data["stdout"]
+
+    @pytest.mark.asyncio
+    async def test_exactly_two_redis_saves_for_simple_command(self):
+        """
+        run_deployment ต้อง save Redis ทั้งหมด 2 ครั้ง:
+        1. status = running (เริ่มรัน)
+        2. status = success/failed (เสร็จสิ้น)
+        """
+        record = DeploymentRecord(
+            deployment_id="t-save-count",
+            status="pending",
+            command="echo count",
+            cwd="/tmp",
+        )
+        mock_redis = _make_mock_redis(record)
+
+        with patch("app.services.deploy_service.redis_pool", mock_redis):
+            await run_deployment("t-save-count")
+
+        # set ถูกเรียก 2 ครั้งเสมอ: running + terminal state
+        assert mock_redis.set.await_count == 2
