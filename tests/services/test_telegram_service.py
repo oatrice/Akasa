@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -24,8 +24,8 @@ async def test_send_message_success(monkeypatch):
     # Directly patch the 'post' method on the service's client instance
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
         # Configure the mock to return a successful response
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         # Call the method we are testing
@@ -171,8 +171,8 @@ async def test_send_task_notification_success(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -207,8 +207,8 @@ async def test_send_task_notification_failure_status(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=99999, request=request)
@@ -234,8 +234,8 @@ async def test_send_task_notification_partial_status(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -262,8 +262,8 @@ async def test_send_task_notification_truncates_long_task(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -293,8 +293,8 @@ async def test_send_task_notification_truncates_long_message(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -321,8 +321,8 @@ async def test_send_task_notification_escapes_special_chars(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -351,8 +351,8 @@ async def test_send_task_notification_optional_fields_omitted(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -381,8 +381,8 @@ async def test_send_task_notification_with_link(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -440,8 +440,8 @@ async def test_send_task_notification_retrying_with_counts(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -470,8 +470,8 @@ async def test_send_task_notification_retrying_without_counts(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -500,8 +500,8 @@ async def test_send_task_notification_limit_reached_with_max(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -529,8 +529,8 @@ async def test_send_task_notification_limit_reached_without_max(monkeypatch):
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)
@@ -559,8 +559,8 @@ async def test_send_task_notification_success_after_retries_shows_attempts(monke
     )
 
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
 
         await tg_service.send_task_notification(chat_id=12345, request=request)

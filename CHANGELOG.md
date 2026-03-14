@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.0] - 2026-03-14
+
+### Added
+- เพิ่มระบบ Deploy แบบ Asynchronous พร้อมการจัดเก็บสถานะด้วย Redis และระบบแจ้งเตือนความคืบหน้า
+
+### Fixed
+- ป้องกันการโจมตีแบบ Command Injection ในฟังก์ชัน Deploy
+
 ## [0.15.0](https://github.com/oatrice/Akasa/compare/v0.14.0...v0.15.0) (2026-03-13)
 
 

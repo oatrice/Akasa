@@ -9,7 +9,10 @@ from app.services import redis_service
 from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
 
 if TYPE_CHECKING:
+    from app.models.deployment import DeploymentRecord
     from app.models.notification import TaskNotificationRequest
+
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +210,78 @@ class TelegramService:
         response.raise_for_status()
         logger.info(
             f"Task notification sent to chat_id: {chat_id}, status: {request.status}"
+        )
+
+    async def send_deployment_notification(
+        self, chat_id: int, record: "DeploymentRecord"
+    ) -> None:
+        """
+        Issue #34: ส่ง Telegram notification เมื่อ deployment เสร็จสิ้น
+        ถ้า URL ถูก extract ได้จาก output จะแนบ Inline Keyboard URL button มาด้วย
+
+        Args:
+            chat_id: Telegram chat ID ที่จะส่งข้อความ
+            record:  DeploymentRecord ที่มีผลลัพธ์การ deploy
+        """
+        if record.status == "success":
+            status_emoji = "✅"
+            status_title = "Deployment Succeeded\\!"
+        else:
+            status_emoji = "❌"
+            status_title = "Deployment Failed\\!"
+
+        safe_project = escape_markdown_v2_content(record.project)
+        safe_command = escape_markdown_v2_content(record.command)
+
+        lines = [f"{status_emoji} *{status_title}*", ""]
+        lines.append(f"*Project:* {safe_project}")
+        lines.append(f"*Command:* `{safe_command}`")
+
+        # Compute human-readable duration from timestamps
+        if record.started_at and record.finished_at:
+            try:
+                start = datetime.fromisoformat(record.started_at)
+                end = datetime.fromisoformat(record.finished_at)
+                secs = int((end - start).total_seconds())
+                duration_str = (
+                    f"{secs // 60}m {secs % 60}s" if secs >= 60 else f"{secs}s"
+                )
+                lines.append(f"*Duration:* {escape_markdown_v2_content(duration_str)}")
+            except Exception:
+                pass
+
+        # Show last 200 chars of stderr on failure
+        if record.status == "failed" and record.stderr:
+            stderr_preview = record.stderr.strip()[-200:]
+            lines.append(f"*Error:* {escape_markdown_v2_content(stderr_preview)}")
+
+        # Show URL as plain text (also appears on the button below)
+        if record.url:
+            lines.append(f"*URL:* {escape_markdown_v2_content(record.url)}")
+
+        text = "\n".join(lines)
+
+        payload: dict = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "MarkdownV2",
+        }
+
+        # Attach URL button when a deployed URL was found (Issue #34)
+        if record.url:
+            payload["reply_markup"] = {
+                "inline_keyboard": [[{"text": "🔗 Open Deployment", "url": record.url}]]
+            }
+
+        response = await self.client.post(
+            f"{self.api_url}/sendMessage",
+            json=payload,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info(
+            f"Deployment notification sent to chat_id={chat_id}, "
+            f"status={record.status}, url={record.url!r}"
         )
 
 

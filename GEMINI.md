@@ -1,7 +1,7 @@
-# The Middle Way — Project Instructions
+# Akasa — Project Instructions
 
 ## Project Identity
-- **Project Name:** `The Middle Way`
+- **Project Name:** `Akasa`
 - ใช้ชื่อนี้เสมอเมื่อเรียก tool `notify_task_complete`
 
 ## 🔔 Task Completion Notification (Required)
@@ -22,7 +22,7 @@
 ```
 # ครั้งแรกล้มเหลว → ลอง retry
 notify_task_complete(
-  project="The Middle Way",
+  project="Akasa",
   task="Deploy to production",
   status="retrying",
   retry_count=1,
@@ -32,7 +32,7 @@ notify_task_complete(
 
 # retry ครั้งที่ 2 ล้มเหลวอีก
 notify_task_complete(
-  project="The Middle Way",
+  project="Akasa",
   task="Deploy to production",
   status="retrying",
   retry_count=2,
@@ -42,7 +42,7 @@ notify_task_complete(
 
 # retry ครบ limit → หยุด
 notify_task_complete(
-  project="The Middle Way",
+  project="Akasa",
   task="Deploy to production",
   status="limit_reached",
   max_retries=3,
@@ -51,7 +51,7 @@ notify_task_complete(
 
 # หรือ retry แล้วสำเร็จในครั้งที่ 2
 notify_task_complete(
-  project="The Middle Way",
+  project="Akasa",
   task="Deploy to production",
   status="success",
   retry_count=2,
@@ -63,7 +63,7 @@ notify_task_complete(
 ### Default (งานทั่วไป ไม่ retry):
 ```
 notify_task_complete(
-  project="The Middle Way",
+  project="Akasa",
   task="<สรุปสั้นๆ ว่างานคืออะไร>",
   status="success" | "failure" | "partial",
   duration="<เวลาโดยประมาณ>",     # optional
