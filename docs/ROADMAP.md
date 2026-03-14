@@ -23,6 +23,8 @@
 | [#6](https://github.com/oatrice/Akasa/issues/6) | Conversation history (Redis) | ✅ Complete |
 | [#7](https://github.com/oatrice/Akasa/issues/7) | Code formatting ใน chat | ✅ Complete |
 | [#8](https://github.com/oatrice/Akasa/issues/8) | System prompt สำหรับ coding assistant | ✅ Complete |
+| [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | ✅ Complete |
+| [#53](https://github.com/oatrice/Akasa/issues/53) | Clear Error Messaging for OpenRouter Credits | ✅ Complete |
 | [#9](https://github.com/oatrice/Akasa/issues/9) | เพิ่ม LINE Bot | 🔲 Todo |
 | [#10](https://github.com/oatrice/Akasa/issues/10) | Rate limiting + error handling | 🔲 Todo |
 
@@ -32,21 +34,24 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#17](https://github.com/oatrice/Akasa/issues/17) | [Phase 3] ออกแบบโครงสร้างแชทสำหรับการทำงานหลายโปรเจ็กต์ | ✅ Complete |
-| [#38](https://github.com/oatrice/Akasa/issues/38) | [Feature] Project-Specific Memory & Context Restoration | ✅ Complete |
-| [#30](https://github.com/oatrice/Akasa/issues/30) | [Service] Support Outbound Messaging in TelegramService | ✅ Complete |
-| [#29](https://github.com/oatrice/Akasa/issues/29) | [Feature] Implement Secure Proactive Notification Endpoint | ✅ Complete |
+| [#17](https://github.com/oatrice/Akasa/issues/17) | ออกแบบโครงสร้างแชทสำหรับการทำงานหลายโปรเจ็กต์ | ✅ Complete |
+| [#38](https://github.com/oatrice/Akasa/issues/38) | Project-Specific Memory & Context Restoration | ✅ Complete |
+| [#29](https://github.com/oatrice/Akasa/issues/29) | Implement Secure Proactive Notification Endpoint | ✅ Complete |
+| [#30](https://github.com/oatrice/Akasa/issues/30) | Support Outbound Messaging in TelegramService | ✅ Complete |
 
 ---
 
-## Phase 4: Remote Dev — Orchestration & Build (Tier 2-3)
+## Phase 4: Remote Dev — Orchestration & Build (Tier 2–3)
 
 | # | Issue | Status |
 |---|---|---|
-| [#31](https://github.com/oatrice/Akasa/issues/31) | [Service] GithubService: CLI Wrapper | ✅ Complete |
-| [#32](https://github.com/oatrice/Akasa/issues/32) | [Feature] Define GitHub Function Calling for ChatService | ✅ Complete |
-| [#33](https://github.com/oatrice/Akasa/issues/33) | [Service] Async Deployment Service for Web & Backend | 🔲 Todo |
-| [#34](https://github.com/oatrice/Akasa/issues/34) | [Feature] Post-Build Notification System with URL Verification | 🔲 Todo |
+| [#31](https://github.com/oatrice/Akasa/issues/31) | GithubService: Subprocess Wrapper for GH CLI | ✅ Complete |
+| [#32](https://github.com/oatrice/Akasa/issues/32) | Define GitHub Function Calling for ChatService | ✅ Complete |
+| [#49](https://github.com/oatrice/Akasa/issues/49) | Remote Action Confirmation via Akasa Bot (Telegram) | ✅ Complete |
+| [#58](https://github.com/oatrice/Akasa/issues/58) | Antigravity IDE Action Confirmation via Akasa Bot | ✅ Complete |
+| [#61](https://github.com/oatrice/Akasa/issues/61) | Task Completion Notification for AI Assistants (MCP) | ✅ Complete |
+| [#33](https://github.com/oatrice/Akasa/issues/33) | Async Deployment Service for Web & Backend | ✅ Complete |
+| [#34](https://github.com/oatrice/Akasa/issues/34) | Post-Build Notification System with URL Verification | ✅ Complete |
 
 ---
 
@@ -54,21 +59,33 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#35](https://github.com/oatrice/Akasa/issues/35) | [Mobile] ADB & Simctl Screenshot Service | 🔲 Todo |
-| [#36](https://github.com/oatrice/Akasa/issues/36) | [Mobile] Remote UI Control via ADB/Maestro CLI | 🔲 Todo |
+| [#35](https://github.com/oatrice/Akasa/issues/35) | ADB & Simctl Screenshot Service | 🔲 Todo |
+| [#36](https://github.com/oatrice/Akasa/issues/36) | Remote UI Control via ADB/Maestro CLI | 🔲 Todo |
 
 ---
 
-## Phase 6: Scale, Web Hub & Customization (Tier 5)
+## Phase 6: Scale, Web Hub & Cross-Platform (Tier 5)
 
 | # | Issue | Status |
 |---|---|---|
+| [#37](https://github.com/oatrice/Akasa/issues/37) | Unified User Session & Multi-Platform Context Sync (Telegram + macOS) | 🔲 Todo |
 | [#28](https://github.com/oatrice/Akasa/issues/28) | Web Dashboard & CLI Integration Hub (GitHub, Render, Vercel) | 🔲 Todo |
-| [#49](https://github.com/oatrice/Akasa/issues/49) | [Feature] Remote Action Confirmation via Akasa Bot (Telegram Integration) | ✅ Complete |
-| [#58](https://github.com/oatrice/Akasa/issues/58) | [Feature] Antigravity IDE Action Confirmation via Akasa Bot (Telegram) | ✅ Complete |
-| [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | ✅ Complete |
 | [#11](https://github.com/oatrice/Akasa/issues/11) | เชื่อม GitHub API (อ่านโค้ด, review PR) | 🔲 Todo |
 | [#12](https://github.com/oatrice/Akasa/issues/12) | Code Sandbox (รันโค้ดได้จากแชท) | 🔲 Todo |
+| [#16](https://github.com/oatrice/Akasa/issues/16) | Custom instructions per user | 🔲 Todo |
 | [#14](https://github.com/oatrice/Akasa/issues/14) | Analytics dashboard | 🔲 Todo |
 | [#15](https://github.com/oatrice/Akasa/issues/15) | WhatsApp integration | 🔲 Todo |
-| [#16](https://github.com/oatrice/Akasa/issues/16) | Custom instructions per user | 🔲 Todo |
+
+---
+
+## 📊 Progress Summary
+
+| Phase | Done | Todo | Total |
+|---|---|---|---|
+| Phase 1 — Foundation | 4 | 1 | 5 |
+| Phase 2 — Chat Experience | 5 | 2 | 7 |
+| Phase 3 — Remote Dev Core | 4 | 0 | 4 |
+| Phase 4 — Orchestration & Build | 7 | 0 | 7 |
+| Phase 5 — Mobile Visual | 0 | 2 | 2 |
+| Phase 6 — Scale & Cross-Platform | 0 | 7 | 7 |
+| **Total** | **20** | **12** | **32** |
