@@ -1,6 +1,3 @@
-```markdown
-อัปเดต README.md เพื่อสะท้อนถึงฟีเจอร์การแจ้งเตือนสถานะงานจาก AI Assistant (Issue #61) และการเพิ่มคอนฟิก `AKASA_CHAT_ID` ตามข้อมูลจาก commit ล่าสุด
-
 # 🌌 Akasa — AI Coding Assistant Chatbot
 
 > ผู้ช่วยเขียนโค้ดผ่าน Messaging App — เขียนโค้ดได้ทุกที่ ไม่ต้องอยู่หน้าคอม
@@ -189,6 +186,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 | `/model` | ดูโมเดล AI ที่ใช้ปัจจุบันและรายการที่เลือกได้ | `/model` |
 | `/model <alias>` | เปลี่ยนโมเดล AI ที่ต้องการใช้ | `/model claude` |
 | `/note <description>` | บันทึก Task ปัจจุบันเพื่อช่วยให้บอทจำบริบท | `/note working on the login bug` |
+| `/github <args>` | ดูข้อมูลและจัดการ Issues/PR ของ Repo ใน GitHub | `/github issues` |
+| `/queue <tool> <command> [args]` | ส่งคำสั่งเข้า Local Command Queue | `/queue gemini check_status {}` |
 
 ---
 
@@ -244,4 +243,3 @@ This is a personal project by [@oatrice](https://github.com/oatrice).
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
-```
