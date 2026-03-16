@@ -1,6 +1,4 @@
 ```markdown
-อัปเดต README.md เพื่อสะท้อนถึงฟีเจอร์การแจ้งเตือนสถานะงานจาก AI Assistant (Issue #61) และการเพิ่มคอนฟิก `AKASA_CHAT_ID` ตามข้อมูลจาก commit ล่าสุด
-
 # 🌌 Akasa — AI Coding Assistant Chatbot
 
 > ผู้ช่วยเขียนโค้ดผ่าน Messaging App — เขียนโค้ดได้ทุกที่ ไม่ต้องอยู่หน้าคอม
@@ -15,8 +13,9 @@
 
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy **แบบ Asynchronous**, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
+- 🔄 **Bidirectional Control** — สั่งงาน Local Tools (Command Queue) และรับผลลัพธ์กลับในแชท
 - 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
-- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running tasks, การทำงานเสร็จสิ้นจาก AI Assistant (#61), **การแจ้งเตือนสถานะการ Deploy แบบ Asynchronous**, หรือข้อความจากระบบภายนอกสู่มือถือทันที
+- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running, AI Agent Timeout, Review Ready, หรือสถานะ Deploy แบบ Asynchronous สู่มือถือทันที
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
@@ -68,19 +67,23 @@ akasa/
 │   ├── models/               # Pydantic models
 │   │   ├── telegram.py
 │   │   ├── notification.py   # Task & status notifications
+│   │   ├── command.py        # Command queue models
 │   │   └── deployment.py     # Asynchronous deployment models
 │   ├── routers/              # API endpoints
 │   │   ├── actions.py        # Remote action confirmation
+│   │   ├── commands.py       # Command Queue endpoints
 │   │   ├── notifications.py  # AI task completion notifications
 │   │   ├── telegram.py       # Telegram webhook
 │   │   ├── deployments.py    # Asynchronous deployment endpoints
 │   │   └── health.py         # Health check
 │   └── services/             # Business logic
 │       ├── chat_service.py     # Chat orchestration
+│       ├── command_queue_service.py # Bidirectional command queue
 │       ├── github_service.py   # GitHub API communication
 │       ├── llm_service.py      # LLM provider integration
 │       ├── deploy_service.py   # Asynchronous deployment logic
 │       ├── telegram_service.py # Telegram API communication
+│       ├── timeout_watcher_service.py # AI Agent timeout observer
 │       └── redis_service.py    # Conversation history management
 │   └── utils/                # Utility functions
 │       └── markdown_utils.py
@@ -189,6 +192,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 | `/model` | ดูโมเดล AI ที่ใช้ปัจจุบันและรายการที่เลือกได้ | `/model` |
 | `/model <alias>` | เปลี่ยนโมเดล AI ที่ต้องการใช้ | `/model claude` |
 | `/note <description>` | บันทึก Task ปัจจุบันเพื่อช่วยให้บอทจำบริบท | `/note working on the login bug` |
+| `/github <args>` | ดูข้อมูลและจัดการ Issues/PR ของ Repo ใน GitHub | `/github issues` |
+| `/queue <tool> <command> [args]` | ส่งคำสั่งเข้า Local Command Queue | `/queue gemini check_status {}` |
 
 ---
 
@@ -213,6 +218,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - [x] เชื่อม GitHub API (จัดการ Issue, สร้าง PR)
 - [x] MCP Server integration
 - [x] Asynchronous Deployment Service
+- [x] Bidirectional Command Queue (Telegram ↔ Local Tools)
 - [ ] Code Sandbox (รันโค้ดได้จากแชท)
 - [ ] RAG — สอนบอทให้รู้จัก codebase
 - [ ] Voice Note → Whisper → LLM

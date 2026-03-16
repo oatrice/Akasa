@@ -31,6 +31,21 @@ class Settings(BaseSettings):
         ""  # Comma-separated list of Chat IDs (e.g., "123,456")
     )
 
+    # --- Feature #66: Command Queue (Bidirectional Control) ---
+    AKASA_DAEMON_SECRET: str = (
+        "default-daemon-secret"  # Shared secret for daemon → backend result reporting
+    )
+    ALLOWED_TELEGRAM_USER_IDS: str = (
+        ""  # Comma-separated Telegram user_ids allowed to queue commands (e.g., "123,456").
+        # Falls back to AKASA_CHAT_ID if empty.
+    )
+    COMMAND_QUEUE_TTL_SECONDS: int = 600  # Default command TTL: 10 minutes (temporarily increased for testing)
+    COMMAND_QUEUE_RATE_LIMIT: int = 10  # Max commands per user per minute
+
+    # --- Feature: AI Agent Timeout Observer ---
+    AGENT_TIMEOUT_THRESHOLD_MINUTES: int = 15  # Minutes before a task is considered timed out
+    AGENT_TIMEOUT_CHECK_INTERVAL_MINUTES: int = 5  # How often to check for timed out tasks
+
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "gemini": {
             "name": "Google Gemini 2.5 Flash",

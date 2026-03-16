@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.18.0] - 2026-03-16
+
+### Added
+- **Bidirectional Command Queue**: เพิ่มระบบคิวคำสั่งแบบสองทิศทาง (Bidirectional) เชื่อมต่อระหว่าง Telegram และ Local Tools ให้สามารถควบคุมและรับผลลัพธ์การทำงานได้แบบ Real-time
+- **AI Agent Timeout Observer**: เพิ่มระบบตรวจสอบ Timeout สำหรับ AI Agent เพื่อแจ้งเตือนและป้องกันการทำงานที่ใช้เวลานานผิดปกติ
+- **Zed AI Review Notification**: เพิ่มฟังก์ชันแจ้งเตือนเมื่อ Zed AI Agent ทำการแก้ไขโค้ดเสร็จสิ้นและรอการตรวจสอบ (Review Ready)
+- **Telegram MarkdownV2 Support**: ปรับปรุงระบบส่งข้อความให้รองรับ Format แบบ MarkdownV2 ได้อย่างถูกต้องและปลอดภัย
+
+### Fixed
+- **Markdown Escaping**: แก้ไขปัญหาการ Escape ตัวอักษรพิเศษซ้ำซ้อนที่ทำให้แสดงผลผิดพลาดใน Telegram
+- **Queue Resource Management**: แก้ไขการจัดการข้อมูลใน Redis โดยเพิ่ม TTL ให้กับ Command Queue Keys เพื่อป้องกันข้อมูลค้างในระบบ
+
 ## [0.16.0](https://github.com/oatrice/Akasa/compare/v0.15.0...v0.16.0) (2026-03-14)
 
 

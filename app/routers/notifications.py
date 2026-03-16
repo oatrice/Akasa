@@ -9,9 +9,12 @@ from app.exceptions import BotBlockedException, UserChatIdNotFoundException
 from app.models.notification import (
     NotificationPayload,
     NotificationResponse,
+    ReviewReadyRequest,
+    ReviewReadyResponse,
     TaskNotificationRequest,
     TaskNotificationResponse,
 )
+from app.services.agent_task_service import create_task, update_task
 from app.services.redis_service import redis_pool
 from app.services.telegram_service import tg_service
 
@@ -94,6 +97,10 @@ async def task_complete_notification(
     รับการแจ้งเตือน Task Completion จาก AI Assistants (MCP Tool หรือ CLI)
     และส่งข้อความสรุปงานไปยัง Telegram
 
+    Status handling:
+      - 'starting': Create task log in Redis for timeout tracking (no Telegram notification)
+      - 'success'/'failure'/'partial'/'timeout': Update task log and send Telegram notification
+
     Chat ID routing:
       1. ใช้ chat_id จาก payload ถ้ามี (caller-specified)
       2. Fallback ไปใช้ AKASA_CHAT_ID จาก server config
@@ -119,6 +126,43 @@ async def task_complete_notification(
         f"task: {payload.task!r}, status: {payload.status}, source: {payload.source!r}"
     )
 
+    # Handle 'starting' status - create task log for timeout tracking
+    if payload.status == "starting":
+        try:
+            task_log = await create_task(
+                project=payload.project or "General",
+                task=payload.task,
+                source=payload.source,
+                chat_id=chat_id_str,
+                task_id=payload.task_id,
+            )
+            logger.info(f"Task log created: {task_log.task_id} for timeout tracking")
+            return TaskNotificationResponse(
+                delivered=True,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        except Exception as e:
+            logger.error(f"Failed to create task log: {e}", exc_info=True)
+            # Don't fail the request - just log the error
+            return TaskNotificationResponse(
+                delivered=True,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+
+    # Update task log for completion statuses
+    if payload.task_id and payload.status in ("success", "failure", "partial", "timeout"):
+        try:
+            await update_task(
+                task_id=payload.task_id,
+                status=payload.status,
+                duration=payload.duration,
+                message=payload.message,
+                link=payload.link,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update task log {payload.task_id}: {e}")
+
+    # Send Telegram notification for all non-starting statuses
     try:
         await tg_service.send_task_notification(chat_id=chat_id, request=payload)
         return TaskNotificationResponse(
@@ -149,4 +193,73 @@ async def task_complete_notification(
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred during task notification dispatch.",
+        )
+
+
+@router.post("/review-ready", response_model=ReviewReadyResponse)
+async def review_ready_notification(
+    payload: ReviewReadyRequest,
+    authenticated: bool = Depends(verify_api_key),
+):
+    """
+    รับการแจ้งเตือน "Changes Ready for Review" จาก Zed AI (ผ่าน MCP tool notify_pending_review)
+    และส่งข้อความ "✏️ Changes Ready for Review" ไปยัง Telegram
+
+    เรียกใช้เมื่อ AI ใน Zed Agent mode ทำการ generate/แก้ไขโค้ดเสร็จแล้ว
+    และกำลังรอให้ผู้ใช้กด Accept / Reject ใน IDE
+
+    Chat ID routing:
+      1. ใช้ chat_id จาก payload ถ้ามี
+      2. Fallback ไปใช้ AKASA_CHAT_ID จาก server config
+    """
+    chat_id_str = payload.chat_id or settings.AKASA_CHAT_ID
+    if not chat_id_str:
+        raise HTTPException(
+            status_code=400,
+            detail="No chat_id provided and AKASA_CHAT_ID is not configured on the server.",
+        )
+
+    try:
+        chat_id = int(chat_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid chat_id format. Must be numeric.",
+        )
+
+    logger.info(
+        f"Review-ready notification received — project: {payload.project!r}, "
+        f"task: {payload.task!r}, files: {len(payload.files_changed or [])} file(s)"
+    )
+
+    try:
+        await tg_service.send_review_notification(chat_id=chat_id, request=payload)
+        return ReviewReadyResponse(
+            delivered=True,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 429:
+            logger.warning(
+                f"Telegram rate limit hit while sending review-ready notification to chat_id {chat_id}: {e}"
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="Telegram rate limit exceeded. Please retry after a moment.",
+            )
+        logger.error(
+            f"Telegram API error in review_ready_notification (chat_id={chat_id}): {e}",
+            exc_info=True,
+        )
+        return ReviewReadyResponse(
+            delivered=False,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in review_ready_notification: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred during review-ready notification dispatch.",
         )

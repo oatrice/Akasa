@@ -37,7 +37,8 @@ def escape_markdown_v2(text: str) -> str:
     # Characters to escape: [ ] ( ) ~ > # + - = | { } . !
     # We EXCLUDE *, _, ` from being escaped to allow user formatting
     chars_to_escape = r"[]()~>#+-=|{}.!"
-    escape_pattern = re.compile(rf"([{re.escape(chars_to_escape)}])")
+    # Use negative lookbehind to avoid escaping characters that are already escaped
+    escape_pattern = re.compile(rf"(?<!\\)([{re.escape(chars_to_escape)}])")
 
     # Regular expression to match code blocks (both ``` and `)
     # This pattern matches ```...``` first, then `...`
@@ -50,8 +51,17 @@ def escape_markdown_v2(text: str) -> str:
     for i, part in enumerate(parts):
         # re.split keeps the matched separators at odd indices if capturing parenthesis are used
         if i % 2 == 1:
-            # This is a code block, do not escape its contents
-            escaped_parts.append(part)
+            # Code block: inside pre and code entities, all '`' and '\' characters must be escaped
+            if part.startswith("```") and part.endswith("```"):
+                content = part[3:-3]
+                content = content.replace('\\', '\\\\').replace('`', r'\`')
+                escaped_parts.append(f"```{content}```")
+            elif part.startswith("`") and part.endswith("`"):
+                content = part[1:-1]
+                content = content.replace('\\', '\\\\').replace('`', r'\`')
+                escaped_parts.append(f"`{content}`")
+            else:
+                escaped_parts.append(part)
         else:
             # This is normal text, escape special characters
             escaped_part = escape_pattern.sub(r"\\\1", part)

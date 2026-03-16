@@ -10,7 +10,7 @@ from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_cont
 
 if TYPE_CHECKING:
     from app.models.deployment import DeploymentRecord
-    from app.models.notification import TaskNotificationRequest
+    from app.models.notification import ReviewReadyRequest, TaskNotificationRequest
 
 from datetime import datetime
 
@@ -23,15 +23,15 @@ class TelegramService:
         self.client = httpx.AsyncClient()
 
     async def send_message(
-        self, chat_id: int, text: str, reply_markup: Optional[dict] = None
+        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: str = "MarkdownV2"
     ) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
         """
         payload = {
             "chat_id": chat_id,
-            "text": escape_markdown_v2(text),
-            "parse_mode": "MarkdownV2",
+            "text": text,
+            "parse_mode": parse_mode,
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
@@ -60,7 +60,7 @@ class TelegramService:
                 ]
             ]
         }
-        await self.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
+        await self.send_message(chat_id=chat_id, text=escape_markdown_v2(text), reply_markup=reply_markup)
 
     async def edit_message_text(
         self,
@@ -68,6 +68,7 @@ class TelegramService:
         message_id: int,
         text: str,
         reply_markup: Optional[dict] = None,
+        parse_mode: str = "MarkdownV2"
     ):
         """
         แก้ไขข้อความเดิม (ใช้สำหรับอัปเดตสถานะหลังจากกดปุ่ม)
@@ -75,8 +76,8 @@ class TelegramService:
         payload = {
             "chat_id": chat_id,
             "message_id": message_id,
-            "text": escape_markdown_v2(text),
-            "parse_mode": "MarkdownV2",
+            "text": text,
+            "parse_mode": parse_mode,
         }
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
@@ -100,7 +101,7 @@ class TelegramService:
 
         chat_id = int(chat_id_str)
         try:
-            await self.send_message(chat_id=chat_id, text=text)
+            await self.send_message(chat_id=chat_id, text=escape_markdown_v2(text))
             logger.info(f"Proactive message sent to user_id: {user_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 403:
@@ -136,6 +137,7 @@ class TelegramService:
             "partial": ("⚠️", "Task Completed with Warnings"),
             "retrying": ("🔄", None),  # title built dynamically with retry counts
             "limit_reached": ("🚫", None),  # title built dynamically with retry counts
+            "timeout": ("⏰", "Task Timed Out\\!"),
         }
         emoji, title = status_config.get(request.status, ("🔔", "Task Notification"))
 
@@ -282,6 +284,66 @@ class TelegramService:
         logger.info(
             f"Deployment notification sent to chat_id={chat_id}, "
             f"status={record.status}, url={record.url!r}"
+        )
+
+    async def send_review_notification(
+        self, chat_id: int, request: "ReviewReadyRequest"
+    ) -> None:
+        """
+        Send a "Changes Ready for Review" notification to Telegram.
+
+        Called by the MCP tool `notify_pending_review` when Zed AI has finished
+        generating changes and is waiting for the user to Accept / Reject them
+        in the IDE.
+
+        Args:
+            chat_id: Telegram chat ID to send the notification to.
+            request: ReviewReadyRequest containing task and change details.
+        """
+        safe_project = escape_markdown_v2_content(request.project or "General")
+        safe_task = escape_markdown_v2_content(request.task)
+
+        lines = [
+            "✏️ *Changes Ready for Review*",
+            "",
+            f"*Project:* {safe_project}",
+            f"*Task:* {safe_task}",
+        ]
+
+        if request.files_changed:
+            # Show up to 10 files; truncate the rest
+            shown = request.files_changed[:10]
+            rest = len(request.files_changed) - len(shown)
+            files_text = "\n".join(
+                f"  • {escape_markdown_v2_content(f)}" for f in shown
+            )
+            if rest > 0:
+                files_text += f"\n  \\.\\.\\. \\+{rest} more"
+            lines.append(f"*Files Changed:*\n{files_text}")
+
+        if request.summary:
+            summary = request.summary
+            if len(summary) > 300:
+                summary = summary[:297] + "..."
+            lines.append(f"*Summary:* {escape_markdown_v2_content(summary)}")
+
+        lines += ["", "👆 *Open Zed to Accept / Reject*"]
+
+        text = "\n".join(lines)
+
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "MarkdownV2",
+        }
+        response = await self.client.post(
+            f"{self.api_url}/sendMessage",
+            json=payload,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        logger.info(
+            f"Review-ready notification sent to chat_id: {chat_id}, task: {request.task!r}"
         )
 
 
