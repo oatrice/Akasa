@@ -1,6 +1,6 @@
 import pytest
 
-from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
+from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content, split_markdown_message
 
 
 def test_escape_markdown_v2_no_special_chars():
@@ -193,3 +193,63 @@ def test_escape_content_vs_escape_markdown_v2_differ_on_underscore():
     # Content escaper fully escapes _
     assert "\\_" in content
     assert "_" not in content.replace("\\_", "")
+
+
+# === split_markdown_message ===
+
+
+def test_split_markdown_message_short():
+    """Short text should not be split."""
+    text = "Hello World"
+    chunks = split_markdown_message(text, max_length=50)
+    assert len(chunks) == 1
+    assert chunks[0] == "Hello World"
+
+
+def test_split_markdown_message_newline_break():
+    """Should prefer splitting at newlines."""
+    text = "Line 1" + "A" * 40 + "\nLine 2"
+    chunks = split_markdown_message(text, max_length=50)
+    assert len(chunks) == 2
+    assert chunks[0] == "Line 1" + "A" * 40
+    assert chunks[1] == "Line 2"
+
+
+def test_split_markdown_message_space_break():
+    """Should fallback to space if no newline exists."""
+    text = "Word1 " + "A" * 40 + " Word2"
+    chunks = split_markdown_message(text, max_length=50)
+    assert len(chunks) == 2
+    assert chunks[0] == "Word1 " + "A" * 40
+    assert chunks[1] == "Word2"
+
+
+def test_split_markdown_message_force_break():
+    """Should force split if no spaces or newlines exist."""
+    text = "A" * 60
+    chunks = split_markdown_message(text, max_length=50)
+    assert len(chunks) == 2
+    assert len(chunks[0]) == 50
+    assert len(chunks[1]) == 10
+    assert chunks[0] == "A" * 50
+    assert chunks[1] == "A" * 10
+
+
+def test_split_markdown_message_code_block_preserve():
+    """Should safely close and reopen unclosed code blocks across chunks."""
+    text = "Here is some code:\n```python\n" + "A" * 60 + "\n```\nDone."
+    chunks = split_markdown_message(text, max_length=50)
+    
+    # Chunk 0 should have the opening ```python and forced close
+    assert "```python" in chunks[0]
+    assert chunks[0].endswith("```")
+    
+    # Chunk 1 should have the reopened ``` and the rest of A's
+    assert chunks[1].startswith("```\n")
+    
+    # Because A*60 is longer than 50, it gets split again
+    assert chunks[1].endswith("```")
+    assert chunks[2].startswith("```\n")
+    
+    # Total content should still be intact except for the injected blocks
+    assert "Done." in chunks[-1]

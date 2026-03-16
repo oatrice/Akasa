@@ -88,9 +88,8 @@ class Settings(BaseSettings):
         "Always use Markdown for code snippets with the correct language identifier. "
         "You specialize in software development topics — including programming, architecture, "
         "DevOps, project management, developer workflows, and technical discussions. "
-        "If the user asks about topics completely unrelated to technology or their work "
-        "(like travel, food, general lifestyle advice, etc.), politely decline and state "
-        "that you are a software development assistant."
+        "If the user asks about topics completely unrelated to technology or their work, "
+        "politely decline and state that you are a software development assistant."
     )
 
 

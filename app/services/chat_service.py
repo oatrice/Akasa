@@ -10,7 +10,7 @@ from app.models.agent_state import AgentState
 from app.services import redis_service
 from app.services.telegram_service import tg_service
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
-from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
+from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content, split_markdown_message
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
 from app.services import command_queue_service
@@ -263,8 +263,8 @@ async def _send_response(chat_id: int, text: str) -> None:
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
     
     # Chunk the text to fit Telegram's 4096 character limit
-    # Safe chunk size of 4000 characters
-    chunks = [final_text[i:i+4000] for i in range(0, len(final_text), 4000)]
+    # Safe chunk size of 4000 characters, using smart markdown chunking
+    chunks = split_markdown_message(final_text, max_length=4000)
     
     for chunk in chunks:
         # Escape MarkdownV2 special characters before sending
