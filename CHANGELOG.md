@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/oatrice/Akasa/compare/v0.16.0...v0.17.0) (2026-03-16)
+
+
+### Features
+
+* [Feature] Telegram → Local Tools Command Queue (Bi... ([#69](https://github.com/oatrice/Akasa/issues/69)) ([96fc86a](https://github.com/oatrice/Akasa/commit/96fc86a7abad3a1baa50fb41a567c1cec26dadd1))
+
 ## [0.18.0] - 2026-03-16
 
 ### Added
