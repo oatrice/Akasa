@@ -53,7 +53,7 @@
 | [#33](https://github.com/oatrice/Akasa/issues/33) | Async Deployment Service for Web & Backend | ✅ Complete |
 | [#34](https://github.com/oatrice/Akasa/issues/34) | Post-Build Notification System with URL Verification | ✅ Complete |
 | [#67](https://github.com/oatrice/Akasa/issues/67) | AI Agent Timeout Observer (ตรวจจับ Agent ที่หยุดทำงาน) | ✅ Complete |
-| [#66](https://github.com/oatrice/Akasa/issues/66) | Telegram → Local Tools Command Queue (Bidirectional Control) | 🔲 Todo |
+| [#66](https://github.com/oatrice/Akasa/issues/66) | Telegram → Local Tools Command Queue (Bidirectional Control) | ✅ Complete |
 
 ---
 
