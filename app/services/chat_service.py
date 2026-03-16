@@ -271,7 +271,7 @@ async def _send_response(chat_id: int, text: str) -> None:
         if e.response is not None and e.response.status_code == 400:
             logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
             try:
-                await tg_service.send_message(chat_id, final_text, parse_mode="")
+                await tg_service.send_message(chat_id, final_text, parse_mode=None)
             except Exception as fallback_err:
                 logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
         else:

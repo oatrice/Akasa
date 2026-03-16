@@ -23,7 +23,7 @@ class TelegramService:
         self.client = httpx.AsyncClient()
 
     async def send_message(
-        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: str = "MarkdownV2"
+        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: Optional[str] = "MarkdownV2"
     ) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
@@ -31,8 +31,10 @@ class TelegramService:
         payload = {
             "chat_id": chat_id,
             "text": text,
-            "parse_mode": parse_mode,
         }
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+            
         if reply_markup:
             payload["reply_markup"] = reply_markup
 

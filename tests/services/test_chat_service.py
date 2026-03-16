@@ -234,9 +234,9 @@ async def test_send_response_fallback_to_plain_text_on_400(mock_llm, mock_telegr
     
     # send_message ต้องถูกเรียก 2 ครั้ง (MarkdownV2 fail → plain text success)
     assert mock_telegram.send_message.call_count == 2
-    # ครั้งที่สอง ต้องส่งด้วย parse_mode="" (plain text)
+    # ครั้งที่สอง ต้องส่งด้วย parse_mode=None (plain text)
     second_call = mock_telegram.send_message.call_args_list[1]
-    assert second_call.kwargs.get("parse_mode") == "" or (len(second_call.args) >= 3 and second_call.args[2] == "")
+    assert second_call.kwargs.get("parse_mode") is None or (len(second_call.args) >= 3 and second_call.args[2] is None)
 
 
 @pytest.mark.asyncio
