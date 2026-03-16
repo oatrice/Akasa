@@ -294,6 +294,7 @@ class TestResultEndpoint:
             tool="gemini",
             command="run_task",
             queued_at="2026-01-01T00:00:00Z",
+            chat_id=12345,
         )
         with patch(
             "app.routers.commands.command_queue_service.get_command_status",
@@ -365,6 +366,7 @@ class TestResultEndpoint:
             tool="gemini",
             command="run_task",
             queued_at="2026-01-01T00:00:00Z",
+            chat_id=12345,
         )
         with patch(
             "app.routers.commands.command_queue_service.get_command_status",

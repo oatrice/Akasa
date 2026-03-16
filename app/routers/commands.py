@@ -171,7 +171,12 @@ async def report_command_result(
 
         # Use the chat_id from the original command payload for notification
         # Fallback to AKASA_CHAT_ID if original chat_id is somehow missing
-        target_chat_id = status.chat_id if status.chat_id else int(settings.AKASA_CHAT_ID)
+        if status.chat_id:
+            target_chat_id = status.chat_id
+        elif settings.AKASA_CHAT_ID:
+            target_chat_id = int(settings.AKASA_CHAT_ID)
+        else:
+            raise ValueError("No chat_id available for notification (both status.chat_id and AKASA_CHAT_ID are empty)")
 
         await tg_service.send_message(
             chat_id=target_chat_id,
