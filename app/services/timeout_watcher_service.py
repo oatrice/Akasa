@@ -11,6 +11,7 @@ import logging
 from typing import Optional
 
 from app.config import settings
+from app.models.agent_task import AgentTaskLog
 from app.services.agent_task_service import (
     find_timed_out_tasks,
     mark_task_timed_out,
@@ -132,7 +133,7 @@ class TimeoutWatcher:
                     exc_info=True
                 )
 
-    async def _send_timeout_alert(self, task_log) -> None:
+    async def _send_timeout_alert(self, task_log: AgentTaskLog) -> None:
         """
         Send a Telegram alert for a timed-out task.
 
@@ -154,7 +155,7 @@ class TimeoutWatcher:
             return
 
         # Build alert message
-        from app.utils.markdown_utils import escape_markdown_v2_content
+        from app.utils.markdown_utils import escape_markdown_v2_content, escape_markdown_v2
 
         safe_project = escape_markdown_v2_content(task_log.project)
         safe_task = escape_markdown_v2_content(
@@ -163,27 +164,22 @@ class TimeoutWatcher:
         safe_source = escape_markdown_v2_content(task_log.source or "AI Agent")
 
         lines = [
-            "⚠️ *🚨 ALERT: AI Agent Timeout\\!*",
+            "⚠️ *🚨 ALERT: AI Agent Timeout!*",
             "",
             f"*Project:* {safe_project}",
             f"*Task:* {safe_task}",
             f"*Source:* {safe_source}",
             "",
-            "_The AI agent seems to have crashed or stopped responding\\. "
-            "No completion notification was received\\._",
+            "_The AI agent seems to have crashed or stopped responding. "
+            "No completion notification was received._",
         ]
 
-        text = "\n".join(lines)
+        text = escape_markdown_v2("\n".join(lines))
 
         try:
-            await tg_service.client.post(
-                f"{tg_service.api_url}/sendMessage",
-                json={
-                    "chat_id": chat_id,
-                    "text": text,
-                    "parse_mode": "MarkdownV2",
-                },
-                timeout=10.0,
+            await tg_service.send_message(
+                chat_id=chat_id,
+                text=text,
             )
             logger.info(
                 f"[TIMEOUT_WATCHER] Sent timeout alert to chat_id={chat_id} "

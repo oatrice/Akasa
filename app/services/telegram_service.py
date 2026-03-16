@@ -23,15 +23,15 @@ class TelegramService:
         self.client = httpx.AsyncClient()
 
     async def send_message(
-        self, chat_id: int, text: str, reply_markup: Optional[dict] = None
+        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: str = "MarkdownV2"
     ) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
         """
         payload = {
             "chat_id": chat_id,
-            "text": escape_markdown_v2(text),
-            "parse_mode": "MarkdownV2",
+            "text": text,
+            "parse_mode": parse_mode,
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
@@ -60,7 +60,7 @@ class TelegramService:
                 ]
             ]
         }
-        await self.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
+        await self.send_message(chat_id=chat_id, text=escape_markdown_v2(text), reply_markup=reply_markup)
 
     async def edit_message_text(
         self,
@@ -68,6 +68,7 @@ class TelegramService:
         message_id: int,
         text: str,
         reply_markup: Optional[dict] = None,
+        parse_mode: str = "MarkdownV2"
     ):
         """
         แก้ไขข้อความเดิม (ใช้สำหรับอัปเดตสถานะหลังจากกดปุ่ม)
@@ -75,8 +76,8 @@ class TelegramService:
         payload = {
             "chat_id": chat_id,
             "message_id": message_id,
-            "text": escape_markdown_v2(text),
-            "parse_mode": "MarkdownV2",
+            "text": text,
+            "parse_mode": parse_mode,
         }
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
@@ -100,7 +101,7 @@ class TelegramService:
 
         chat_id = int(chat_id_str)
         try:
-            await self.send_message(chat_id=chat_id, text=text)
+            await self.send_message(chat_id=chat_id, text=escape_markdown_v2(text))
             logger.info(f"Proactive message sent to user_id: {user_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 403:

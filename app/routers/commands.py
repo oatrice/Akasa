@@ -140,21 +140,34 @@ async def report_command_result(
     # Send Telegram notification
     notification_sent = False
     try:
+        from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
         emoji = "✅" if result.status == "success" else "❌"
+        
+        safe_tool = escape_markdown_v2_content(status.tool)
+        safe_command = escape_markdown_v2_content(status.command)
+        safe_status = escape_markdown_v2_content(result.status)
+        
         msg = (
             f"{emoji} *Command Result*\n\n"
             f"*Command ID:* `{command_id}`\n"
-            f"*Tool:* {status.tool}\n"
-            f"*Command:* {status.command}\n"
-            f"*Status:* {result.status}\n"
+            f"*Tool:* {safe_tool}\n"
+            f"*Command:* {safe_command}\n"
+            f"*Status:* {safe_status}\n"
         )
         if result.exit_code is not None:
-            msg += f"*Exit Code:* {result.exit_code}\n"
+            safe_exit = escape_markdown_v2_content(str(result.exit_code))
+            msg += f"*Exit Code:* {safe_exit}\n"
         if result.duration_seconds is not None:
-            msg += f"*Duration:* {result.duration_seconds:.1f}s\n"
+            safe_duration = escape_markdown_v2_content(f"{result.duration_seconds:.1f}s")
+            msg += f"*Duration:* {safe_duration}\n"
         if result.output:
-            output_preview = result.output[:500]
+            # We don't escape output with _content because it goes in a code block
+            # where escape_markdown_v2 will preserve it, though if it contains ``` 
+            # we should replace it to avoid breaking the block.
+            output_preview = result.output[:500].replace("```", "'''")
             msg += f"\n*Output:*\n```\n{output_preview}\n```"
+
+        escaped_msg = escape_markdown_v2(msg)
 
         # Use the chat_id from the original command payload for notification
         # Fallback to AKASA_CHAT_ID if original chat_id is somehow missing
@@ -162,7 +175,7 @@ async def report_command_result(
 
         await tg_service.send_message(
             chat_id=target_chat_id,
-            text=msg,
+            text=escaped_msg,
         )
         notification_sent = True
     except Exception as exc:

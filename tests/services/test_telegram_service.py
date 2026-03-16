@@ -19,7 +19,7 @@ async def test_send_message_success(monkeypatch):
     chat_id = 12345
     text = "Hello from AI (v1.0)"
 
-    expected_text = r"Hello from AI \(v1\.0\)"
+    expected_text = "Hello from AI (v1.0)"
 
     # Directly patch the 'post' method on the service's client instance
     with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
@@ -100,7 +100,9 @@ async def test_send_proactive_message_success(mock_redis):
         await tg_service.send_proactive_message(user_id, text)
 
         mock_redis.get_chat_id_for_user.assert_called_once_with(user_id)
-        mock_send_message.assert_called_once_with(chat_id=chat_id, text=text)
+        
+        from app.utils.markdown_utils import escape_markdown_v2
+        mock_send_message.assert_called_once_with(chat_id=chat_id, text=escape_markdown_v2(text))
 
 
 @pytest.mark.asyncio

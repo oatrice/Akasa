@@ -114,19 +114,15 @@ class TestTimeoutWatcher:
             chat_id="123456",
         )
 
-        mock_client = AsyncMock()
-        mock_client.post = AsyncMock()
-
         with patch('app.services.timeout_watcher_service.tg_service') as mock_tg:
-            mock_tg.client = mock_client
-            mock_tg.api_url = "https://api.telegram.org/bot123"
-
+            mock_tg.send_message = AsyncMock()
+            
             await watcher._send_timeout_alert(task_log)
 
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert call_args[1]["json"]["chat_id"] == 123456
-            assert "MarkdownV2" in call_args[1]["json"]["parse_mode"]
+            mock_tg.send_message.assert_called_once()
+            call_kwargs = mock_tg.send_message.call_args.kwargs
+            assert call_kwargs["chat_id"] == 123456
+            assert r"AI Agent Timeout\!" in call_kwargs.get("text", "")
 
     @pytest.mark.asyncio
     async def test_send_timeout_alert_no_chat_id(self):
