@@ -4,7 +4,7 @@
 
 > **Feature Name**: Telegram MarkdownV2 Robustness & GitHub Repo Listing
 > **Version**: v1.0.0
-> **Status**: 🚀 In Development
+> **Status**: ✅ Completed
 > **Related Issue**: [#71](https://github.com/oatrice/Akasa/issues/71)
 
 ## 1. Executive Summary

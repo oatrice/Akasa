@@ -13,7 +13,7 @@
 | **Date** | March 16, 2026 |
 | **Analyst** | Luma AI (Senior Technical Analyst) |
 | **Priority** | 🔴 High |
-| **Status** | 🚀 In Progress |
+| **Status** | ✅ Completed |
 
 ---
 
@@ -41,11 +41,11 @@
 
 ### 1.3 Acceptance Criteria
 
-- [ ] **AC1:** ระบบต้องทำการ Escape อักขระพิเศษตามมาตรฐาน Telegram MarkdownV2 ก่อนส่งข้อความ
-- [ ] **AC2:** หากการส่งด้วย MarkdownV2 ล้มเหลว (400 Bad Request) ระบบต้องสามารถส่งข้อความเดิมซ้ำในรูปแบบ Plain Text ได้อัตโนมัติ (Fallback mechanism)
-- [ ] **AC3:** System Prompt อนุญาตให้ตอบคำถามเรื่อง Project Management, DevOps และ Workflow ได้
-- [ ] **AC4:** มี Tool ใหม่ `list_github_repos` ที่เรียกใช้คำสั่ง `gh repo list` ได้ถูกต้อง
-- [ ] **AC5:** Unit Tests ผ่านทั้งหมด แม้ไม่มี `AKASA_CHAT_ID` ใน Environment
+- [x] **AC1:** ระบบต้องทำการ Escape อักขระพิเศษตามมาตรฐาน Telegram MarkdownV2 ก่อนส่งข้อความ
+- [x] **AC2:** หากการส่งด้วย MarkdownV2 ล้มเหลว (400 Bad Request) ระบบต้องสามารถส่งข้อความเดิมซ้ำในรูปแบบ Plain Text ได้อัตโนมัติ (Fallback mechanism)
+- [x] **AC3:** System Prompt อนุญาตให้ตอบคำถามเรื่อง Project Management, DevOps และ Workflow ได้
+- [x] **AC4:** มี Tool ใหม่ `list_github_repos` ที่เรียกใช้คำสั่ง `gh repo list` ได้ถูกต้อง
+- [x] **AC5:** Unit Tests ผ่านทั้งหมด แม้ไม่มี `AKASA_CHAT_ID` ใน Environment
 
 ---
 
