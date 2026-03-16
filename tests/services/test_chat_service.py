@@ -187,16 +187,56 @@ async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_redis, mock_update):
-    """ถ้า Telegram error → ไม่ crash"""
+    """ถ้า Telegram error (non-400) → ไม่ crash, log error แทน"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
-    mock_telegram.send_message = AsyncMock(side_effect=httpx.HTTPStatusError("400 Bad Request", request=None, response=None))
+    # Generic HTTP error with response=None (edge case from mock)
+    mock_telegram.send_message = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
 
     await handle_chat_message(mock_update)
     mock_llm.get_llm_reply.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_send_response_fallback_to_plain_text_on_400(mock_llm, mock_telegram, mock_redis, mock_update):
+    """🟥 RED → 🟢 GREEN: เมื่อ MarkdownV2 ส่ง 400 → ต้อง fallback ส่ง plain text แทน"""
+    from unittest.mock import MagicMock
+    
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Reply with special chars: (1+2) = 3.")
+    
+    # สร้าง mock response ที่มี status_code = 400 จริงๆ
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    
+    call_count = 0
+    async def side_effect_fn(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # ครั้งแรก (MarkdownV2) → fail
+            raise httpx.HTTPStatusError("400 Bad Request", request=MagicMock(), response=mock_response)
+        # ครั้งที่สอง (plain text) → success
+        return None
+    
+    mock_telegram.send_message = AsyncMock(side_effect=side_effect_fn)
+
+    await handle_chat_message(mock_update)
+    
+    # send_message ต้องถูกเรียก 2 ครั้ง (MarkdownV2 fail → plain text success)
+    assert mock_telegram.send_message.call_count == 2
+    # ครั้งที่สอง ต้องส่งด้วย parse_mode="" (plain text)
+    second_call = mock_telegram.send_message.call_args_list[1]
+    assert second_call.kwargs.get("parse_mode") == "" or (len(second_call.args) >= 3 and second_call.args[2] == "")
 
 
 @pytest.mark.asyncio
@@ -352,8 +392,14 @@ async def test_build_info_appended_in_local_dev(
 
         await handle_chat_message(mock_update)
 
-        expected_reply_with_footer = "Reply from AI\n\n---\n*Local Dev Info*\n🤖 Version 0.1.0\n🌍 Env development\n🏗️ Built at 2026-03-08T04:49:51+07:00\n🔗 Commit abcdef1"
-        mock_telegram.send_message.assert_called_once_with(12345, expected_reply_with_footer)
+        # send_message ถูกเรียก 1 ครั้ง และข้อความที่ส่งต้องผ่าน escape_markdown_v2 แล้ว
+        mock_telegram.send_message.assert_called_once()
+        sent_text = mock_telegram.send_message.call_args[0][1]
+        # ข้อความที่ส่งต้องมี Build Info ต่อท้าย (escaped)
+        assert "Reply from AI" in sent_text
+        assert "Local Dev Info" in sent_text
+        assert "Version" in sent_text
+        assert "Commit" in sent_text
         
         # Redis should only save the original reply without the footer to avoid context pollution
         mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI", project_name="default")
@@ -471,10 +517,12 @@ async def test_handle_model_command_update_success(mock_telegram, mock_redis):
     
     # ต้องบันทึกลง Redis
     mock_redis.set_user_model_preference.assert_called_once_with(123, "google/gemini-2.5-flash")
-    # ต้องแจ้งยืนยัน
+    # ต้องแจ้งยืนยัน (ข้อความถูก escape_markdown_v2 แล้ว แต่ยังคงเช็คเนื้อหาได้)
     args = mock_telegram.send_message.call_args[0]
     assert "updated" in args[1].lower()
-    assert "Google Gemini 2.5 Flash" in args[1]
+    # เช็คว่ามีชื่อโมเดล (อาจมี escape char เช่น \. แต่ text ยังมีคำหลักอยู่)
+    assert "Gemini" in args[1]
+    assert "Flash" in args[1]
 
 
 @pytest.mark.asyncio

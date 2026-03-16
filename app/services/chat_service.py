@@ -10,7 +10,7 @@ from app.models.agent_state import AgentState
 from app.services import redis_service
 from app.services.telegram_service import tg_service
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
-from app.utils.markdown_utils import escape_markdown_v2_content
+from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
 from app.services import command_queue_service
@@ -248,8 +248,20 @@ async def _send_response(chat_id: int, text: str) -> None:
         build_info = get_build_info()
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
     
+    # Escape MarkdownV2 special characters before sending
+    escaped_text = escape_markdown_v2(final_text)
+    
     try:
-        await tg_service.send_message(chat_id, final_text)
+        await tg_service.send_message(chat_id, escaped_text)
+    except httpx.HTTPStatusError as e:
+        if e.response is not None and e.response.status_code == 400:
+            logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
+            try:
+                await tg_service.send_message(chat_id, final_text, parse_mode="")
+            except Exception as fallback_err:
+                logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
+        else:
+            logger.error(f"HTTP error sending to Telegram for {chat_id}: {e}")
     except Exception as e:
         logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
         logger.debug(f"Failed message content: {final_text[:200]}...")
