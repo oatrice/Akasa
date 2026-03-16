@@ -38,10 +38,14 @@ class TelegramService:
         if reply_markup:
             payload["reply_markup"] = reply_markup
 
-        response = await self.client.post(
-            f"{self.api_url}/sendMessage", json=payload, timeout=10.0
-        )
-        response.raise_for_status()
+        try:
+            response = await self.client.post(
+                f"{self.api_url}/sendMessage", json=payload, timeout=10.0
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Telegram API Error: {e.response.text}")
+            raise
 
     async def send_confirmation_message(self, chat_id: int, text: str, request_id: str):
         """

@@ -262,23 +262,28 @@ async def _send_response(chat_id: int, text: str) -> None:
         build_info = get_build_info()
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
     
-    # Escape MarkdownV2 special characters before sending
-    escaped_text = escape_markdown_v2(final_text)
+    # Chunk the text to fit Telegram's 4096 character limit
+    # Safe chunk size of 4000 characters
+    chunks = [final_text[i:i+4000] for i in range(0, len(final_text), 4000)]
     
-    try:
-        await tg_service.send_message(chat_id, escaped_text)
-    except httpx.HTTPStatusError as e:
-        if e.response is not None and e.response.status_code == 400:
-            logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
-            try:
-                await tg_service.send_message(chat_id, final_text, parse_mode=None)
-            except Exception as fallback_err:
-                logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
-        else:
-            logger.error(f"HTTP error sending to Telegram for {chat_id}: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
-        logger.debug(f"Failed message content: {final_text[:200]}...")
+    for chunk in chunks:
+        # Escape MarkdownV2 special characters before sending
+        escaped_text = escape_markdown_v2(chunk)
+        
+        try:
+            await tg_service.send_message(chat_id, escaped_text)
+        except httpx.HTTPStatusError as e:
+            if e.response is not None and e.response.status_code == 400:
+                logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
+                try:
+                    await tg_service.send_message(chat_id, chunk, parse_mode=None)
+                except Exception as fallback_err:
+                    logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
+            else:
+                logger.error(f"HTTP error sending to Telegram for {chat_id}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
+            logger.debug(f"Failed message content: {chunk[:200]}...")
 
 
 async def _send_escaped_response(chat_id: int, text: str) -> None:
