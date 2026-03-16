@@ -157,6 +157,20 @@ GITHUB_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "list_github_repos",
+            "description": "Lists GitHub repositories for the authenticated user. Use this when the user asks about their projects, repositories, or active repos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "owner": {"type": "string", "description": "GitHub username or organization (optional, defaults to authenticated user)."},
+                    "limit": {"type": "integer", "description": "Max number of repos to return (default: 30)."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "git_status",
             "description": "Check local git status (uncommitted changes).",
             "parameters": {"type": "object", "properties": {}},
@@ -546,6 +560,16 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
             return "\n".join([f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})" for i in issues]) if issues else "No issues found."
         elif function_name == "create_github_pr":
             return github_service.pr_create(repo=args.get("repo"), title=args.get("title"), body=args.get("body"), head=args.get("head"), base=args.get("base", "main"))
+        elif function_name == "list_github_repos":
+            repos = github_service.list_repos(owner=args.get("owner", ""), limit=args.get("limit", 30))
+            if not repos:
+                return "No repositories found."
+            lines = []
+            for r in repos:
+                desc = f" — {r.description}" if r.description else ""
+                stars = f" ⭐{r.stargazers_count}" if r.stargazers_count else ""
+                lines.append(f"• {r.full_name}{desc}{stars}")
+            return f"Found {len(repos)} repositories:\n" + "\n".join(lines)
         elif function_name == "git_status":
             return github_service.git_status() or "Working tree clean."
         elif function_name == "git_add":

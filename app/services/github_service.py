@@ -183,6 +183,20 @@ class GitHubService:
             return url
         raise GitHubServiceError(f"Unexpected output from PR creation: {url}")
 
+    def list_repos(self, owner: str = "", limit: int = 30) -> List[GitHubRepo]:
+        """List repositories for the authenticated user or a specified owner."""
+        args = ["repo", "list"]
+        if owner:
+            args.append(owner)
+        args.extend(["--limit", str(limit), "--json", "nameWithOwner,description,url,stargazerCount"])
+        result = self._run_gh_command(args)
+
+        try:
+            data = json.loads(result.stdout)
+            return [GitHubRepo(**repo) for repo in data]
+        except (json.JSONDecodeError, AttributeError, KeyError) as e:
+            raise GitHubServiceError(f"Failed to parse repos list: {str(e)}")
+
     def get_repo_info(self, repo: str) -> GitHubRepo:
         """Get repository information."""
         args = ["repo", "view", repo, "--json", "nameWithOwner,description,url,stargazerCount"]
