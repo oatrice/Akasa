@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/oatrice/Akasa/compare/v0.17.0...v0.18.0) (2026-03-17)
+
+
+### Features
+
+* Telegram MarkdownV2 robust handling & GitHub repo list tool ([#72](https://github.com/oatrice/Akasa/issues/72)) ([389f97f](https://github.com/oatrice/Akasa/commit/389f97f072c9b0261b2e0c344075d49bce18b578))
+
 ## [0.19.0] - 2026-03-17
 
 ### Added
