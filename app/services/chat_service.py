@@ -788,16 +788,16 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
     status_text = ""
     if decision == "allow":
         state.status = "allowed"
-        status_text = "✅ *Allowed*"
+        status_text = "✅ Allowed"
     elif decision == "session":
         state.status = "allowed"
-        status_text = "🛡️ *Allowed for Session*"
+        status_text = "🛡️ Allowed for Session"
         # บันทึกสิทธิ์ session (1 ชม.)
         if state.session_id:
             await redis_service.set_session_permission(state.session_id)
     elif decision == "deny":
         state.status = "denied"
-        status_text = "❌ *Denied*"
+        status_text = "❌ Denied"
 
     # 3. บันทึกกลับลง Redis
     await redis_service.set_action_request(request_id, state)
@@ -806,9 +806,29 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
     if callback.message:
         chat_id = callback.message.chat.id
         msg_id = callback.message.message_id
-        original_text = callback.message.text or ""
-        
-        new_text = f"{original_text}\n\n{status_text} by {user_name}"
+
+        # IMPORTANT:
+        # - callback.message.text may contain unescaped characters (or already-escaped text).
+        # - To avoid MarkdownV2 parse failures, rebuild the message from the stored state
+        #   and escape only dynamic content.
+        safe_cwd = escape_markdown_v2_content(state.cwd)
+        safe_command = escape_markdown_v2_content(state.command)
+        safe_user = escape_markdown_v2_content(user_name)
+        safe_status = escape_markdown_v2_content(status_text)
+
+        lines = [
+            "🤖 *Action Confirmation*",
+            "",
+            f"📂 `{safe_cwd}`",
+            f"💻 `{safe_command}`",
+        ]
+        if state.description:
+            safe_desc = escape_markdown_v2_content(state.description)
+            lines += ["", f"📝 {safe_desc}"]
+
+        lines += ["", f"{safe_status} by {safe_user}"]
+        new_text = "\n".join(lines)
+
         await tg_service.edit_message_text(
             chat_id=chat_id,
             message_id=msg_id,

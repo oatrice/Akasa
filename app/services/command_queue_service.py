@@ -265,8 +265,6 @@ async def enqueue_command(
         queue_key = _queue_key(tool)
         logger.info(f"[ENQUEUE] Pushing to queue key: {queue_key}")
         await redis_pool.rpush(queue_key, payload_json)
-        await redis_pool.expire(queue_key, ttl)
-        logger.info(f"[ENQUEUE] Set TTL {ttl}s on queue key: {queue_key}")
 
         # 2. Set the TTL meta key so the daemon can verify freshness
         meta_key = _meta_key(command_id)
@@ -275,9 +273,8 @@ async def enqueue_command(
         logger.info(f"[ENQUEUE] Set TTL {ttl}s on meta key: {meta_key}")
         
         # Debug: Verify TTL was set correctly
-        actual_queue_ttl = await redis_pool.ttl(queue_key)
         actual_meta_ttl = await redis_pool.ttl(meta_key)
-        logger.info(f"[ENQUEUE] Verified TTLs - Queue: {actual_queue_ttl}s, Meta: {actual_meta_ttl}s")
+        logger.info(f"[ENQUEUE] Verified TTL - Meta: {actual_meta_ttl}s")
 
         # 3. Persist initial status in a Redis Hash (TTL = command TTL + 5 min buffer)
         status_data = {
