@@ -25,6 +25,7 @@
 | [#8](https://github.com/oatrice/Akasa/issues/8) | System prompt สำหรับ coding assistant | ✅ Complete |
 | [#13](https://github.com/oatrice/Akasa/issues/13) | Multi-model selection | ✅ Complete |
 | [#53](https://github.com/oatrice/Akasa/issues/53) | Clear Error Messaging for OpenRouter Credits | ✅ Complete |
+| [#71](https://github.com/oatrice/Akasa/issues/71) | Telegram MarkdownV2 Escape/Fallback + list_github_repos + System Prompt Fix | ✅ Complete |
 | [#9](https://github.com/oatrice/Akasa/issues/9) | เพิ่ม LINE Bot | 🔲 Todo |
 | [#10](https://github.com/oatrice/Akasa/issues/10) | Rate limiting + error handling | 🔲 Todo |
 
@@ -85,9 +86,9 @@
 | Phase | Done | Todo | Total |
 |---|---|---|---|
 | Phase 1 — Foundation | 4 | 1 | 5 |
-| Phase 2 — Chat Experience | 5 | 2 | 7 |
+| Phase 2 — Chat Experience | 6 | 2 | 8 |
 | Phase 3 — Remote Dev Core | 4 | 0 | 4 |
-| Phase 4 — Orchestration & Build | 8 | 1 | 9 |
+| Phase 4 — Orchestration & Build | 8 | 0 | 8 |
 | Phase 5 — Mobile Visual | 0 | 2 | 2 |
 | Phase 6 — Scale & Cross-Platform | 0 | 7 | 7 |
-| **Total** | **21** | **13** | **34** |
+| **Total** | **22** | **12** | **34** |

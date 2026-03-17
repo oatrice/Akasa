@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.19.0] - 2026-03-17
+
+### Added
+- **Message Chunking System**: เพิ่มระบบแบ่งข้อความอัตโนมัติ (Chunking) เพื่อรองรับข้อจำกัด 4,096 ตัวอักษรของ Telegram โดยยังคงรูปแบบ Markdown ไว้ได้อย่างถูกต้อง
+- **GitHub Repos Tool**: เพิ่มเครื่องมือ `list_github_repos` สำหรับเรียกดูรายชื่อ Repository ใน GitHub ได้โดยตรงผ่าน Chat
+- **Topic Restriction**: เพิ่มระบบจำกัดขอบเขตการสนทนาให้เน้นเฉพาะเรื่อง Coding และ DevOps พร้อมข้อความตอบปฏิเสธภาษาไทยที่เป็นมิตร
+- **Source Display Normalization**: ปรับปรุงการแสดงผลที่มาของโค้ด (Source) ในการแจ้งเตือนให้เป็นมาตรฐานเดียวกัน
+- **Manual Verification Command**: เพิ่มคำสั่ง `/testsource` สำหรับตรวจสอบการแสดงผล Source Code ด้วยตนเอง
+
+### Changed
+- **Expanded AI Scope**: ขยายขอบเขตความสามารถของ AI Assistant ให้ครอบคลุมด้าน DevOps และ Workflows มากขึ้น
+- **Improved Message Formatting**: ปรับปรุงการจัดรูปแบบข้อความและระบบการตรวจสอบ (Testing) สำหรับ Telegram ให้เสถียรยิ่งขึ้น
+
+### Fixed
+- **MarkdownV2 Robustness**: แก้ไขปัญหาการ Escape ตัวอักษรพิเศษที่ซ้ำซ้อน และเพิ่มระบบ Fallback เป็น Plain Text หากเกิดข้อผิดพลาดในการ Parse Markdown
+- **Chat ID Validation**: เพิ่มการตรวจสอบความพร้อมใช้งานของ `chat_id` ก่อนส่งการแจ้งเตือนเพื่อป้องกัน Error
+- **Telegram Parse Mode**: ปรับปรุงการจัดการ `parse_mode` โดยใช้ `None` แทนสตริงว่างเพื่อความถูกต้องตาม API Specification
+- **Double-Escaping Fix**: แก้ไขการ Escape ตัวอักษรซ้ำซ้อนในบล็อกโค้ดของ MarkdownV2
+
+## [0.19.0] - 2026-03-17
+
+### Added
+- **Message Chunking System**: เพิ่มระบบแบ่งข้อความอัตโนมัติ (Chunking) เพื่อรองรับข้อจำกัด 4,096 ตัวอักษรของ Telegram โดยยังคงรูปแบบ Markdown ไว้ได้อย่างถูกต้อง
+- **GitHub Repos Tool**: เพิ่มเครื่องมือ `list_github_repos` สำหรับเรียกดูรายชื่อ Repository ใน GitHub ได้โดยตรงผ่าน Chat
+- **Topic Restriction**: เพิ่มระบบจำกัดขอบเขตการสนทนาให้เน้นเฉพาะเรื่อง Coding และ DevOps พร้อมข้อความตอบปฏิเสธภาษาไทยที่เป็นมิตร
+- **Source Display Normalization**: ปรับปรุงการแสดงผลที่มาของโค้ด (Source) ในการแจ้งเตือนให้เป็นมาตรฐานเดียวกัน
+- **Manual Verification Command**: เพิ่มคำสั่ง `/testsource` สำหรับตรวจสอบการแสดงผล Source Code ด้วยตนเอง
+
+### Changed
+- **Expanded AI Scope**: ขยายขอบเขตความสามารถของ AI Assistant ให้ครอบคลุมด้าน DevOps และ Workflows มากขึ้น
+- **Improved Message Formatting**: ปรับปรุงการจัดรูปแบบข้อความและระบบการตรวจสอบ (Testing) สำหรับ Telegram ให้เสถียรยิ่งขึ้น
+
+### Fixed
+- **MarkdownV2 Robustness**: แก้ไขปัญหาการ Escape ตัวอักษรพิเศษที่ซ้ำซ้อน และเพิ่มระบบ Fallback เป็น Plain Text หากเกิดข้อผิดพลาดในการ Parse Markdown
+- **Chat ID Validation**: เพิ่มการตรวจสอบความพร้อมใช้งานของ `chat_id` ก่อนส่งการแจ้งเตือนเพื่อป้องกัน Error
+- **Telegram Parse Mode**: ปรับปรุงการจัดการ `parse_mode` โดยใช้ `None` แทนสตริงว่างเพื่อความถูกต้องตาม API Specification
+- **Double-Escaping Fix**: แก้ไขการ Escape ตัวอักษรซ้ำซ้อนในบล็อกโค้ดของ MarkdownV2
+
 ## [0.17.0](https://github.com/oatrice/Akasa/compare/v0.16.0...v0.17.0) (2026-03-16)
 
 

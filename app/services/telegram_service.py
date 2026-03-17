@@ -7,6 +7,7 @@ from app.config import settings
 from app.exceptions import BotBlockedException, UserChatIdNotFoundException
 from app.services import redis_service
 from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
+from app.utils.source_display import normalize_source_display
 
 if TYPE_CHECKING:
     from app.models.deployment import DeploymentRecord
@@ -23,7 +24,7 @@ class TelegramService:
         self.client = httpx.AsyncClient()
 
     async def send_message(
-        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: str = "MarkdownV2"
+        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: Optional[str] = "MarkdownV2"
     ) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
@@ -31,15 +32,21 @@ class TelegramService:
         payload = {
             "chat_id": chat_id,
             "text": text,
-            "parse_mode": parse_mode,
         }
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+            
         if reply_markup:
             payload["reply_markup"] = reply_markup
 
-        response = await self.client.post(
-            f"{self.api_url}/sendMessage", json=payload, timeout=10.0
-        )
-        response.raise_for_status()
+        try:
+            response = await self.client.post(
+                f"{self.api_url}/sendMessage", json=payload, timeout=10.0
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Telegram API Error: {e.response.text}")
+            raise
 
     async def send_confirmation_message(self, chat_id: int, text: str, request_id: str):
         """
@@ -60,7 +67,13 @@ class TelegramService:
                 ]
             ]
         }
-        await self.send_message(chat_id=chat_id, text=escape_markdown_v2(text), reply_markup=reply_markup)
+        # `text` may be user-supplied / externally formatted. Use the "content" escaper
+        # so characters like * and _ don't break MarkdownV2 parsing.
+        await self.send_message(
+            chat_id=chat_id,
+            text=escape_markdown_v2_content(text),
+            reply_markup=reply_markup,
+        )
 
     async def edit_message_text(
         self,
@@ -175,7 +188,8 @@ class TelegramService:
             lines.append(f"*Duration:* {safe_duration}")
 
         if request.source:
-            safe_source = escape_markdown_v2_content(request.source)
+            normalized_source = normalize_source_display(request.source)
+            safe_source = escape_markdown_v2_content(normalized_source or request.source)
             lines.append(f"*Source:* {safe_source}")
 
         if request.message:

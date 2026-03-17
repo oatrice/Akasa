@@ -234,9 +234,9 @@ async def test_send_response_fallback_to_plain_text_on_400(mock_llm, mock_telegr
     
     # send_message ต้องถูกเรียก 2 ครั้ง (MarkdownV2 fail → plain text success)
     assert mock_telegram.send_message.call_count == 2
-    # ครั้งที่สอง ต้องส่งด้วย parse_mode="" (plain text)
+    # ครั้งที่สอง ต้องส่งด้วย parse_mode=None (plain text)
     second_call = mock_telegram.send_message.call_args_list[1]
-    assert second_call.kwargs.get("parse_mode") == "" or (len(second_call.args) >= 3 and second_call.args[2] == "")
+    assert second_call.kwargs.get("parse_mode") is None or (len(second_call.args) >= 3 and second_call.args[2] is None)
 
 
 @pytest.mark.asyncio
@@ -248,6 +248,33 @@ async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, 
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_send_response_chunks_long_messages(mock_llm, mock_telegram, mock_redis, mock_update):
+    """🟥 RED → 🟢 GREEN: ข้อความที่ยาวเกิน 4000 ตัวอักษร ต้องถูกแบ่งออกเป็นหลายๆ ข้อความ"""
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    
+    # สร้างข้อความยาว 9000 ตัวอักษร
+    long_reply = "A" * 9000
+    mock_llm.get_llm_reply = AsyncMock(return_value=long_reply)
+    mock_telegram.send_message = AsyncMock(return_value=None)
+
+    await handle_chat_message(mock_update)
+    
+    # ความยาว 9000 ตัวอักษร ถูกแบ่งเป็น 4000, 4000, 1000 -> ส่ง 3 ครั้ง (ไม่รวม Local Dev Info)
+    # แต่เนื่องจากอาจมี Local Dev Info ต่อท้าย ทำให้ความยาวเพิ่มขึ้น เราจึง assert ว่าส่งมากกว่า 1 ครั้งก็พอ
+    assert mock_telegram.send_message.call_count >= 3
+    # ตรวจสอบว่าไม่ควรมีข้อความไหนที่ความยาวเกิน 4096 (Telegram Limit)
+    for call in mock_telegram.send_message.call_args_list:
+        text_sent = call.args[1] if len(call.args) > 1 else call.kwargs.get("text", "")
+        assert len(text_sent) <= 4096
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
     mock_telegram.send_message = AsyncMock()
@@ -255,6 +282,59 @@ async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, 
     await handle_chat_message(mock_update)
     mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
     mock_redis.add_message_to_history.assert_not_called()
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_testsource_command_sends_task_notification(mock_telegram, mock_redis):
+    """พิมพ์ /testsource <source> ใน Telegram → ต้องส่ง task notification ทันที"""
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_telegram.send_task_notification = AsyncMock(return_value=None)
+
+    update = Update(
+        update_id=999,
+        message=Message(
+            message_id=999,
+            date=1612345678,
+            chat=Chat(id=777, type="private"),
+            text="/testsource Cursor",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_task_notification.assert_called_once()
+    call_kwargs = mock_telegram.send_task_notification.call_args.kwargs
+    assert call_kwargs["chat_id"] == 777
+    req = call_kwargs["request"]
+    assert req.project == "akasa"
+    assert req.status == "success"
+    assert req.source == "Cursor"
+    assert req.chat_id == "777"
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_testsource_command_usage_when_missing_arg(mock_telegram, mock_redis):
+    """/testsource ไม่มี arg → ส่ง usage กลับไป"""
+    mock_telegram.send_message = AsyncMock(return_value=None)
+
+    update = Update(
+        update_id=1000,
+        message=Message(
+            message_id=1000,
+            date=1612345678,
+            chat=Chat(id=777, type="private"),
+            text="/testsource",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_message.assert_called_once()
+    sent = mock_telegram.send_message.call_args[0][1]
+    assert "Usage" in sent or "usage" in sent
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")

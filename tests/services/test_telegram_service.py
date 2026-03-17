@@ -190,7 +190,7 @@ async def test_send_task_notification_success(monkeypatch):
         assert "Akasa" in text
         assert "Refactor Redis Service" in text
         assert "5m 20s" in text
-        assert "Gemini CLI" in text
+        assert "Gemini" in text
 
 
 @pytest.mark.asyncio

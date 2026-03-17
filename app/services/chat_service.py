@@ -10,11 +10,12 @@ from app.models.agent_state import AgentState
 from app.services import redis_service
 from app.services.telegram_service import tg_service
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
-from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
+from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content, split_markdown_message
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
 from app.services import command_queue_service
 from app.models.command import CommandQueueRequest
+from app.models.notification import TaskNotificationRequest
 import httpx
 import logging
 import os
@@ -157,6 +158,20 @@ GITHUB_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "list_github_repos",
+            "description": "Lists GitHub repositories for the authenticated user. Use this when the user asks about their projects, repositories, or active repos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "owner": {"type": "string", "description": "GitHub username or organization (optional, defaults to authenticated user)."},
+                    "limit": {"type": "integer", "description": "Max number of repos to return (default: 30)."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "git_status",
             "description": "Check local git status (uncommitted changes).",
             "parameters": {"type": "object", "properties": {}},
@@ -248,23 +263,28 @@ async def _send_response(chat_id: int, text: str) -> None:
         build_info = get_build_info()
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
     
-    # Escape MarkdownV2 special characters before sending
-    escaped_text = escape_markdown_v2(final_text)
+    # Chunk the text to fit Telegram's 4096 character limit
+    # Safe chunk size of 4000 characters, using smart markdown chunking
+    chunks = split_markdown_message(final_text, max_length=4000)
     
-    try:
-        await tg_service.send_message(chat_id, escaped_text)
-    except httpx.HTTPStatusError as e:
-        if e.response is not None and e.response.status_code == 400:
-            logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
-            try:
-                await tg_service.send_message(chat_id, final_text, parse_mode="")
-            except Exception as fallback_err:
-                logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
-        else:
-            logger.error(f"HTTP error sending to Telegram for {chat_id}: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
-        logger.debug(f"Failed message content: {final_text[:200]}...")
+    for chunk in chunks:
+        # Escape MarkdownV2 special characters before sending
+        escaped_text = escape_markdown_v2(chunk)
+        
+        try:
+            await tg_service.send_message(chat_id, escaped_text)
+        except httpx.HTTPStatusError as e:
+            if e.response is not None and e.response.status_code == 400:
+                logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
+                try:
+                    await tg_service.send_message(chat_id, chunk, parse_mode=None)
+                except Exception as fallback_err:
+                    logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
+            else:
+                logger.error(f"HTTP error sending to Telegram for {chat_id}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error sending to Telegram for {chat_id}: {e}")
+            logger.debug(f"Failed message content: {chunk[:200]}...")
 
 
 async def _send_escaped_response(chat_id: int, text: str) -> None:
@@ -340,8 +360,46 @@ async def _handle_command(message: "Message") -> None:
         await _handle_github_command(chat_id, args)
     elif cmd == "/queue":
         await _handle_queue_command(message, args)
+    elif cmd == "/testsource":
+        await _handle_testsource_command(chat_id, args)
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
+
+async def _handle_testsource_command(chat_id: int, args: list[str]) -> None:
+    """
+    Developer utility: trigger a Task Notification directly from Telegram to
+    verify source mapping / formatting without calling the HTTP API.
+    """
+    if not args:
+        await _send_response(
+            chat_id,
+            "🧪 Usage: `/testsource <source>`\nExamples:\n"
+            "• `/testsource Cursor`\n"
+            "• `/testsource Windsurf`\n"
+            "• `/testsource Codex`\n"
+            "• `/testsource Antigravity`\n"
+            "• `/testsource Luma`",
+        )
+        return
+
+    source = " ".join(args).strip()
+    project = None
+    try:
+        project = await redis_service.get_current_project(chat_id)
+    except Exception:
+        project = "General"
+
+    req = TaskNotificationRequest(
+        project=project or "General",
+        task="Manual verify source mapping",
+        status="success",
+        source=source,
+        chat_id=str(chat_id),
+    )
+
+    # send_task_notification() builds a pre-escaped MarkdownV2 payload; call it
+    # directly to avoid double escaping via _send_response().
+    await tg_service.send_task_notification(chat_id=chat_id, request=req)
 
 
 async def _handle_queue_command(message: "Message", args: list[str]) -> None:
@@ -546,6 +604,16 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
             return "\n".join([f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})" for i in issues]) if issues else "No issues found."
         elif function_name == "create_github_pr":
             return github_service.pr_create(repo=args.get("repo"), title=args.get("title"), body=args.get("body"), head=args.get("head"), base=args.get("base", "main"))
+        elif function_name == "list_github_repos":
+            repos = github_service.list_repos(owner=args.get("owner", ""), limit=args.get("limit", 30))
+            if not repos:
+                return "No repositories found."
+            lines = []
+            for r in repos:
+                desc = f" — {r.description}" if r.description else ""
+                stars = f" ⭐{r.stargazers_count}" if r.stargazers_count else ""
+                lines.append(f"• {r.full_name}{desc}{stars}")
+            return f"Found {len(repos)} repositories:\n" + "\n".join(lines)
         elif function_name == "git_status":
             return github_service.git_status() or "Working tree clean."
         elif function_name == "git_add":
@@ -720,16 +788,16 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
     status_text = ""
     if decision == "allow":
         state.status = "allowed"
-        status_text = "✅ *Allowed*"
+        status_text = "✅ Allowed"
     elif decision == "session":
         state.status = "allowed"
-        status_text = "🛡️ *Allowed for Session*"
+        status_text = "🛡️ Allowed for Session"
         # บันทึกสิทธิ์ session (1 ชม.)
         if state.session_id:
             await redis_service.set_session_permission(state.session_id)
     elif decision == "deny":
         state.status = "denied"
-        status_text = "❌ *Denied*"
+        status_text = "❌ Denied"
 
     # 3. บันทึกกลับลง Redis
     await redis_service.set_action_request(request_id, state)
@@ -738,9 +806,29 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
     if callback.message:
         chat_id = callback.message.chat.id
         msg_id = callback.message.message_id
-        original_text = callback.message.text or ""
-        
-        new_text = f"{original_text}\n\n{status_text} by {user_name}"
+
+        # IMPORTANT:
+        # - callback.message.text may contain unescaped characters (or already-escaped text).
+        # - To avoid MarkdownV2 parse failures, rebuild the message from the stored state
+        #   and escape only dynamic content.
+        safe_cwd = escape_markdown_v2_content(state.cwd)
+        safe_command = escape_markdown_v2_content(state.command)
+        safe_user = escape_markdown_v2_content(user_name)
+        safe_status = escape_markdown_v2_content(status_text)
+
+        lines = [
+            "🤖 *Action Confirmation*",
+            "",
+            f"📂 `{safe_cwd}`",
+            f"💻 `{safe_command}`",
+        ]
+        if state.description:
+            safe_desc = escape_markdown_v2_content(state.description)
+            lines += ["", f"📝 {safe_desc}"]
+
+        lines += ["", f"{safe_status} by {safe_user}"]
+        new_text = "\n".join(lines)
+
         await tg_service.edit_message_text(
             chat_id=chat_id,
             message_id=msg_id,
