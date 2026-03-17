@@ -7,6 +7,7 @@ from app.config import settings
 from app.exceptions import BotBlockedException, UserChatIdNotFoundException
 from app.services import redis_service
 from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
+from app.utils.source_display import normalize_source_display
 
 if TYPE_CHECKING:
     from app.models.deployment import DeploymentRecord
@@ -181,7 +182,8 @@ class TelegramService:
             lines.append(f"*Duration:* {safe_duration}")
 
         if request.source:
-            safe_source = escape_markdown_v2_content(request.source)
+            normalized_source = normalize_source_display(request.source)
+            safe_source = escape_markdown_v2_content(normalized_source or request.source)
             lines.append(f"*Source:* {safe_source}")
 
         if request.message:
