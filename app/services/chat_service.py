@@ -15,6 +15,7 @@ from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_cont
 from app.services import llm_service
 from app.services import command_queue_service
 from app.models.command import CommandQueueRequest
+from app.models.notification import TaskNotificationRequest
 import httpx
 import logging
 import os
@@ -359,8 +360,46 @@ async def _handle_command(message: "Message") -> None:
         await _handle_github_command(chat_id, args)
     elif cmd == "/queue":
         await _handle_queue_command(message, args)
+    elif cmd == "/testsource":
+        await _handle_testsource_command(chat_id, args)
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
+
+async def _handle_testsource_command(chat_id: int, args: list[str]) -> None:
+    """
+    Developer utility: trigger a Task Notification directly from Telegram to
+    verify source mapping / formatting without calling the HTTP API.
+    """
+    if not args:
+        await _send_response(
+            chat_id,
+            "🧪 Usage: `/testsource <source>`\nExamples:\n"
+            "• `/testsource Cursor`\n"
+            "• `/testsource Windsurf`\n"
+            "• `/testsource Codex`\n"
+            "• `/testsource Antigravity`\n"
+            "• `/testsource Luma`",
+        )
+        return
+
+    source = " ".join(args).strip()
+    project = None
+    try:
+        project = await redis_service.get_current_project(chat_id)
+    except Exception:
+        project = "General"
+
+    req = TaskNotificationRequest(
+        project=project or "General",
+        task="Manual verify source mapping",
+        status="success",
+        source=source,
+        chat_id=str(chat_id),
+    )
+
+    # send_task_notification() builds a pre-escaped MarkdownV2 payload; call it
+    # directly to avoid double escaping via _send_response().
+    await tg_service.send_task_notification(chat_id=chat_id, request=req)
 
 
 async def _handle_queue_command(message: "Message", args: list[str]) -> None:
