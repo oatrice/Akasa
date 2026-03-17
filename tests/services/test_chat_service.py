@@ -286,6 +286,59 @@ async def test_send_response_chunks_long_messages(mock_llm, mock_telegram, mock_
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
+async def test_testsource_command_sends_task_notification(mock_telegram, mock_redis):
+    """พิมพ์ /testsource <source> ใน Telegram → ต้องส่ง task notification ทันที"""
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_telegram.send_task_notification = AsyncMock(return_value=None)
+
+    update = Update(
+        update_id=999,
+        message=Message(
+            message_id=999,
+            date=1612345678,
+            chat=Chat(id=777, type="private"),
+            text="/testsource Cursor",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_task_notification.assert_called_once()
+    call_kwargs = mock_telegram.send_task_notification.call_args.kwargs
+    assert call_kwargs["chat_id"] == 777
+    req = call_kwargs["request"]
+    assert req.project == "akasa"
+    assert req.status == "success"
+    assert req.source == "Cursor"
+    assert req.chat_id == "777"
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_testsource_command_usage_when_missing_arg(mock_telegram, mock_redis):
+    """/testsource ไม่มี arg → ส่ง usage กลับไป"""
+    mock_telegram.send_message = AsyncMock(return_value=None)
+
+    update = Update(
+        update_id=1000,
+        message=Message(
+            message_id=1000,
+            date=1612345678,
+            chat=Chat(id=777, type="private"),
+            text="/testsource",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_message.assert_called_once()
+    sent = mock_telegram.send_message.call_args[0][1]
+    assert "Usage" in sent or "usage" in sent
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, mock_redis, mock_update):
     """ถ้า LLM ตอบกลับมาผิดฟอร์ม (ValueError/KeyError) → จะส่งข้อความแจ้งเตือน"""

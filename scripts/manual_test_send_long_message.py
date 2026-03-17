@@ -1,8 +1,11 @@
 import asyncio
-from app.services.telegram_service import tg_service
 import logging
 
+from app.services.telegram_service import tg_service
+
+
 logging.basicConfig(level=logging.ERROR)
+
 
 async def main():
     chat_id = "6346467495"
@@ -12,5 +15,7 @@ async def main():
     except Exception as e:
         print(f"Exception: {e}")
 
+
 if __name__ == "__main__":
     asyncio.run(main())
+
