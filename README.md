@@ -15,14 +15,15 @@
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy **แบบ Asynchronous**, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
 - 🔄 **Bidirectional Control** — สั่งงาน Local Tools (Command Queue) และรับผลลัพธ์กลับในแชท
 - 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
-- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running, AI Agent Timeout, Review Ready, หรือสถานะ Deploy แบบ Asynchronous สู่มือถือทันที
+- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running, AI Agent Timeout, Review Ready, หรือสถานะ Deploy แบบ Asynchronous พร้อมแสดงแหล่งที่มา (Source) ที่ชัดเจน
+- 🛡️ **Topic Restriction** — ระบบตรวจสอบและจำกัดหัวข้อการสนทนาให้เน้นเรื่องการเขียนโค้ดและเทคนิคเท่านั้น
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project` พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
 - 📝 **Task Notes** — บันทึก Task ที่กำลังทำอยู่สำหรับโปรเจ็กต์ปัจจุบันด้วยคำสั่ง `/note <your task description>` เพื่อให้บอทจำบริบทได้แม่นยำขึ้น
 - 🔌 **Multi-LLM** — สลับโมเดล AI ได้ผ่านคำสั่ง `/model` (GPT-4o, Claude 3, Gemini, etc.)
 - 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl และรองรับ MCP (Model Context Protocol)
-- 📱 **Mobile-First UX** — ตอบสั้น กระชับ เหมาะกับหน้าจอมือถือ
+- 📱 **Mobile-First UX** — ตอบสั้น กระชับ เหมาะกับหน้าจอมือถือ พร้อมระบบ Markdown-aware chunking สำหรับข้อความยาว (>4096 ตัวอักษร)
 
 ---
 
@@ -86,9 +87,11 @@ akasa/
 │       ├── timeout_watcher_service.py # AI Agent timeout observer
 │       └── redis_service.py    # Conversation history management
 │   └── utils/                # Utility functions
-│       └── markdown_utils.py
+│       ├── markdown_utils.py
+│       └── source_display.py
 ├── scripts/
 │   ├── akasa_mcp_server.py  # MCP Server for IDE integration
+│   ├── local_tool_daemon.py # Daemon for local command queue execution
 │   └── setup_local_bot.sh   # Local dev setup script
 ├── tests/
 │   ├── integration/          # Integration tests
@@ -209,7 +212,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### Phase 2: Memory & Multi-Platform
 - [x] Conversation history (Redis)
 - [x] Project-Specific Memory (via `/note` command)
-- [x] Code formatting ใน chat
+- [x] Code formatting & Message chunking ใน chat
 - [x] System prompt สำหรับ coding assistant
 - [ ] เพิ่ม LINE Bot
 - [ ] Rate limiting + error handling
