@@ -7,7 +7,8 @@ from app.services.telegram_service import tg_service
 async def test_send_confirmation_message_with_keyboard():
     """ทดสอบว่า TelegramService ส่งข้อความพร้อม Inline Keyboard ได้ถูกต้อง"""
     chat_id = 12345
-    message = "Action Required: Execute rm -rf /tmp"
+    # Include MarkdownV2 formatting characters that must be escaped for untrusted content.
+    message = "Action Required: Execute rm -rf /tmp (demo) _underscore_ *asterisk*"
     request_id = "req-789"
     
     with respx.mock:
@@ -30,6 +31,9 @@ async def test_send_confirmation_message_with_keyboard():
         
         assert payload["chat_id"] == chat_id
         assert "reply_markup" in payload
+        # send_confirmation_message must escape untrusted content so MarkdownV2 doesn't break
+        from app.utils.markdown_utils import escape_markdown_v2_content
+        assert payload["text"] == escape_markdown_v2_content(message)
         
         reply_markup = payload["reply_markup"]
         assert "inline_keyboard" in reply_markup

@@ -67,7 +67,13 @@ class TelegramService:
                 ]
             ]
         }
-        await self.send_message(chat_id=chat_id, text=escape_markdown_v2(text), reply_markup=reply_markup)
+        # `text` may be user-supplied / externally formatted. Use the "content" escaper
+        # so characters like * and _ don't break MarkdownV2 parsing.
+        await self.send_message(
+            chat_id=chat_id,
+            text=escape_markdown_v2_content(text),
+            reply_markup=reply_markup,
+        )
 
     async def edit_message_text(
         self,
