@@ -1,7 +1,7 @@
 # 🔮 Next Steps — Akasa Project Planning
 
-**Last Updated:** 2026-03-14
-**Session:** Issue #33/#34 implementation + code review fixes + CI stabilization
+**Last Updated:** 2026-03-18
+**Session:** ROADMAP sync — added #25, #68
 
 ---
 
@@ -10,12 +10,12 @@
 | Phase | Done | Todo | Total | % |
 |---|---|---|---|---|
 | Phase 1 — Foundation | 4 | 1 | 5 | 80% |
-| Phase 2 — Chat Experience | 5 | 2 | 7 | 71% |
+| Phase 2 — Chat Experience | 7 | 2 | 9 | 78% |
 | Phase 3 — Remote Dev Core | 4 | 0 | 4 | 100% ✅ |
-| Phase 4 — Orchestration & Build | 7 | 0 | 7 | 100% ✅ |
+| Phase 4 — Orchestration & Build | 8 | 1 | 9 | 89% |
 | Phase 5 — Mobile Visual | 0 | 2 | 2 | 0% |
 | Phase 6 — Scale & Cross-Platform | 0 | 7 | 7 | 0% |
-| **Total** | **20** | **12** | **32** | **63%** |
+| **Total** | **23** | **13** | **36** | **64%** |
 
 **Key milestone:** Phases 3 and 4 are fully complete — the entire async deployment + notification pipeline is operational.
 
