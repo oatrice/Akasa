@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import uuid
+import copy
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -42,6 +43,55 @@ _WHITELIST_PATH = os.path.join(_PROJECT_ROOT, "config", "command_whitelist.yaml"
 
 # In-memory cache so we only read the YAML once per process lifetime
 _whitelist_cache: Optional[Dict[str, List[str]]] = None
+_whitelist_raw_cache: Optional[Dict[str, Dict[str, Any]]] = None
+
+
+def _load_whitelist_raw() -> Dict[str, Dict[str, Any]]:
+    """
+    Load the raw whitelist structure from YAML.
+
+    Returns:
+        {
+            "tool_name": {
+                ...raw tool config...
+            }
+        }
+    """
+    global _whitelist_raw_cache
+    if _whitelist_raw_cache is not None:
+        return _whitelist_raw_cache
+
+    if not os.path.exists(_WHITELIST_PATH):
+        logger.warning(
+            f"Command whitelist file not found at {_WHITELIST_PATH}. "
+            "All commands will be rejected."
+        )
+        _whitelist_raw_cache = {}
+        return _whitelist_raw_cache
+
+    try:
+        with open(_WHITELIST_PATH, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+
+        tools_section = data.get("tools", {})
+        if not isinstance(tools_section, dict):
+            logger.error("Malformed whitelist: top-level 'tools' is not a mapping")
+            _whitelist_raw_cache = {}
+            return _whitelist_raw_cache
+
+        tools: Dict[str, Dict[str, Any]] = {}
+        for tool_name, tool_cfg in tools_section.items():
+            if not isinstance(tool_name, str):
+                continue
+            tools[tool_name.lower()] = tool_cfg if isinstance(tool_cfg, dict) else {}
+
+        _whitelist_raw_cache = tools
+        return _whitelist_raw_cache
+
+    except Exception as exc:
+        logger.error(f"Failed to load command whitelist: {exc}", exc_info=True)
+        _whitelist_raw_cache = {}
+        return _whitelist_raw_cache
 
 
 def _load_whitelist() -> Dict[str, List[str]]:
@@ -58,20 +108,10 @@ def _load_whitelist() -> Dict[str, List[str]]:
     if _whitelist_cache is not None:
         return _whitelist_cache
 
-    if not os.path.exists(_WHITELIST_PATH):
-        logger.warning(
-            f"Command whitelist file not found at {_WHITELIST_PATH}. "
-            "All commands will be rejected."
-        )
-        _whitelist_cache = {}
-        return _whitelist_cache
-
     try:
-        with open(_WHITELIST_PATH, "r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-
+        data = _load_whitelist_raw()
         tools: Dict[str, List[str]] = {}
-        for tool_name, tool_cfg in (data or {}).get("tools", {}).items():
+        for tool_name, tool_cfg in data.items():
             cmds = [
                 entry["name"]
                 for entry in (tool_cfg or {}).get("allowed_commands", [])
@@ -95,7 +135,9 @@ def _load_whitelist() -> Dict[str, List[str]]:
 def reload_whitelist() -> None:
     """Force reload of the whitelist from disk (useful for tests)."""
     global _whitelist_cache
+    global _whitelist_raw_cache
     _whitelist_cache = None
+    _whitelist_raw_cache = None
     _load_whitelist()
 
 
@@ -127,12 +169,52 @@ def is_command_whitelisted(tool: str, command: str) -> bool:
 def get_command_whitelist_entry(tool: str, command: str) -> Optional[dict]:
     """
     Return the whitelist entry for a (tool, command) pair.
-    Returns None if not found. Used by local_tool_daemon for validation.
+    Returns None if not found. Used by local_tool_daemon for validation
+    and execution metadata lookup.
     """
-    allowed = get_allowed_commands(tool.lower())
-    if command in allowed:
-        return {"tool": tool.lower(), "command": command}
+    tool_name = tool.lower()
+    tool_cfg = _load_whitelist_raw().get(tool_name)
+    if not tool_cfg:
+        return None
+
+    defaults = {}
+    defaults_cfg = tool_cfg.get("defaults", {})
+    if isinstance(defaults_cfg, dict):
+        execution_defaults = defaults_cfg.get("execution", {})
+        if isinstance(execution_defaults, dict):
+            defaults = copy.deepcopy(execution_defaults)
+
+    for entry in (tool_cfg.get("allowed_commands", []) or []):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("name") != command:
+            continue
+
+        execution = copy.deepcopy(defaults)
+        entry_execution = entry.get("execution", {})
+        if isinstance(entry_execution, dict):
+            execution = _deep_merge_dict(execution, entry_execution)
+
+        return {
+            "tool": tool_name,
+            "command": command,
+            "description": entry.get("description"),
+            "allowed_args": entry.get("allowed_args", []) or [],
+            "execution": execution,
+        }
+
     return None
+
+
+def _deep_merge_dict(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """Deep-merge dicts with right-hand override semantics."""
+    merged = copy.deepcopy(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge_dict(merged[key], value)
+        else:
+            merged[key] = copy.deepcopy(value)
+    return merged
 
 
 # ---------------------------------------------------------------------------

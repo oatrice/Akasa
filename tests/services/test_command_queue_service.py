@@ -44,6 +44,28 @@ tools:
         allowed_args: [project]
 """
 
+SAMPLE_WHITELIST_WITH_EXECUTION = """
+tools:
+  zed:
+    defaults:
+      execution:
+        type: cli
+        executable: zed
+        include_command_name: false
+        path_arg_keys: [path]
+        allowed_paths: ["/tmp"]
+    allowed_commands:
+      - name: open_file
+        description: "Open file"
+        allowed_args: [path]
+      - name: run_task
+        description: "Run task"
+        allowed_args: [task_name]
+        execution:
+          include_command_name: true
+          path_arg_keys: []
+"""
+
 
 @pytest.fixture(autouse=True)
 def reset_whitelist_cache():
@@ -51,8 +73,10 @@ def reset_whitelist_cache():
     import app.services.command_queue_service as svc
 
     svc._whitelist_cache = None
+    svc._whitelist_raw_cache = None
     yield
     svc._whitelist_cache = None
+    svc._whitelist_raw_cache = None
 
 
 @pytest.fixture
@@ -179,12 +203,37 @@ class TestWhitelistLoading:
         import app.services.command_queue_service as svc
 
         svc._whitelist_cache = {"cached": ["data"]}
+        svc._whitelist_raw_cache = {"cached": {"allowed_commands": []}}
         with patch("builtins.open", mock_open(read_data=SAMPLE_WHITELIST_YAML)):
             with patch("os.path.exists", return_value=True):
                 svc.reload_whitelist()
 
         assert "gemini" in svc._whitelist_cache
         assert "cached" not in svc._whitelist_cache
+
+    def test_get_command_whitelist_entry_merges_execution_defaults(self):
+        """Entry-specific execution should override defaults while inheriting base config."""
+        import app.services.command_queue_service as svc
+
+        with patch(
+            "builtins.open", mock_open(read_data=SAMPLE_WHITELIST_WITH_EXECUTION)
+        ):
+            with patch("os.path.exists", return_value=True):
+                svc._whitelist_cache = None
+                svc._whitelist_raw_cache = None
+
+                open_file = svc.get_command_whitelist_entry("zed", "open_file")
+                run_task = svc.get_command_whitelist_entry("zed", "run_task")
+
+        assert open_file is not None
+        assert open_file["allowed_args"] == ["path"]
+        assert open_file["execution"]["include_command_name"] is False
+        assert open_file["execution"]["path_arg_keys"] == ["path"]
+
+        assert run_task is not None
+        assert run_task["allowed_args"] == ["task_name"]
+        assert run_task["execution"]["include_command_name"] is True
+        assert run_task["execution"]["path_arg_keys"] == []
 
 
 # ---------------------------------------------------------------------------

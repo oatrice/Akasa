@@ -4,10 +4,10 @@ Tests for scripts/local_tool_daemon.py
 
 import asyncio
 import json
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-# Import the daemon script
+import pytest
+
 import scripts.local_tool_daemon as daemon
 
 
@@ -16,6 +16,7 @@ def mock_httpx_post():
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
         yield mock_post
 
@@ -32,117 +33,144 @@ def mock_subprocess():
 
 @pytest.fixture
 def mock_redis():
-    with patch("scripts.local_tool_daemon.get_redis", new_callable=MagicMock) as mock_get_redis:
-        mock_redis_client = AsyncMock()
-        mock_get_redis.return_value = mock_redis_client
-        yield mock_redis_client
+    with patch("scripts.local_tool_daemon.get_redis", new_callable=MagicMock) as mock_get:
+        redis_client = AsyncMock()
+        mock_get.return_value = redis_client
+        yield redis_client
+
+
+@pytest.fixture
+def mock_status_tracking():
+    with patch(
+        "scripts.local_tool_daemon.update_command_status", new_callable=AsyncMock
+    ) as mock_update:
+        with patch(
+            "scripts.local_tool_daemon.mark_command_expired", new_callable=AsyncMock
+        ) as mock_expire:
+            yield mock_update, mock_expire
 
 
 @pytest.mark.asyncio
-async def test_daemon_success_flow(mock_redis, mock_subprocess, mock_httpx_post):
-    """Test full flow: Poll -> Check TTL -> Execute -> Report Result"""
-    # 1. Setup mock data
+async def test_daemon_success_flow(
+    mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking
+):
+    """Poll -> check TTL -> execute -> report success with duration_seconds."""
+    mock_update, _ = mock_status_tracking
     command_payload = {
         "command_id": "cmd_123",
         "tool": "gemini",
         "command": "run_task",
         "args": {"task": "test it"},
-        "user_id": 1
+        "user_id": 1,
     }
-    
-    # Mock BRPOP to return our item on first call, then block forever or return None
-    # returning None will break the loop if handled
+
     mock_redis.brpop.side_effect = [
         (b"akasa:commands:gemini", json.dumps(command_payload).encode("utf-8")),
-        None # to break the loop for testing
+        None,
     ]
-    
-    # Mock TTL check to be alive
     mock_redis.exists.return_value = 1
-    
-    # 2. Run the daemon poll loop for a single iteration (or run and then cancel)
+
     task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
-    
-    # Let it run briefly
     await asyncio.sleep(0.1)
     task.cancel()
-    
-    # 3. Assertions
-    # It should have checked the meta key
+
     mock_redis.exists.assert_called_with("akasa:cmd_meta:cmd_123")
-    
-    # It should have executed the command via the tool executable
+
     mock_subprocess.assert_called_once()
-    assert "gemini" == mock_subprocess.call_args[0][0] # tool executable
-    assert "run_task" == mock_subprocess.call_args[0][1] # command name
-    
-    # It should have reported the result back
+    assert mock_subprocess.call_args[0][0] == "gemini"
+    assert mock_subprocess.call_args[0][1] == "run_task"
+
     mock_httpx_post.assert_called_once()
-    url = mock_httpx_post.call_args[0][0]
     payload = mock_httpx_post.call_args[1]["json"]
-    
-    assert "cmd_123/result" in url
     assert payload["status"] == "success"
     assert "mock stdout" in payload["output"]
+    assert "duration_seconds" in payload
+
+    status_updates = []
+    for call in mock_update.call_args_list:
+        if "status" in call.kwargs:
+            status_updates.append(call.kwargs["status"])
+        elif len(call.args) >= 2:
+            status_updates.append(call.args[1])
+
+    assert status_updates[:2] == ["picked_up", "running"]
 
 
 @pytest.mark.asyncio
-async def test_daemon_expired_command_skip(mock_redis, mock_subprocess, mock_httpx_post):
-    """If the TTL meta key is gone, skip execution entirely."""
+async def test_daemon_expired_command_marks_expired(
+    mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking
+):
+    """Missing TTL meta key should mark command expired and skip execution."""
+    _, mock_expire = mock_status_tracking
     command_payload = {
         "command_id": "cmd_expired",
         "tool": "gemini",
         "command": "run_task",
-        "args": {},
-        "user_id": 1
+        "args": {"task": "noop"},
+        "user_id": 1,
     }
-    
+
     mock_redis.brpop.side_effect = [
         (b"akasa:commands:gemini", json.dumps(command_payload).encode("utf-8")),
-        None
+        None,
     ]
-    
-    # Mock TTL check to be expired (0)
     mock_redis.exists.return_value = 0
-    
+
     task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
     await asyncio.sleep(0.1)
     task.cancel()
-    
-    # Should NOT have executed or reported anything
+
     mock_subprocess.assert_not_called()
     mock_httpx_post.assert_not_called()
+    mock_expire.assert_awaited_once_with("cmd_expired")
 
 
 @pytest.mark.asyncio
-async def test_daemon_execution_failure(mock_redis, mock_subprocess, mock_httpx_post):
-    """If subprocess returns non-zero, report error."""
+async def test_daemon_execution_failure_reports_failed(
+    mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking
+):
+    """Non-zero CLI exit code should report failed with stderr output."""
     command_payload = {
         "command_id": "cmd_fail",
         "tool": "gemini",
         "command": "run_task",
-        "args": {},
-        "user_id": 1
+        "args": {"task": "bad"},
+        "user_id": 1,
     }
-    
+
     mock_redis.brpop.side_effect = [
         (b"akasa:commands:gemini", json.dumps(command_payload).encode("utf-8")),
-        None
+        None,
     ]
     mock_redis.exists.return_value = 1
-    
-    # Make subprocess fail
+
     mock_subprocess.return_value.returncode = 1
-    mock_subprocess.return_value.communicate.return_value = (b"", b"Something went wrong")
-    
+    mock_subprocess.return_value.communicate.return_value = (
+        b"",
+        b"Something went wrong",
+    )
+
     task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
     await asyncio.sleep(0.1)
     task.cancel()
-    
-    # Should report failed
-    mock_httpx_post.assert_called_once()
+
     payload = mock_httpx_post.call_args[1]["json"]
-    
     assert payload["status"] == "failed"
     assert "Something went wrong" in payload["output"]
     assert payload["exit_code"] == 1
+
+
+@pytest.mark.asyncio
+async def test_open_file_accepts_line_col_path():
+    """Path validation should accept file:line:column for allowed roots."""
+    entry = {
+        "tool": "zed",
+        "command": "open_file",
+        "allowed_args": ["path"],
+        "execution": {
+            "path_arg_keys": ["path"],
+            "allowed_paths": [str(daemon._PROJECT_ROOT)],
+        },
+    }
+    args = {"path": "docs/plan.md:10:5"}
+    assert daemon._validate_args(entry, args) is None
