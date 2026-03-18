@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/oatrice/Akasa/compare/v0.18.0...v0.19.0) (2026-03-18)
+
+
+### Features
+
+* feat: IDE Integration for Command Queue (Zed, Anti... ([#74](https://github.com/oatrice/Akasa/issues/74)) ([022731e](https://github.com/oatrice/Akasa/commit/022731e36f58bea0fdab694ee68d3d410cf94fde))
+
 ## [0.20.0] - 2026-03-18
 
 ### Added
