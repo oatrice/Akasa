@@ -174,3 +174,115 @@ async def test_open_file_accepts_line_col_path():
     }
     args = {"path": "docs/plan.md:10:5"}
     assert daemon._validate_args(entry, args) is None
+
+
+@pytest.mark.asyncio
+async def test_http_handler_retries_then_succeeds():
+    """HTTP handler should retry retryable statuses and eventually succeed."""
+    retry_response = MagicMock(status_code=503, text="Service unavailable")
+    success_response = MagicMock(status_code=200, text='{"ok": true}')
+
+    with patch("httpx.AsyncClient.request", new_callable=AsyncMock) as mock_request:
+        mock_request.side_effect = [retry_response, success_response]
+
+        status, output = await daemon._execute_http(
+            command_id="cmd_http_1",
+            tool="windsurf",
+            command="execute_code",
+            args={"code": "print('hello')"},
+            execution_cfg={
+                "endpoint": "http://localhost:9999/execute",
+                "method": "POST",
+                "retries": 1,
+                "backoff_seconds": 0.0,
+                "retry_statuses": [503],
+                "allowed_hosts": ["localhost"],
+                "payload_mode": "envelope",
+                "timeout_seconds": 5,
+            },
+        )
+
+    assert status == 0
+    assert '"ok": true' in output
+    assert mock_request.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_http_handler_rejects_non_local_host():
+    """HTTP handler should reject endpoints that are outside allowed hosts."""
+    status, output = await daemon._execute_http(
+        command_id="cmd_http_2",
+        tool="windsurf",
+        command="open_file",
+        args={"path": "README.md"},
+        execution_cfg={
+            "endpoint": "http://example.com/execute",
+            "method": "POST",
+            "retries": 1,
+            "allowed_hosts": ["localhost", "127.0.0.1", "::1"],
+        },
+    )
+
+    assert status == -1
+    assert "not in allowed_hosts" in output
+
+
+@pytest.mark.asyncio
+async def test_mcp_handler_returns_not_found_for_missing_server():
+    """MCP handler should return a clear error when server command is missing."""
+    status, output = await daemon._execute_mcp(
+        command="notify_task_complete",
+        args={"project": "Akasa", "task": "demo", "status": "success"},
+        execution_cfg={
+            "server_command": ["/definitely/not/found/python3"],
+            "retries": 0,
+            "timeout_seconds": 3,
+        },
+    )
+
+    assert status == -1
+    assert "not found" in output.lower()
+
+
+@pytest.mark.asyncio
+async def test_poll_queue_falls_back_to_redis_status_when_report_fails(
+    mock_redis, mock_status_tracking
+):
+    """If API reporting fails, daemon should still update status in Redis."""
+    mock_update, _ = mock_status_tracking
+    payload = {
+        "command_id": "cmd_status_fallback",
+        "tool": "gemini",
+        "command": "run_task",
+        "args": {"task": "x"},
+        "user_id": 1,
+    }
+
+    async def brpop_side_effect(*_args, **_kwargs):
+        if not hasattr(brpop_side_effect, "done"):
+            brpop_side_effect.done = True
+            return (b"akasa:commands:gemini", json.dumps(payload).encode("utf-8"))
+        await asyncio.sleep(0.01)
+        return None
+
+    mock_redis.brpop.side_effect = brpop_side_effect
+    mock_redis.exists.return_value = 1
+
+    with patch("scripts.local_tool_daemon.execute_command", new_callable=AsyncMock) as mock_exec:
+        with patch("scripts.local_tool_daemon.report_result", new_callable=AsyncMock) as mock_report:
+            mock_exec.return_value = (0, "ok")
+            mock_report.return_value = False
+
+            task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
+            await asyncio.sleep(0.1)
+            task.cancel()
+
+    success_updates = [
+        call
+        for call in mock_update.call_args_list
+        if (
+            ("status" in call.kwargs and call.kwargs["status"] == "success")
+            or (len(call.args) >= 2 and call.args[1] == "success")
+        )
+    ]
+    assert len(success_updates) >= 1
