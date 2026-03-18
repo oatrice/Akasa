@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0] - 2026-03-18
+
+### Added
+- **Automated Project Board Integration**: เพิ่มระบบอัตโนมัติสำหรับเพิ่ม Issue ใหม่เข้าสู่ Project Board ของ GitHub เพื่อให้การจัดการงานมีประสิทธิภาพมากขึ้น
+- **Multi-Protocol Command Daemon**: เพิ่ม Daemon ที่รองรับการประมวลผลคำสั่งหลายโปรโตคอล ทำให้ Akasa สามารถรันคำสั่งจากแหล่งต่างๆ ได้อย่างยืดหยุ่น เช่น IDE (Zed, Antigravity, Windsurf) หรือ Telegram
+- **Command Whitelisting**: เพิ่มการควบคุมความปลอดภัยด้วยการกำหนดรายการคำสั่งที่อนุญาต (whitelist) ให้ Daemon ทำงานได้ผ่าน `config/command_whitelist.yaml`
+
 ## [0.18.0](https://github.com/oatrice/Akasa/compare/v0.17.0...v0.18.0) (2026-03-17)
 
 

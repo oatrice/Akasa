@@ -4,6 +4,14 @@
 
 tools:
   gemini:
+    defaults:
+      execution:
+        type: cli
+        executable: gemini
+        include_command_name: true
+        argument_style: flags
+        timeout_seconds: 120
+        retries: 0
     allowed_commands:
       - name: run_task
         description: "Run a Gemini CLI task"
@@ -19,6 +27,14 @@ tools:
         allowed_args: []
 
   luma:
+    defaults:
+      execution:
+        type: cli
+        executable: luma
+        include_command_name: true
+        argument_style: flags
+        timeout_seconds: 60
+        retries: 0
     allowed_commands:
       - name: update_issue
         description: "Update a Luma issue status"
@@ -31,6 +47,18 @@ tools:
         allowed_args: [title, description, project]
 
   zed:
+    defaults:
+      execution:
+        type: cli
+        executable: zed
+        include_command_name: false
+        argument_style: positional
+        positional_args: [path]
+        path_arg_keys: [path]
+        allowed_paths:
+          - "/Users/oatrice/Software-projects/Akasa"
+        timeout_seconds: 30
+        retries: 0
     allowed_commands:
       - name: open_file
         description: "Open a file in Zed IDE"
@@ -38,6 +66,63 @@ tools:
       - name: run_task
         description: "Run a Zed task"
         allowed_args: [task_name]
+        execution:
+          include_command_name: true
+          argument_style: flags
+          positional_args: []
+          path_arg_keys: []
       - name: show_notification
         description: "Show a notification in Zed IDE"
         allowed_args: [message]
+        execution:
+          include_command_name: true
+          argument_style: flags
+          positional_args: []
+          path_arg_keys: []
+
+  antigravity:
+    defaults:
+      execution:
+        type: mcp
+        transport: stdio
+        server_command:
+          - "python3"
+          - "scripts/akasa_mcp_server.py"
+        tool_name_from_command: true
+        timeout_seconds: 45
+        retries: 2
+        backoff_seconds: 1.0
+    allowed_commands:
+      - name: request_remote_approval
+        description: "Request user approval via Akasa MCP server"
+        allowed_args: [command, cwd, description]
+      - name: notify_pending_review
+        description: "Notify user that changes are ready for review"
+        allowed_args: [project, task, files_changed, summary]
+      - name: notify_task_complete
+        description: "Send task completion summary to user"
+        allowed_args: [project, task, status, duration, message, link, retry_count, max_retries]
+
+  windsurf:
+    defaults:
+      execution:
+        type: http
+        method: POST
+        endpoint: "http://localhost:9999/execute"
+        headers: {}
+        timeout_seconds: 10
+        retries: 2
+        backoff_seconds: 0.5
+        retry_statuses: [429, 500, 502, 503, 504]
+        allowed_hosts: [localhost, 127.0.0.1, "::1"]
+        payload_mode: envelope
+    allowed_commands:
+      - name: open_file
+        description: "Open a file in Windsurf"
+        allowed_args: [path]
+      - name: execute_code
+        description: "Execute code through Windsurf local API"
+        allowed_args: [code, path]
+      - name: edit_file
+        description: "Apply an edit operation in Windsurf"
+        allowed_args: [path, changes]
