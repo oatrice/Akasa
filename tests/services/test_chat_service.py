@@ -56,6 +56,7 @@ def setup_mock_redis(mock_redis):
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.get_project_list = AsyncMock(return_value=["default"])
+    mock_redis.get_project_path = AsyncMock(return_value=None)
     mock_redis.set_current_project = AsyncMock()
     return mock_redis
 
@@ -788,6 +789,113 @@ async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mo
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
+async def test_project_path_command_shows_bound_path(mock_telegram, mock_redis):
+    import datetime
+
+    chat_id = 2003
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=26,
+        message=Message(
+            message_id=26,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project path",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.get_project_path.assert_awaited_once_with(chat_id, "akasa")
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Project path" in sent_message
+    assert "/Users/oatrice/Software-projects/Akasa" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_bind_command_binds_named_project_path(mock_telegram, mock_redis):
+    import datetime
+
+    chat_id = 2004
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.set_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=27,
+        message=Message(
+            message_id=27,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project bind akasa /Users/oatrice/Software-projects/Akasa",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.set_project_path.assert_awaited_once_with(
+        chat_id,
+        "akasa",
+        "/Users/oatrice/Software-projects/Akasa",
+    )
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Bound project" in sent_message
+    assert "`akasa`" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_bind_command_defaults_to_current_project_for_path_only(
+    mock_telegram,
+    mock_redis,
+):
+    import datetime
+
+    chat_id = 2005
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.set_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/My App"
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=28,
+        message=Message(
+            message_id=28,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project bind /Users/oatrice/Software-projects/My App",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.set_project_path.assert_awaited_once_with(
+        chat_id,
+        "akasa",
+        "/Users/oatrice/Software-projects/My App",
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     """ทดสอบ /note <task> ต้องบันทึก AgentState ลง Redis"""
     from app.models.agent_state import AgentState
@@ -859,6 +967,9 @@ async def test_project_status_command_shows_recent_activity(
     now = datetime.datetime.now(datetime.timezone.utc)
 
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
     mock_redis.get_agent_state = AsyncMock(
         return_value=AgentState(
             current_task="Implement /project status",
@@ -926,6 +1037,7 @@ async def test_project_status_command_shows_recent_activity(
     assert "vercel deploy" in sent_message
     assert "Review ready summary" in sent_message
     assert "Last updated" in sent_message
+    assert "Bound path" in sent_message
 
 
 @pytest.mark.asyncio
@@ -991,6 +1103,12 @@ async def test_projects_overview_command_summarizes_multiple_projects(
         return []
 
     mock_redis.get_agent_state = AsyncMock(side_effect=get_agent_state_side_effect)
+    async def get_project_path_side_effect(_chat_id, project_name):
+        if project_name == "akasa":
+            return "/Users/oatrice/Software-projects/Akasa"
+        return "/Users/oatrice/Software-projects/Luma"
+
+    mock_redis.get_project_path = AsyncMock(side_effect=get_project_path_side_effect)
     mock_redis.get_recent_command_ids = AsyncMock(
         side_effect=get_recent_command_ids_side_effect
     )
@@ -1043,6 +1161,7 @@ async def test_projects_overview_command_summarizes_multiple_projects(
     assert "Review docs" in sent_message
     assert "Last updated" in sent_message
     assert "History count" in sent_message
+    assert "Path:" in sent_message
 
 
 @pytest.mark.asyncio
@@ -1066,6 +1185,9 @@ async def test_projects_overview_verbose_includes_history_snippet(
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
     mock_redis.get_project_list = AsyncMock(return_value=["akasa"])
     mock_redis.get_agent_state = AsyncMock(return_value=None)
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
     mock_redis.get_recent_command_ids = AsyncMock(return_value=[])
     mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
     mock_redis.get_chat_history = AsyncMock(
@@ -1097,6 +1219,7 @@ async def test_projects_overview_verbose_includes_history_snippet(
     assert "History count" in sent_message
     assert "History:" in sent_message
     assert "summarize the deploy status" in sent_message
+    assert "Path:" in sent_message
 
 
 @pytest.mark.asyncio
@@ -1120,6 +1243,9 @@ async def test_projects_overview_json_returns_machine_readable_payload(
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
     mock_redis.get_project_list = AsyncMock(return_value=["akasa"])
     mock_redis.get_agent_state = AsyncMock(return_value=None)
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
     mock_redis.get_recent_command_ids = AsyncMock(return_value=[])
     mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
     mock_redis.get_chat_history = AsyncMock(
@@ -1148,6 +1274,7 @@ async def test_projects_overview_json_returns_machine_readable_payload(
     assert '"current_project": "akasa"' in sent_message
     assert '"history_count": 1' in sent_message
     assert '"history_snippet": null' in sent_message
+    assert '"project_path": "/Users/oatrice/Software-projects/Akasa"' in sent_message
 
 
 # === Proactive Messaging Support (Issue #30) ===

@@ -106,6 +106,46 @@ async def test_set_owner_current_project_normalizes_lowercase(patch_redis, monke
     assert await get_current_project(4321) == "docs-bot"
 
 
+@pytest.mark.asyncio
+async def test_set_and_get_project_path(patch_redis, tmp_path):
+    from app.services.redis_service import set_project_path, get_project_path
+
+    chat_id = 4321
+    project_dir = tmp_path / "Akasa Repo"
+    project_dir.mkdir()
+
+    stored = await set_project_path(chat_id, "Akasa", str(project_dir))
+
+    assert stored == str(project_dir)
+    assert await get_project_path(chat_id, "akasa") == str(project_dir)
+
+
+@pytest.mark.asyncio
+async def test_set_project_path_rejects_relative_path(patch_redis):
+    from app.services.redis_service import set_project_path
+
+    with pytest.raises(ValueError, match="absolute path"):
+        await set_project_path(4321, "akasa", "relative/path")
+
+
+@pytest.mark.asyncio
+async def test_get_owner_project_path_uses_akasa_chat_id(patch_redis, monkeypatch, tmp_path):
+    from app.services.redis_service import (
+        get_owner_project_path,
+        set_current_project,
+        set_project_path,
+    )
+
+    project_dir = tmp_path / "owner-project"
+    project_dir.mkdir()
+
+    monkeypatch.setattr("app.services.redis_service.settings.AKASA_CHAT_ID", "4321")
+    await set_current_project(4321, "akasa")
+    await set_project_path(4321, "akasa", str(project_dir))
+
+    assert await get_owner_project_path() == str(project_dir)
+
+
 # --- Recent Project Activity Indexes ---
 
 @pytest.mark.asyncio
@@ -157,6 +197,27 @@ async def test_add_project_to_list(patch_redis):
     projects = await get_project_list(chat_id)
     assert "default" in projects
     assert "new-project" in projects
+
+
+@pytest.mark.asyncio
+async def test_rename_project_migrates_bound_path(patch_redis, tmp_path):
+    from app.services.redis_service import (
+        get_project_path,
+        rename_project,
+        set_project_path,
+    )
+
+    chat_id = 601
+    old_name = "legacy-app"
+    new_name = "akasa"
+    project_dir = tmp_path / "legacy-app"
+    project_dir.mkdir()
+
+    await set_project_path(chat_id, old_name, str(project_dir))
+    await rename_project(chat_id, old_name, new_name)
+
+    assert await get_project_path(chat_id, old_name) is None
+    assert await get_project_path(chat_id, new_name) == str(project_dir)
 
 
 # --- Migration Support ---

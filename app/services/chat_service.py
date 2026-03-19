@@ -589,6 +589,38 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, message)
 
 
+def _resolve_project_bind_target_and_path(
+    current_project: str,
+    args: list[str],
+) -> tuple[str, str]:
+    """
+    Parse `/project bind` arguments.
+
+    Supported forms:
+    - `/project bind <name> <absolute_path>`
+    - `/project bind <absolute_path>` (bind current project)
+    """
+    if not args:
+        raise ValueError("missing bind arguments")
+
+    second = args[0]
+    if len(args) == 1 and not (second.startswith("/") or second.startswith("~")):
+        raise ValueError("missing project path")
+
+    if second.startswith("/") or second.startswith("~"):
+        target_project = current_project
+        raw_path = " ".join(args)
+    else:
+        target_project = second.lower()
+        raw_path = " ".join(args[1:])
+
+    raw_path = raw_path.strip()
+    if not raw_path:
+        raise ValueError("missing project path")
+
+    return target_project, raw_path
+
+
 async def _handle_project_command(chat_id: int, args: list[str]) -> None:
     if not args:
         current = await redis_service.get_current_project(chat_id)
@@ -596,7 +628,15 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         msg = f"📁 Current Project: `{current}`\n\nAvailable Projects:\n"
         for p in projects:
             msg += f"{'✅' if p == current else '-'} `{p}`\n"
-        msg += "\nUsage:\n• `/project select <name>`\n• `/project status [name]`\n• `/project new <name>`\n• `/project rename <old> <new>`"
+        msg += (
+            "\nUsage:\n"
+            "• `/project select <name>`\n"
+            "• `/project status [name]`\n"
+            "• `/project path [name]`\n"
+            "• `/project bind [name] <absolute_path>`\n"
+            "• `/project new <name>`\n"
+            "• `/project rename <old> <new>`"
+        )
         await _send_response(chat_id, msg)
         return
     sub_cmd = args[0].lower()
@@ -604,6 +644,41 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         current = await redis_service.get_current_project(chat_id)
         target = args[1].lower() if len(args) > 1 else current
         await _handle_project_status_command(chat_id, target, current)
+    elif sub_cmd == "path":
+        current = await redis_service.get_current_project(chat_id)
+        target = args[1].lower() if len(args) > 1 else current
+        project_path = await redis_service.get_project_path(chat_id, target)
+        if project_path:
+            await _send_response(
+                chat_id,
+                f"📂 Project path for `{target}`:\n`{project_path}`",
+            )
+        else:
+            await _send_response(
+                chat_id,
+                f"ℹ️ No folder path is bound to `{target}` yet.\nUse `/project bind {target} /absolute/path` to save one.",
+            )
+    elif sub_cmd == "bind":
+        current = await redis_service.get_current_project(chat_id)
+        try:
+            target, raw_path = _resolve_project_bind_target_and_path(current, args[1:])
+            bound_path = await redis_service.set_project_path(chat_id, target, raw_path)
+        except ValueError as exc:
+            await _send_response(
+                chat_id,
+                "❌ "
+                + (
+                    str(exc)
+                    if str(exc) not in {"missing bind arguments", "missing project path"}
+                    else "Usage: `/project bind <name> <absolute_path>` or `/project bind <absolute_path>` for the current project."
+                ),
+            )
+            return
+
+        await _send_response(
+            chat_id,
+            f"✅ Bound project `{target}` to:\n`{bound_path}`",
+        )
     elif sub_cmd == "select" and len(args) > 1:
         target = args[1].lower()
         await redis_service.set_current_project(chat_id, target)
@@ -722,11 +797,17 @@ async def _load_project_status_snapshot(
     recent_deployment_ids = []
     recent_tasks = []
     recent_history = []
+    project_path = None
 
     try:
         agent_state = await redis_service.get_agent_state(chat_id, project_name)
     except Exception as e:
         logger.warning(f"Failed to load AgentState for project {project_name}: {e}")
+
+    try:
+        project_path = await redis_service.get_project_path(chat_id, project_name)
+    except Exception as e:
+        logger.warning(f"Failed to load project path for project {project_name}: {e}")
 
     try:
         recent_command_ids = await redis_service.get_recent_command_ids(
@@ -799,6 +880,7 @@ async def _load_project_status_snapshot(
 
     return {
         "agent_state": agent_state,
+        "project_path": project_path,
         "recent_command_statuses": recent_command_statuses,
         "recent_deployments": recent_deployments,
         "recent_tasks": filtered_tasks[:task_limit],
@@ -816,6 +898,7 @@ async def _handle_project_status_command(
     current_project = current_project or await redis_service.get_current_project(chat_id)
     snapshot = await _load_project_status_snapshot(chat_id, project_name)
     agent_state = snapshot["agent_state"]
+    project_path = snapshot["project_path"]
     recent_command_statuses = snapshot["recent_command_statuses"]
     recent_deployments = snapshot["recent_deployments"]
     filtered_tasks = snapshot["recent_tasks"]
@@ -826,6 +909,11 @@ async def _handle_project_status_command(
         lines.append("✅ This is the active project.")
     else:
         lines.append(f"Current active project: `{current_project}`")
+
+    if project_path:
+        lines.append(f"📂 Bound path: `{project_path}`")
+    else:
+        lines.append("📂 Bound path: not set")
 
     lines.append("")
     if agent_state and agent_state.current_task:
@@ -926,6 +1014,7 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
         last_updated = snapshot["last_updated"]
         history_snippet = snapshot["history_snippet"]
         history_count = snapshot["history_count"]
+        project_path = snapshot["project_path"]
 
         latest_command = None
         if recent_command_statuses:
@@ -961,6 +1050,7 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
                 "project": project_name,
                 "active": project_name == current_project,
                 "task": agent_state.current_task if agent_state and agent_state.current_task else None,
+                "project_path": project_path,
                 "last_updated": last_updated,
                 "history_count": history_count,
                 "history_snippet": history_snippet if verbose else None,
@@ -985,6 +1075,7 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
         prefix = "✅" if item["active"] else "•"
         lines.append(f"{prefix} `{item['project']}`")
         lines.append(f"Task: {item['task'] or 'No saved note'}")
+        lines.append(f"Path: `{item['project_path']}`" if item["project_path"] else "Path: none")
         lines.append(
             f"Last updated: `{item['last_updated']}`" if item["last_updated"] else "Last updated: unknown"
         )

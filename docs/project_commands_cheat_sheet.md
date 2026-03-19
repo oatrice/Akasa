@@ -32,6 +32,13 @@ Show detailed status for the active project
 /project status <name>
 Show detailed status for a specific project
 
+/project path [name]
+Show the bound folder path for the current project or a named project
+
+/project bind [name] <absolute_path>
+Bind a project to a local folder path
+If the project name is omitted, Akasa binds the current project
+
 /projects overview
 Show a compact overview of all known projects
 
@@ -97,6 +104,12 @@ curl -X PUT \
   -H "Content-Type: application/json" \
   -d '{"active_project":"akasa"}' \
   "$BASE_URL/api/v1/context/project"
+
+curl -X PUT \
+  -H "X-Akasa-API-Key: $AKASA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"active_project":"akasa","project_path":"/Users/oatrice/Software-projects/Akasa"}' \
+  "$BASE_URL/api/v1/context/project"
 ```
 
 ### Enqueue and poll command status
@@ -129,6 +142,7 @@ curl -H "X-Akasa-API-Key: $AKASA_KEY" \
 
 `/project status` includes:
 - saved task note
+- bound folder path if configured
 - focus file if present
 - recent command queue activity
 - recent deployment activity
@@ -138,6 +152,7 @@ curl -H "X-Akasa-API-Key: $AKASA_KEY" \
 - all known projects for the current chat
 - active project marker
 - latest saved task per project
+- bound folder path per project when available
 - last updated timestamp per project
 - recent history count per project
 - latest command, deployment, and agent-task summary per project
