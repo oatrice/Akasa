@@ -1,128 +1,124 @@
-# Implementation Plan: Unified User Session & Rate Limiting
+# Implementation Plan: Incremental Active Project Context Sync + Telegram Reliability
 
-> **Refers to**: [Spec Link](./spec.md)
-> **Status**: Draft
+> Refers to: [spec.md](./spec.md)
+> Status: Draft
 
-## 1. Architecture & Design
+## 1. Architecture and Design
 
 ### Component View
--   **Authentication Service (`AuthService`)**: New service responsible for generating login challenges, verifying tokens, and managing the `Unified User` identity linking Telegram `chat_id` with local CLI sessions.
--   **Rate Limiter (`RateLimiterService`)**: New service implementing a Token Bucket or Fixed Window algorithm via Redis to throttle excessive requests.
--   **User State API**: New REST endpoints to allow local clients (CLI) to sync state (e.g., Active Project) with the backend.
--   **Redis Service Enhancements**: Updated to support User ID mapping and store "Unified" state instead of just `chat_id`-based state.
--   **Global Exception Handler**: Centralized error handling logic to catch specific exceptions (LLM timeouts, API errors) and return user-friendly responses.
+
+- **New context router:** add `GET/PUT /api/v1/context/project` for local tools.
+- **Existing auth reuse:** use the existing `verify_api_key` dependency based on `X-Akasa-API-Key`; do not introduce bearer auth or login challenges in this phase.
+- **Existing Redis project storage reuse:** keep Telegram and local tools on the same `user_current_project:{chat_id}` storage pattern.
+- **New Telegram rate limiter:** add a focused inbound Telegram message rate limiter before command handling or LLM work.
+- **LLM failure normalization:** make timeout, upstream failure, malformed response, and insufficient-credit outcomes explicit in the bot flow.
 
 ### Data Model Changes
 
-**Redis Keys:**
--   `auth:challenge:{token}` -> `{"session_id": "...", "created_at": "..."}` (TTL: 5 min)
--   `user:map:telegram:{chat_id}` -> `{unified_user_id}`
--   `user:map:session:{session_id}` -> `{unified_user_id}`
--   `user:state:{unified_user_id}:project` -> `String` (Active Project)
+**New request/response models**
 
-**Pydantic Models (`app/models/auth.py`):**
 ```python
-class LoginChallenge(BaseModel):
-    token: str
-    expires_in: int
-    session_id: str
-
-class UserState(BaseModel):
-    unified_user_id: str
+class ProjectContextResponse(BaseModel):
     active_project: str
-    linked_accounts: dict  # e.g., {"telegram": 12345}
+
+
+class ProjectContextUpdateRequest(BaseModel):
+    active_project: str
 ```
 
----
+**New settings**
+
+```python
+TELEGRAM_MESSAGE_RATE_LIMIT: int = 5
+TELEGRAM_MESSAGE_RATE_WINDOW_SECONDS: int = 60
+```
+
+**Redis behavior**
+
+- Keep using `user_current_project:{chat_id}` as the v1 source of truth.
+- The context sync API resolves the owner chat from `AKASA_CHAT_ID` and reads/writes that same key.
+- No Redis migration is required in this phase.
 
 ## 2. Step-by-Step Implementation
 
-### Step 1: Redis Service Refactoring & User Mapping
-Refactor `RedisService` to support the concept of a "Unified User". It must transparently handle the lookup from `chat_id` to `unified_user_id` to maintain backward compatibility while enabling the new feature.
+### Step 1: Add the Context Sync API
 
--   **Docs**: Update `app/services/redis_service.py` docstrings.
--   **Code**: `app/services/redis_service.py`
-    -   Add `get_unified_user_id(identifier: str/int) -> Optional[str]`.
-    -   Modify `get_current_project` to first resolve the Unified ID. If found, use `user:state:{uid}:project`; else fallback to legacy `user_current_project:{chat_id}`.
-    -   Add `link_user_identities(unified_id: str, telegram_id: int = None, session_id: str = None)`.
--   **Tests**: `tests/services/test_redis_service_unified.py` (New)
-    -   Test linking identities.
-    -   Test transparent fallback for legacy keys.
+- **Code:** add `app/routers/context.py`.
+- **Behavior:** expose:
+  - `GET /api/v1/context/project`
+  - `PUT /api/v1/context/project`
+- **Auth:** import and reuse the existing `verify_api_key` dependency; do not refactor auth in this phase.
+- **Models:** add a small context request/response model file, such as `app/models/context.py`.
+- **Redis integration:** add thin owner-context helpers around the existing project storage so the router reads and writes the configured owner chat's project.
+- **Validation:** trim whitespace, reject empty values, and store normalized lowercase project names.
+- **App wiring:** register the new router in `app/main.py`.
+- **Tests:** add `tests/routers/test_context.py` for success, invalid API key, invalid payload, and misconfigured owner context.
 
-### Step 2: Authentication Service & Handshake
-Implement the logic to generate a secure token and link the accounts when that token is received via Telegram.
+### Step 2: Keep Telegram and Local Sync on the Same State
 
--   **Code**: `app/services/auth_service.py` (New)
-    -   `create_login_challenge() -> LoginChallenge`: Generates a random 8-char alphanumeric token and stores it in Redis with a Session ID.
-    -   `verify_and_link_telegram(token: str, telegram_chat_id: int) -> bool`: Validates token, creates/retrieves `unified_user_id`, and creates the Redis mapping.
--   **Tests**: `tests/services/test_auth_service.py`
-    -   Test token generation and expiration.
-    -   Test successful linking flow.
+- **Code:** keep Telegram `/project` handling in `app/services/chat_service.py` as the Telegram-side write path.
+- **Code:** keep project storage in `app/services/redis_service.py` as the shared v1 backing store.
+- **Behavior:** ensure Telegram `/project` changes are visible to the sync API and sync API updates are visible to subsequent Telegram interactions.
+- **Tests:** add Redis or service-level coverage proving:
+  - Telegram-side writes are readable by the context API helpers.
+  - Context API writes are visible through the existing Telegram project lookup path.
 
-### Step 3: API Endpoints for CLI
-Create the HTTP endpoints that the local CLI will use to initiate login and sync state.
+### Step 3: Add Telegram Inbound Message Rate Limiting
 
--   **Code**: `app/routers/auth.py` (New)
-    -   `POST /api/v1/auth/challenge`: Returns a login token for the user to copy.
-    -   `GET /api/v1/auth/session`: Checks if the current `session_id` (from header/cookie) is linked to a user.
--   **Code**: `app/routers/users.py` (New)
-    -   `GET /api/v1/user/state`: Returns current context (Active Project).
-    -   `PUT /api/v1/user/state`: Updates Active Project.
--   **Code**: `app/main.py`
-    -   Register new routers.
--   **Tests**: `tests/routers/test_auth_routers.py`
+- **Code:** add `app/services/rate_limiter.py` with a simple Redis-backed fixed-window limiter using `INCR` plus `EXPIRE`.
+- **Keying rule:** rate limit by Telegram `user_id` when available; fall back to `chat_id` if needed.
+- **Chat integration:** call the limiter at the top of `handle_chat_message` before command dispatch and before normal LLM handling.
+- **Blocked outcome:** send a short slow-down warning and return immediately without calling the LLM.
+- **Scope:** do not change existing command-queue rate limiting in this phase.
+- **Tests:** add:
+  - `tests/services/test_rate_limiter.py`
+  - targeted chat-service tests ensuring a blocked message never reaches LLM execution
 
-### Step 4: Telegram Integration (Token Handling)
-Modify the Chat Service to detect if a user sends a Login Token.
+### Step 4: Normalize LLM Error Handling
 
--   **Code**: `app/services/chat_service.py`
-    -   In `handle_chat_message`: Check if message text matches the Token pattern (regex `^[A-Z0-9]{8}$`).
-    -   If match: Call `AuthService.verify_and_link_telegram`.
-    -   If success: Send "✅ Account Linked" message and stop processing (do not send to LLM).
--   **Tests**: `tests/services/test_chat_service_auth.py`
-    -   Mock `AuthService` and verify `chat_service` delegates correctly.
+- **Code:** extend `app/exceptions.py` with explicit bot-facing error categories:
+  - `LLMTimeoutError`
+  - `LLMUpstreamError`
+  - `LLMMalformedResponseError`
+- **Code:** update `app/services/llm_service.py` to translate raw timeout, upstream, and malformed-response cases into those exceptions.
+- **Credits case:** keep `OpenRouterInsufficientCreditsError` as a distinct user-facing path.
+- **Chat integration:** update `app/services/chat_service.py` to map each failure category to a clear Telegram fallback message.
+- **Tests:** add service-level tests covering timeout, upstream HTTP failure, malformed response, and insufficient credits.
 
-### Step 5: Rate Limiting
-Implement a Rate Limiter to protect the system.
+### Step 5: Verification and Regression Coverage
 
--   **Code**: `app/services/rate_limiter.py` (New)
-    -   `check_rate_limit(key: str, limit: int, window: int) -> bool`: Uses Redis `INCR` + `EXPIRE`.
--   **Code**: `app/services/chat_service.py`
-    -   Integrate `check_rate_limit` at the start of `handle_chat_message`.
-    -   If limited: Send "Too many messages" reply immediately and return.
--   **Tests**: `tests/services/test_rate_limiter.py`
-
-### Step 6: Unified Error Handling
-Ensure the bot fails gracefully with helpful messages.
-
--   **Code**: `app/exceptions.py`
-    -   Define `RateLimitExceeded`, `LLMTimeoutError`, `ExternalAPIError`.
--   **Code**: `app/services/llm_service.py`
-    -   Wrap external API calls in `try/except` blocks that translate vendor-specific errors (OpenAI/Anthropic) into internal `app/exceptions`.
--   **Code**: `app/main.py`
-    -   Add `exception_handler` for these custom exceptions to return JSON responses (for API) or log errors.
-    -   *Note*: For Telegram background tasks, exceptions don't bubble to `main.py` middleware. We must handle them inside `chat_service.py`'s `try/except` block to send a user-friendly Telegram message.
--   **Code**: `app/services/chat_service.py`
-    -   Wrap the main processing logic. On `LLMTimeoutError`, send "Request timed out..." message.
-
----
+- **Automated tests:**
+  - context router success and failure paths,
+  - shared project-state behavior between Telegram and the new sync API,
+  - Telegram rate-limit enforcement before LLM execution,
+  - LLM failure mapping to friendly Telegram outcomes.
+- **Manual verification:**
+  1. Set project from Telegram and verify `GET /api/v1/context/project`.
+  2. Set project from `PUT /api/v1/context/project` and verify Telegram `/project`.
+  3. Exceed the Telegram message limit and verify the blocked message does not call the LLM.
+  4. Simulate an LLM timeout or upstream error and verify a friendly fallback response.
 
 ## 3. Verification Plan
 
 ### Automated Tests
-- [ ] **Unit Tests**:
-    -   `test_redis_service_unified.py`: Verify User ID resolution and fallback.
-    -   `test_auth_service.py`: Verify token lifecycle and linking.
-    -   `test_rate_limiter.py`: Verify limits are enforced and reset.
-- [ ] **Integration Tests**:
-    -   `tests/integration/test_auth_flow.py`: Simulate the full flow:
-        1. Call API to get Token.
-        2. Call `handle_chat_message` with Token.
-        3. Verify API `GET /state` returns the same User ID.
-        4. Update Project via API, verify `get_current_project(chat_id)` returns new value.
+
+- [ ] `tests/routers/test_context.py`
+- [ ] `tests/services/test_rate_limiter.py`
+- [ ] chat-service tests for rate-limit short-circuit behavior
+- [ ] llm-service and chat-service tests for timeout, upstream failure, malformed response, and insufficient-credit handling
 
 ### Manual Verification
-- [ ] **Account Linking**: Run `curl` to get a token, send it to the Bot, verify success message.
-- [ ] **Context Sync**: Change project via `curl` (simulating CLI), ask Bot "What project am I in?", verify answer.
-- [ ] **Rate Limit**: Spam the bot with 10 messages in 5 seconds, verify the "Slow down" warning appears and subsequent messages are ignored.
-- [ ] **Error Handling**: Temporarily break the LLM API key (or use a mock that timeouts), verify the Bot sends a "Sorry, something went wrong" message instead of crashing.
+
+- [ ] `GET /api/v1/context/project` returns `default` before any explicit change.
+- [ ] `PUT /api/v1/context/project` with a valid API key updates the owner chat's shared project.
+- [ ] Telegram `/project select akasa` is visible to the local sync API.
+- [ ] Telegram spam beyond the configured limit returns a slow-down warning.
+- [ ] LLM failure paths return friendly user-facing fallbacks instead of raw errors.
+
+## 4. Explicit Non-Goals for This Plan
+
+- No login challenge implementation.
+- No bearer-token auth.
+- No multi-user routing.
+- No persistent `Unified User ID` storage model.
+- No synchronization of model preference, history, or agent state in this phase.

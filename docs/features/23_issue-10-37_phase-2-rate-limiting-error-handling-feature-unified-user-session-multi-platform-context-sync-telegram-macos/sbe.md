@@ -1,74 +1,104 @@
-# SBE: Unified User Session & Rate Limiting System
+# SBE: Incremental Active Project Context Sync + Telegram Reliability
 
-> 📅 Created: 2026-03-19
-> 🔗 Issue: https://github.com/oatrice/Akasa/issues/10
+> Created: 2026-03-19
+> Issues: [#10](https://github.com/oatrice/Akasa/issues/10), [#37](https://github.com/oatrice/Akasa/issues/37)
 
----
+## Feature
 
-## Feature: Unified User Session & Robust Messaging
+This feature synchronizes the owner's `active_project` between Telegram and authenticated local tools while also protecting Telegram interactions with inbound message rate limiting and friendly LLM failure handling.
 
-This feature implements a unified identity system allowing users to synchronize their "Active Project" context between Telegram and local macOS tools (CLI/IDE). Simultaneously, it introduces rate limiting to prevent abuse and robust error handling for external LLM service failures.
+### Scenario: Telegram updates the project and local tools read the same value
 
-### Scenario: Sync Active Project Across Platforms (Happy Path)
+**Given** the owner chat configured by `AKASA_CHAT_ID` currently has `active_project` set to `<before_project>`
 
-**Given** a unified user account linking Telegram ID `<telegram_id>` and Local API Key `<api_key>`
-**And** the current active project is `<initial_project>`
-**When** the user sends a command to switch the project to `<new_project>` via `<source_platform>`
-**Then** the global session state in Redis is updated to `<new_project>`
-**And** querying the active project from `<target_platform>` returns `<new_project>`
+**When** the Telegram user sends `<telegram_command>`
 
-#### Examples
+**Then** the shared project state is updated to `<after_project>`
 
-| telegram_id | api_key | initial_project | new_project | source_platform | target_platform | expected_state |
-|-------------|---------|-----------------|-------------|-----------------|-----------------|----------------|
-| 987654321 | ak_dev_01 | Akasa | ProjectOmega | Telegram | CLI/IDE | ProjectOmega |
-| 987654321 | ak_dev_01 | ProjectOmega | Phoenix | CLI/IDE | Telegram | Phoenix |
-| 112233445 | ak_dev_02 | None | WebsiteV2 | Telegram | CLI/IDE | WebsiteV2 |
-
-### Scenario: API Rate Limiting (Edge Case)
-
-**Given** the global rate limit is set to `<limit>` requests per minute per user
-**And** the user has already made `<previous_count>` requests in the last 59 seconds
-**When** the user attempts to send `<new_requests>` additional requests
-**Then** the system accepts the first `<accepted>` requests
-**And** rejects the remaining `<rejected>` requests with a `<status_code>` or warning message
+**And** `GET /api/v1/context/project` with a valid `X-Akasa-API-Key` returns `{"active_project": "<after_project>"}`.
 
 #### Examples
 
-| limit | previous_count | new_requests | accepted | rejected | status_code |
-|-------|----------------|--------------|----------|----------|-------------|
-| 10 | 0 | 5 | 5 | 0 | 200 OK |
-| 10 | 8 | 3 | 2 | 1 | 429 Too Many Requests |
-| 5 | 5 | 1 | 0 | 1 | 429 Too Many Requests |
-| 20 | 19 | 5 | 1 | 4 | 429 Too Many Requests |
+| before_project | telegram_command | after_project |
+|----------------|------------------|---------------|
+| default | `/project select akasa` | akasa |
+| akasa | `/project select release-notes` | release-notes |
+| default | `/project new docs-bot` | docs-bot |
 
-### Scenario: LLM Service Error Handling (Error Handling)
+### Scenario: Local tools update the project and Telegram uses the same value
 
-**Given** the external LLM provider is responding with `<upstream_error>`
-**When** a user sends a valid prompt requiring LLM generation
-**Then** the system attempts to retry `<retry_attempts>` times
-**And** finally responds to the user with `<user_message>`
+**Given** the local tool is authenticated with a valid `X-Akasa-API-Key`
 
-#### Examples
+**And** the owner chat currently has `active_project` set to `<before_project>`
 
-| upstream_error | retry_attempts | user_message |
-|----------------|----------------|--------------|
-| 503 Service Unavailable | 3 | "LLM service is currently overloaded. Please try again later." |
-| 500 Internal Server Error | 3 | "An unexpected error occurred with the AI provider." |
-| 429 Too Many Requests (OpenAI) | 3 | "Rate limit exceeded with AI provider. Slowing down..." |
-| 401 Unauthorized | 0 | "System configuration error: Invalid LLM credentials." |
+**When** the local tool calls `PUT /api/v1/context/project` with `{"active_project": "<requested_project>"}`
 
-### Scenario: Invalid Authentication for Sync API (Error Handling)
+**Then** the API responds with `{"active_project": "<stored_project>"}`
 
-**Given** the Sync API requires a valid `X-API-Key` header
-**When** a client requests `GET /sync/state` with header `<header_value>`
-**Then** the API returns status `<status>` and message `<message>`
+**And** the next Telegram interaction resolves `<stored_project>` as the current project.
 
 #### Examples
 
-| header_value | status | message |
-|--------------|--------|---------|
-| missing | 401 | "Missing API Key" |
-| "Bearer invalid_token" | 401 | "Invalid API Key format" |
-| "ak_unknown_key" | 403 | "Access Forbidden: Invalid Key" |
-| "ak_dev_01" | 200 | "success" |
+| before_project | requested_project | stored_project |
+|----------------|-------------------|----------------|
+| default | Akasa | akasa |
+| akasa | release-notes | release-notes |
+| docs-bot |  Docs-Bot  | docs-bot |
+
+### Scenario: Invalid API key is rejected by the context sync API
+
+**Given** the context sync API requires `X-Akasa-API-Key`
+
+**When** a client requests `<method> /api/v1/context/project` with header `<header_value>`
+
+**Then** the API returns status `<status>`
+
+**And** the shared `active_project` remains unchanged.
+
+#### Examples
+
+| method | header_value | status |
+|--------|--------------|--------|
+| GET | missing | 401 |
+| GET | `wrong-key` | 401 |
+| PUT | missing | 401 |
+| PUT | `expired-or-unknown-key` | 401 |
+
+### Scenario: Telegram inbound rate limit blocks excess messages
+
+**Given** the Telegram inbound rate limit is `<limit>` messages per `<window_seconds>` seconds
+
+**And** the same Telegram user has already sent `<already_sent>` messages inside the current window
+
+**When** the user sends one more message
+
+**Then** the system responds with `<result>`
+
+**And** the blocked message does not call the LLM when the limit is exceeded.
+
+#### Examples
+
+| limit | window_seconds | already_sent | result |
+|-------|----------------|--------------|--------|
+| 5 | 60 | 4 | message is processed normally |
+| 5 | 60 | 5 | user receives a slow-down warning |
+| 10 | 60 | 10 | user receives a slow-down warning |
+
+### Scenario: LLM failures return friendly fallback outcomes
+
+**Given** the current `active_project` is `akasa`
+
+**When** the user sends a valid Telegram message that requires LLM processing and the provider failure is `<failure_type>`
+
+**Then** the bot returns `<user_visible_outcome>`
+
+**And** the conversation does not fail silently.
+
+#### Examples
+
+| failure_type | user_visible_outcome |
+|--------------|----------------------|
+| request timeout | friendly timeout message with retry guidance |
+| upstream 502 or 503 | friendly temporary-failure message |
+| malformed provider response | friendly processing-error message |
+| insufficient OpenRouter credits | friendly configuration or credits guidance |

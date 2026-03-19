@@ -1,279 +1,229 @@
-# Analysis Template
+# Analysis
 
-> 📋 Template สำหรับการวิเคราะห์ก่อนเริ่มพัฒนา Feature
+## Feature Information
 
----
-
-## 📌 Feature Information
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Feature Name** | Rate Limiting, Error Handling, and Unified Multi-Platform User Session |
-| **Issue URL** | [#10](https://github.com/oatrice/Akasa/issues/10), [#37](https://github.com/oatrice/Akasa/issues/37) |
-| **Date** | 2026-03-19 |
-| **Analyst** | Luma AI (Senior Technical Analyst) |
-| **Priority** | 🔴 High |
-| **Status** | 📝 Draft |
-
----
+| Item | Value |
+|------|-------|
+| Feature Name | Rate Limiting, Error Handling, and Incremental Active Project Context Sync |
+| Issue URL | [#10](https://github.com/oatrice/Akasa/issues/10), [#37](https://github.com/oatrice/Akasa/issues/37) |
+| Date | 2026-03-19 |
+| Analyst | Codex |
+| Priority | High |
+| Status | Draft |
 
 ## 1. Requirement Analysis
 
 ### 1.1 Problem Statement
 
-> อธิบายปัญหาที่ต้องการแก้ไข
+Akasa currently has the building blocks for project-aware Telegram usage and for authenticated local-tool APIs, but they do not yet meet in one consistent contract. The result is:
 
-```
-ปัจจุบันระบบมีจุดอ่อน 2 ส่วนหลัก: 1) ขาดการป้องกันการใช้งานผิดประเภท (Spam/Abuse) ผ่าน Messaging API และไม่มีการจัดการข้อผิดพลาดจาก LLM ที่ดีพอ ทำให้ระบบขาดความเสถียรเมื่อเจอปัญหา 2) ประสบการณ์ผู้ใช้ไม่ต่อเนื่องระหว่างการใช้งานบน Telegram และบนเครื่องพัฒนา (IDE/CLI) เนื่องจากสถานะ "Active Project" ไม่ได้ซิงค์กัน ทำให้ผู้ใช้ต้องตั้งค่า Context ใหม่ทุกครั้งที่สลับแพลตฟอร์ม
-```
+- Telegram context is still driven by chat-scoped Redis keys only.
+- Local tools have API-key-based integration points, but no dedicated project-context sync endpoint.
+- Telegram inbound messages are not formally rate limited.
+- LLM failures are partially handled, but not yet described or enforced as a single product contract.
+
+This phase should solve the practical workflow problem first: keep Telegram and local tools aligned on the same `active_project`, then harden the Telegram experience with rate limiting and clearer failure handling.
 
 ### 1.2 User Stories
 
 | # | As a | I want to | So that |
 |---|------|-----------|---------|
-| 1 | System Administrator | implement rate limiting on APIs and gracefully handle external service errors | the application remains stable, secure, and responsive for all users. |
-| 2 | Developer | have my active project context sync automatically between Telegram and my IDE/CLI | I can switch between platforms seamlessly without manually re-establishing my working context. |
+| 1 | Developer using Telegram and local tools | switch `active_project` from either side | I do not have to re-establish context manually |
+| 2 | Developer using Telegram heavily | get a clear warning when I send messages too quickly | I understand why a message was not processed |
+| 3 | Developer relying on the bot | receive friendly fallback errors from LLM failures | the bot does not fail silently or look broken |
 
 ### 1.3 Acceptance Criteria
 
-- [ ] **AC1:** API requests originating from a single user that exceed a configured threshold (e.g., 20 requests/minute) are rejected with an HTTP 429 "Too Many Requests" error.
-- [ ] **AC2:** Any errors or timeouts from the LLM API are caught, logged, and a user-friendly error message is returned to the user without crashing the session.
-- [ ] **AC3:** A secure system is in place to create a "Unified User ID" that links a user's Telegram account to their local machine developer profile.
-- [ ] **AC4:** The Redis schema is updated to store user-specific context (like `current_project`) under the Unified User ID, not the transient `chat_id`.
-- [ ] **AC5:** A new secure API endpoint (e.g., `GET /api/context/project`) allows an authenticated local tool (IDE/CLI) to retrieve the current active project for the linked user.
-- [ ] **AC6:** Another endpoint (e.g., `POST /api/context/project`) allows an authenticated local tool to update the current active project, which is then reflected in subsequent Telegram interactions.
-
----
+- **AC1:** `GET /api/v1/context/project` returns the owner chat's current `active_project` when called with a valid `X-Akasa-API-Key`.
+- **AC2:** `PUT /api/v1/context/project` updates the same project value that Telegram `/project` commands use.
+- **AC3:** The only synchronized field in v1 is `active_project`.
+- **AC4:** Inbound Telegram messages are rate limited before command handling or LLM processing.
+- **AC5:** Timeout, upstream failure, malformed LLM response, and insufficient-credit cases each produce a user-friendly Telegram fallback.
+- **AC6:** Full account linking, bearer auth, and multi-user unified identity are deferred and clearly marked as future work.
 
 ## 2. Feature Analysis
 
-### 2.1 User Flow
+### 2.1 Why the Incremental V1 Is the Right Fit
+
+The repo already contains:
+
+- API-key-based authentication for local integrations via `X-Akasa-API-Key`,
+- local-tool scripts that already send that header,
+- Telegram chat handling backed by `user_current_project:{chat_id}`,
+- owner-oriented configuration via `AKASA_CHAT_ID`.
+
+Because those pieces already exist, the lowest-risk v1 is to add a focused context-sync API that reads and writes the same project key used by Telegram. This avoids inventing a challenge-based auth subsystem that the repo does not currently support.
+
+### 2.2 Reused Repo Patterns
+
+| Existing Pattern | Current Location | V1 Reuse |
+|------------------|------------------|----------|
+| API-key auth via `X-Akasa-API-Key` | routers and local-tool scripts | Reused as the sync API auth mechanism |
+| `user_current_project:{chat_id}` storage | `app/services/redis_service.py` | Reused as the canonical v1 storage |
+| Owner chat configuration | `AKASA_CHAT_ID` in config and scripts | Reused to choose which chat context local tools sync against |
+| Telegram `/project` behavior | `app/services/chat_service.py` | Remains the Telegram-side write path |
+
+### 2.3 User Flow
 
 ```mermaid
 flowchart TD
-    subgraph "Platform: Telegram"
-        U_TG[User on Telegram] -->|sends message| TG_API[FastAPI Webhook]
-        TG_API --> RL_MW{Rate Limiting?}
-        RL_MW -->|OK| ChatSvc[Chat Service]
-        RL_MW -->|Blocked| Blocked[Return 429 Error]
-        ChatSvc -->|uses user_id| Redis[Redis Global Context]
-    end
+    TG[Telegram user] -->|/project select akasa| CHAT[chat_service]
+    CHAT --> REDIS[(Redis current project)]
 
-    subgraph "Platform: macOS (IDE/CLI)"
-        U_CLI[User on IDE/CLI] -->|set_project 'my-app'| SyncAPI[Context Sync API]
-        SyncAPI -->|uses user_id| Redis
-    end
+    LOCAL[Local tool] -->|GET/PUT /api/v1/context/project| CTX[context router]
+    CTX -->|verify X-Akasa-API-Key| AUTH[existing API-key pattern]
+    CTX -->|resolve owner chat via AKASA_CHAT_ID| REDIS
 
-    subgraph "Shared Infrastructure"
-        Redis <-->|reads/writes 'current_project'| ChatSvc
-        Redis <-->|reads/writes 'current_project'| SyncAPI
-        ChatSvc -->|handles errors| LLM[LLM API]
-    end
+    TGMSG[Inbound Telegram message] --> RL{Rate limit ok?}
+    RL -->|No| WARN[Send slow-down warning]
+    RL -->|Yes| LLMFLOW[Normal command or LLM flow]
+    LLMFLOW --> REDIS
 ```
 
-### 2.2 Screen/Page Requirements
-
-| หน้าจอ | Actions | Components |
-|--------|---------|------------|
-| **API Endpoint:** `POST /webhook/telegram` | Handles incoming messages | Rate Limiting Middleware, Error Handling Middleware |
-| **API Endpoint:** `GET /api/v1/context/project` | Fetches active project for the authenticated user | Bearer Token Authentication, User ID lookup |
-| **API Endpoint:** `POST /api/v1/context/project`| Sets the active project for the authenticated user | Bearer Token Authentication, User ID lookup, Request Body Validation |
-| **CLI / Local Tool** | `akasa link`: Initiates account linking process. `akasa context set <proj>`: Calls the sync API. | Secure storage for API token. |
-
-### 2.3 Input/Output Specification
+### 2.4 Input and Output Contract
 
 #### Inputs
 
-| Field | Type | Required | Validation |
-|-------|------|----------|------------|
-| `chat_id` (Telegram) | integer | ✅ | N/A |
-| `Authorization` (Sync API Header) | string | ✅ | "Bearer [TOKEN]" format |
-| `project_id` (Sync API Body) | string | ✅ | Must be a valid project identifier |
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `X-Akasa-API-Key` | string | Yes | Existing local-tool auth header |
+| `active_project` | string | PUT only | Non-empty; trimmed and normalized to lowercase |
+| Telegram message text | string | Yes | Subject to inbound rate limiting |
 
 #### Outputs
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `project_id` (on `GET /context`) | string | The identifier of the user's current active project. |
-| `status` (on `POST /context`) | string | "success" or "error". |
-| `error` (on failure) | object | JSON object containing error code and message (e.g., from rate limiter or LLM). |
-
----
+| Output | Type | Description |
+|--------|------|-------------|
+| `active_project` | string | Current synchronized project |
+| 401 error | JSON | Missing or invalid API key |
+| 503 error | JSON | Owner chat sync is not configured |
+| Telegram warning message | text | Returned when the user exceeds Telegram message rate limits |
+| Telegram fallback message | text | Returned when LLM processing fails |
 
 ## 3. Impact Analysis
 
 ### 3.1 Affected Components
 
-| Component | Impact Level | Description |
-|-----------|--------------|-------------|
-| `app/services/redis_service.py` | 🔴 High | Major schema change required. Logic must be updated from `chat_id` keys to Unified User ID keys. |
-| `app/routers/telegram.py` | 🔴 High | Middleware for rate limiting needs to be added. Logic must be adapted to use the new user identity service. |
-| `app/services/chat_service.py` | 🟡 Medium | Must be updated to fetch context using the new Unified User ID. Needs robust error handling for LLM calls. |
-| `app/main.py` | 🟡 Medium | A new API router for the Context Sync endpoints must be added. |
-| **New:** `app/services/user_service.py` | 🔴 High | New service to manage user identities, linking, and token generation/validation. |
-| **New:** `app/routers/context.py` | 🔴 High | New router to host the `GET` and `POST` endpoints for cross-platform context synchronization. |
-| **Local Tools (CLI/IDE)** | 🔴 High | New functionality required to handle authentication token and call the new sync API. |
+| Component | Impact | Reason |
+|-----------|--------|--------|
+| `app/services/redis_service.py` | High | Must expose a safe owner-chat-based project sync path without changing the underlying v1 storage model |
+| `app/services/chat_service.py` | High | Must enforce inbound Telegram message rate limits and preserve project sync behavior |
+| `app/services/llm_service.py` | Medium | Must translate failure modes into a predictable bot-facing contract |
+| `app/main.py` | Medium | Must register the new context router |
+| `app/routers/context.py` | High | New endpoint surface for project sync |
+| `tests/routers/test_context.py` | High | New API verification coverage |
+| `tests/services/test_rate_limiter.py` | High | New Telegram rate-limit coverage |
 
 ### 3.2 Breaking Changes
 
-- [x] **BC1:** The Redis data structure for storing user context will change fundamentally. All existing user conversation histories and contexts keyed by `chat_id` will become inaccessible without migration.
-- [ ] **BC2:** All interactions will now require a valid Unified User ID. Anonymous or unlinked access may be deprecated.
+- No production data migration is required for v1 because the design intentionally reuses the existing chat-scoped project storage.
+- The previous draft documents that mentioned bearer auth, `/sync/state`, `/api/v1/user/state`, or login challenges are superseded by this harmonized v1 contract.
 
 ### 3.3 Backward Compatibility Plan
 
-```
-A data migration script is required. This script will iterate through all existing `chat_id:*` keys in Redis. For each, it will create a new Unified User ID, create a mapping (`telegram_id:<id> -> user_id:<uuid>`), and then rename/copy the existing Redis data to new keys based on the `user_id`. During a transition period, the API could be coded to check for the `user_id` key first, and if not found, fall back to checking the old `chat_id` key, perform the migration on-the-fly, and then proceed.
-```
+V1 keeps the existing Redis key shape for project context and simply makes the local sync API operate on the owner chat's existing project key. That means:
 
----
+- no Redis migration is required for project sync,
+- Telegram behavior remains backward compatible,
+- and local tools can adopt the new sync API without changing how Telegram stores context.
 
 ## 4. Feasibility Analysis
 
 ### 4.1 Technical Feasibility
 
-| คำถาม | คำตอบ | หมายเหตุ |
-|-------|-------|----------|
-| เทคโนโลยีรองรับหรือไม่? | ✅ | FastAPI supports middleware for rate limiting. Redis is already in use. The main challenge is the identity linking logic. |
-| ทีมมี Skills เพียงพอหรือไม่? | ✅ | The required skills (Python, FastAPI, Redis, API security) are within the team's capabilities. |
-| Infrastructure รองรับหรือไม่? | ✅ | No new infrastructure is needed. The changes can be deployed on the existing setup. |
+| Question | Answer | Notes |
+|----------|--------|-------|
+| Can the current stack support this? | Yes | FastAPI, Redis, and current auth patterns are already sufficient |
+| Does the repo already have reusable pieces? | Yes | API-key auth, project storage, Telegram flow, and local-tool scripts already exist |
+| Is a new auth subsystem required? | No | Reusing `X-Akasa-API-Key` is enough for v1 |
 
 ### 4.2 Time Feasibility
 
-| ประเด็น | รายละเอียด |
-|--------|-----------|
-| **Estimated Effort** | 3 weeks (1 dev) | Includes design, implementation, testing, and data migration script. |
-| **Deadline** | N/A (Phase 5) | |
-| **Buffer Time** | 1 week | For potential issues with data migration or security hardening. |
-| **Feasible?** | ✅ | The effort is significant but manageable within a single development cycle. |
+| Topic | Estimate |
+|-------|----------|
+| Context router + Redis wrappers | Small |
+| Telegram rate limiting | Small to medium |
+| LLM error normalization | Medium |
+| Tests and manual verification | Medium |
 
-### 4.3 Budget Feasibility
-
-| รายการ | ค่าใช้จ่าย | หมายเหตุ |
-|--------|-----------|----------|
-| Development Time | [Internal Cost] | Approx. 3-4 developer-weeks. |
-| New Infrastructure | $0 | Utilizes existing infrastructure. |
-| **Total** | [Internal Cost] | |
-
----
+Overall effort is reasonable because v1 avoids full account-linking work.
 
 ## 5. Security Analysis
 
 ### 5.1 Sensitive Data
 
-| ข้อมูล | Sensitivity Level | Protection Method |
-|--------|------------------|-------------------|
-| `API Auth Token` (for local tools) | 🔴 Critical | Store as a hashed value in the DB. Transmit only over HTTPS. Never log. |
-| `User ID Mapping` (TID to UUID) | 🔴 Critical | Stored in a secure database table with restricted access. |
-| `User Project Context` | 🟡 Sensitive | Access controlled via the Unified User ID and authentication token. |
+| Data | Sensitivity | Protection |
+|------|-------------|------------|
+| `X-Akasa-API-Key` | High | Existing API-key validation, never expose in Telegram |
+| Owner chat identifier | Medium | Server-side config only |
+| `active_project` | Medium | Accessible only through Telegram owner flow or authenticated local API |
 
 ### 5.2 Attack Vectors
 
-| Vector | Risk Level | Mitigation |
-|--------|-----------|------------|
-| Credential Stuffing (API Token) | 🔴 High | Implement token expiration, secure token generation (high entropy), and monitoring for anomalous login patterns. |
-| API Abuse / Denial of Service | 🟡 Medium | Apply strict rate limiting on all public-facing endpoints, including the new context sync API. |
-| Man-in-the-Middle (MITM) | 🟡 Medium | Enforce HTTPS-only communication for all API endpoints. |
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| Leaked API key | High | Reuse existing API-key checks and operational key hygiene |
+| Telegram spam | Medium | Add inbound message rate limiting before LLM work |
+| Misconfigured owner chat | Medium | Fail the sync API clearly instead of writing to an unknown chat context |
 
-### 5.3 Authentication & Authorization
+### 5.3 Authentication and Authorization
 
-```
-The new Context Sync API (`/api/v1/context/*`) will be protected using a Bearer Token authentication scheme.
-1.  A user links their account via a CLI command (e.g., `akasa link`).
-2.  This command communicates with the backend to generate a long-lived, high-entropy API token associated with their Unified User ID.
-3.  The token is stored securely on the user's local machine.
-4.  All subsequent requests from the local tool to the sync API must include this token in the `Authorization: Bearer <token>` header.
-5.  The backend validates the token and authorizes access to the context data for that specific user.
-```
+V1 uses existing API-key authorization only. The local sync API trusts callers who present a valid `X-Akasa-API-Key`, then resolves the synchronized context against the configured owner chat. This is intentionally simpler than a full local-profile-to-Telegram account-linking flow and is acceptable only because v1 is scoped to a single-owner deployment model.
 
----
-
-## 6. Performance & Scalability Analysis
+## 6. Performance and Scalability
 
 ### 6.1 Performance Targets
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| Context Sync API Response Time | < 150ms | N/A |
-| Rate Limiter Overhead | < 10ms | N/A |
-| Throughput | 500 req/s | N/A |
-| Error Rate | < 0.05% | N/A |
+| Metric | Target |
+|--------|--------|
+| `GET /api/v1/context/project` latency | < 150 ms |
+| `PUT /api/v1/context/project` latency | < 150 ms |
+| Telegram rate-limit check overhead | < 10 ms Redis overhead |
 
-### 6.2 Scalability Plan
+### 6.2 Scalability Notes
 
-| Scenario | Expected Users | Scaling Strategy |
-|----------|---------------|------------------|
-| Normal | ~1,000 | The FastAPI app can be run with multiple Uvicorn workers. Redis is fast enough for this load. |
-| Peak | ~5,000 | Deploy the FastAPI application behind a load balancer with auto-scaling based on CPU/memory usage. |
-| Growth (1yr) | ~25,000 | Consider a managed Redis cluster for higher availability. The user identity service may need its own scalable database if it grows complex. |
-
----
+This phase is not designed for multi-user routing. It is optimized for correctness and low operational risk in the repo's current owner-centric operating model.
 
 ## 7. Gap Analysis
 
-| ด้าน | As-Is (ปัจจุบัน) | To-Be (ต้องการ) | Gap |
-|------|-----------------|-----------------|-----|
-| **User Identity** | Context is keyed by `chat_id`, which is specific to one platform (Telegram). | Context is keyed by a global Unified User ID, shared across platforms. | Need to design and implement a user identity service, linking mechanism, and data model. |
-| **Data Storage** | Redis schema is simple and siloed per chat. | Redis schema is structured around the Unified User ID. | Requires a full data migration and refactoring of all Redis-related services. |
-| **API Surface** | Only a Telegram webhook endpoint exists. | Additional, secure REST API endpoints for context synchronization are available. | Need to design, build, and secure a new set of endpoints for local tools. |
-| **Reliability** | No formal rate limiting. Error handling for external services is basic. | Robust rate limiting and graceful error handling are implemented as middleware. | Need to implement and configure middleware for rate limiting and a centralized exception handling system. |
-
----
+| Area | As-Is | To-Be | Gap |
+|------|-------|-------|-----|
+| Local project sync API | No dedicated endpoint | `GET/PUT /api/v1/context/project` | Add a focused context router |
+| Auth contract | API-key auth exists but is fragmented across routers | One documented header contract for context sync | Reuse current pattern and document it consistently |
+| Telegram project context | Already stored in Redis by chat | Shared with local tools | Add owner-chat sync path |
+| Telegram message rate limiting | Not present | Configurable inbound rate limiting | Add a new limiter before message processing |
+| LLM failure contract | Partial and implicit | Explicit user-facing fallback categories | Normalize failure handling behavior |
 
 ## 8. Risk Analysis
 
-| Risk | Probability | Impact | Score | Mitigation Plan |
-|------|-------------|--------|-------|-----------------|
-| **Data Migration Failure** | 🟡 Medium | 🔴 High | 6 | Develop and thoroughly test a migration script in a staging environment. Backup Redis data before production migration. Implement a fallback read pattern during transition. |
-| **Security Flaw in Auth/Sync API** | 🟡 Medium | 🔴 High | 6 | Conduct a security-focused code review. Use proven libraries for authentication. Enforce strong token policies (entropy, expiration). Perform penetration testing. |
-| **Poor UX for Account Linking** | 🟡 Medium | 🟡 Medium | 4 | Design a simple flow (e.g., CLI command generates a code, user pastes it to the bot). Provide clear instructions. Beta test with a small user group first. |
+| Risk | Probability | Impact | Score | Mitigation |
+|------|-------------|--------|-------|------------|
+| `AKASA_CHAT_ID` is missing or wrong | Medium | High | 6 | Return a clear server misconfiguration error and verify config during rollout |
+| Docs drift back to alternate contracts | Medium | Medium | 4 | Keep endpoint, header, and field names identical across all docs and tests |
+| Future unified identity work gets conflated with v1 | Medium | Medium | 4 | Keep a dedicated future-evolution section and exclude it from acceptance criteria |
+| Telegram warning UX is unclear | Low | Medium | 2 | Use concise, explicit rate-limit and failure messages in SBE and tests |
 
-> **Risk Score:** Probability × Impact (High=3, Medium=2, Low=1)
+## 9. Summary and Recommendations
 
----
+### 9.1 Key Findings
 
-## 9. Summary & Recommendations
-
-### 9.1 Analysis Summary
-
-| หมวด | Status | Key Findings |
-|------|--------|--------------|
-| Requirement | ✅ Clear | The problems are well-defined, addressing both system reliability and a critical cross-platform UX gap. |
-| Feature | ✅ Defined | The core components (Unified ID, Sync API, Middleware) are identified. |
-| Impact | 🔴 High | The feature requires fundamental changes to the data layer (Redis) and authentication model, affecting multiple services. |
-| Feasibility | ✅ Feasible | Technically achievable with existing stack, but the effort is non-trivial. |
-| Security | ⚠️ Needs Review | Introducing user authentication and an external API significantly increases the attack surface. Requires careful implementation. |
-| Performance | ✅ Acceptable | The proposed changes are unlikely to create bottlenecks if implemented correctly. |
-| Risk | ⚠️ Some Risks | Data migration and API security are the highest-priority risks that must be managed carefully. |
+- The repo already has enough infrastructure to ship a practical v1 without inventing a new auth system.
+- The most important missing pieces are the context sync router, Telegram inbound rate limiting, and a clearer LLM failure contract.
+- Full unified identity is still a valid long-term direction, but it is not the right v1 boundary for this codebase.
 
 ### 9.2 Recommendations
 
-1.  **Phase the Implementation:** Split the work.
-    - **Phase 1: Reliability.** Implement the rate limiting and error handling middleware first. This provides immediate value and is less complex.
-    - **Phase 2: Unified Identity.** Design and build the User ID service, migration scripts, and the new Sync API. This is the most complex part.
-2.  **Prioritize Security:** The authentication token for local tools is a high-value target. A formal security review of the token generation, storage, and validation logic is essential before deployment.
-3.  **Mandate a Staging Environment Test:** The data migration script MUST be successfully run on a staging environment with a realistic data snapshot before being executed on production.
+1. Ship the incremental `active_project` sync first using the existing API-key model.
+2. Treat `AKASA_CHAT_ID` as the v1 owner-context anchor and validate it explicitly.
+3. Add Telegram inbound rate limiting before making broader anti-abuse changes elsewhere.
+4. Keep future unified identity work documented, but out of the v1 acceptance contract.
 
-### 9.3 Next Steps
+## 10. Future Evolution
 
-- [ ] Draft a detailed technical design for the Unified User Identity model and the account linking flow.
-- [ ] Create OpenAPI/Swagger specifications for the new Context Sync API endpoints.
-- [ ] Develop a proof-of-concept for the rate limiting middleware.
-- [ ] Write the Redis data migration script and prepare a detailed deployment/rollback plan.
+The following items remain good future directions, but they are explicitly outside this v1:
 
----
-
-## 📎 Appendix
-
-### Related Documents
-
-- [Link to PRD]
-- [Link to Design Docs]
-- [Link to API Specs]
-
-### Sign-off
-
-| Role | Name | Date | Signature |
-|------|------|------|-----------|
-| Analyst | Luma AI | 2026-03-19 | ✅ |
-| Tech Lead | [Name] | [Date] | ⬜ |
-| PM | [Name] | [Date] | ⬜ |
+- one-time login challenge and Telegram-to-local account linking,
+- bearer-token auth for local tools,
+- a persisted `Unified User ID` separate from chat identity,
+- multi-user routing across multiple Telegram users and multiple local machines,
+- synchronization of additional state beyond `active_project`.
