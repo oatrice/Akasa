@@ -56,7 +56,7 @@
 | [#34](https://github.com/oatrice/Akasa/issues/34) | Post-Build Notification System with URL Verification | ✅ Complete |
 | [#67](https://github.com/oatrice/Akasa/issues/67) | AI Agent Timeout Observer (ตรวจจับ Agent ที่หยุดทำงาน) | ✅ Complete |
 | [#66](https://github.com/oatrice/Akasa/issues/66) | Telegram → Local Tools Command Queue (Bidirectional Control) | ✅ Complete |
-| [#68](https://github.com/oatrice/Akasa/issues/68) | IDE Integration for Command Queue (Zed, Antigravity, Windsurf) | 🔲 Todo |
+| [#68](https://github.com/oatrice/Akasa/issues/68) | IDE Integration for Command Queue (Zed, Antigravity, Windsurf) | ✅ Complete |
 
 ---
 
@@ -90,7 +90,7 @@
 | Phase 1 — Foundation | 4 | 1 | 5 |
 | Phase 2 — Chat Experience | 7 | 2 | 9 |
 | Phase 3 — Remote Dev Core | 4 | 0 | 4 |
-| Phase 4 — Orchestration & Build | 8 | 1 | 9 |
+| Phase 4 — Orchestration & Build | 9 | 0 | 9 |
 | Phase 5 — Mobile Visual | 0 | 2 | 2 |
 | Phase 6 — Scale & Cross-Platform | 0 | 7 | 7 |
-| **Total** | **23** | **13** | **36** |
+| **Total** | **24** | **12** | **36** |
