@@ -213,6 +213,82 @@ async def test_open_file_accepts_line_col_path():
     assert daemon._validate_args(entry, args) is None
 
 
+def test_build_cli_command_places_global_flags_before_command():
+    """Global flags should be rendered before command and internal args skipped."""
+    cmd = daemon._build_cli_command(
+        executable="gemini",
+        command="check_status",
+        args={
+            "model": "gemini-2.5-flash",
+            "fallback_model": "gemini-2.5-flash-lite",
+        },
+        execution_cfg={
+            "include_command_name": True,
+            "argument_style": "flags",
+            "global_flag_args": ["model"],
+            "internal_args": ["fallback_model"],
+            "flag_aliases": {"model": "-m"},
+        },
+    )
+
+    assert cmd == ["gemini", "-m", "gemini-2.5-flash", "check_status"]
+
+
+@pytest.mark.asyncio
+async def test_execute_command_retries_gemini_with_fallback_on_quota_error():
+    """Gemini CLI should retry once with fallback_model when quota is exhausted."""
+    quota_output = (
+        "Loaded cached credentials.\n"
+        "TerminalQuotaError: You have exhausted your capacity on this model. "
+        "Your quota will reset after 18m30s."
+    )
+    whitelist_entry = {
+        "tool": "gemini",
+        "command": "check_status",
+        "allowed_args": ["model", "fallback_model"],
+        "execution": {
+            "type": "cli",
+            "executable": "gemini",
+            "include_command_name": True,
+            "argument_style": "flags",
+            "global_flag_args": ["model"],
+            "internal_args": ["fallback_model"],
+            "flag_aliases": {"model": "-m"},
+        },
+    }
+
+    with patch(
+        "scripts.local_tool_daemon.get_command_whitelist_entry",
+        return_value=whitelist_entry,
+    ):
+        with patch(
+            "scripts.local_tool_daemon._execute_cli",
+            new_callable=AsyncMock,
+            side_effect=[
+                (1, quota_output),
+                (0, "fallback command succeeded"),
+            ],
+        ) as mock_exec:
+            exit_code, output = await daemon.execute_command(
+                command_id="cmd_retry",
+                tool="gemini",
+                command="check_status",
+                args={"model": "pro", "fallback_model": "flash"},
+            )
+
+    assert exit_code == 0
+    assert "Primary model: gemini-2.5-pro" in output
+    assert "Retried with fallback model: gemini-2.5-flash" in output
+    assert "fallback command succeeded" in output
+
+    first_call = mock_exec.await_args_list[0]
+    second_call = mock_exec.await_args_list[1]
+    assert first_call.args[2]["model"] == "gemini-2.5-pro"
+    assert first_call.args[2]["fallback_model"] == "gemini-2.5-flash"
+    assert second_call.args[2]["model"] == "gemini-2.5-flash"
+    assert "fallback_model" not in second_call.args[2]
+
+
 @pytest.mark.asyncio
 async def test_http_handler_retries_then_succeeds():
     """HTTP handler should retry retryable statuses and eventually succeed."""

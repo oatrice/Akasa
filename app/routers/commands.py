@@ -32,6 +32,7 @@ router = APIRouter(prefix="/commands", tags=["commands"])
 
 _QUOTA_RESET_RE = re.compile(r"quota will reset after ([^\n.]+)", re.IGNORECASE)
 _DURATION_FRAGMENT_RE = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", re.IGNORECASE)
+_FALLBACK_MODEL_RE = re.compile(r"Retried with fallback model:\s*([^\n]+)", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -66,12 +67,29 @@ def _format_wait_fragment(fragment: str) -> str:
     return " ".join(parts) if parts else cleaned
 
 
-def _summarize_command_output(tool: str, output: Optional[str]) -> Optional[str]:
+def _summarize_command_output(
+    tool: str,
+    status: str,
+    output: Optional[str],
+) -> Optional[str]:
     if not output:
         return None
 
     if tool.lower() != "gemini":
         return None
+
+    fallback_match = _FALLBACK_MODEL_RE.search(output)
+    if fallback_match:
+        fallback_model = fallback_match.group(1).strip()
+        if status == "success":
+            return (
+                f"Gemini quota บนโมเดลหลัก จึงสลับไปใช้ {fallback_model} "
+                "และรันต่อสำเร็จ"
+            )
+        return (
+            f"Gemini quota บนโมเดลหลัก จึงลองสลับไปใช้ {fallback_model} "
+            "แล้ว แต่คำสั่งยังไม่สำเร็จ"
+        )
 
     normalized = output.lower()
     if (
@@ -208,7 +226,11 @@ async def report_command_result(
         if result.duration_seconds is not None:
             safe_duration = escape_markdown_v2_content(f"{result.duration_seconds:.1f}s")
             msg += f"*Duration:* {safe_duration}\n"
-        summary = _summarize_command_output(status.tool, result.output)
+        summary = _summarize_command_output(
+            status.tool,
+            result.status,
+            result.output,
+        )
         if summary:
             safe_summary = escape_markdown_v2_content(summary)
             msg += f"*Summary:* {safe_summary}\n"

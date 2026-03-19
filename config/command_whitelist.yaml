@@ -8,6 +8,10 @@ tools:
       execution:
         type: cli
         executable: gemini
+        global_flag_args: [model]
+        internal_args: [fallback_model]
+        flag_aliases:
+          model: "-m"
         include_command_name: true
         argument_style: flags
         timeout_seconds: 120
@@ -15,16 +19,16 @@ tools:
     allowed_commands:
       - name: run_task
         description: "Run a Gemini CLI task"
-        allowed_args: [task, pr_number, branch]
+        allowed_args: [task, pr_number, branch, model, fallback_model]
       - name: check_status
         description: "Check Gemini CLI status"
-        allowed_args: []
+        allowed_args: [model, fallback_model]
       - name: list_issues
         description: "List GitHub issues via Gemini"
-        allowed_args: [state, label]
+        allowed_args: [state, label, model, fallback_model]
       - name: summarize_session
         description: "Summarize the current AI session"
-        allowed_args: []
+        allowed_args: [model, fallback_model]
 
   luma:
     defaults:
