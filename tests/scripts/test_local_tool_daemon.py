@@ -97,6 +97,35 @@ async def test_daemon_success_flow(
 
 
 @pytest.mark.asyncio
+async def test_daemon_logs_dequeued_command(
+    mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking, caplog
+):
+    """Daemon should log each command as soon as it is popped from Redis."""
+    command_payload = {
+        "command_id": "cmd_log_me",
+        "tool": "gemini",
+        "command": "check_status",
+        "args": {},
+        "user_id": 1,
+    }
+
+    mock_redis.brpop.side_effect = [
+        (b"akasa:commands:gemini", json.dumps(command_payload).encode("utf-8")),
+        None,
+    ]
+    mock_redis.exists.return_value = 1
+
+    with caplog.at_level("INFO"):
+        task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
+        await asyncio.sleep(0.1)
+        task.cancel()
+
+    assert "DEQUEUED cmd_log_me" in caplog.text
+    assert "tool=gemini" in caplog.text
+    assert "command=check_status" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_daemon_expired_command_marks_expired(
     mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking
 ):

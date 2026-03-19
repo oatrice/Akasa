@@ -389,6 +389,8 @@ async def _handle_command(message: "Message") -> None:
         await _handle_model_command(chat_id, args)
     elif cmd == "/project":
         await _handle_project_command(chat_id, args)
+    elif cmd == "/projects":
+        await _handle_projects_command(chat_id, args)
     elif cmd == "/note" and len(parts) > 1:
         await _handle_note_command(chat_id, args)
     elif cmd == "/github":
@@ -440,10 +442,6 @@ async def _handle_testsource_command(chat_id: int, args: list[str]) -> None:
 async def _handle_queue_command(message: "Message", args: list[str]) -> None:
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
-    try:
-        current_project = await redis_service.get_current_project(chat_id)
-    except Exception:
-        current_project = "default"
     
     if len(args) < 2:
         await _send_response(chat_id, "❌ Usage: `/queue <tool> <command> [args_json]`")
@@ -477,14 +475,6 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
             user_id=user_id, 
             chat_id=chat_id
         )
-        try:
-            await redis_service.add_recent_command_id(
-                chat_id, current_project, result.command_id
-            )
-        except Exception as e:
-            logger.warning(
-                f"Failed to track recent command {result.command_id} for project {current_project}: {e}"
-            )
         safe_tool = escape_markdown_v2_content(tool)
         safe_command = escape_markdown_v2_content(command)
         msg = f"⏳ *Command Enqueued*\nID: `{result.command_id}`\nTool: {safe_tool}\nCommand: {safe_command}"
@@ -640,17 +630,98 @@ def _format_project_timestamp(value) -> Optional[str]:
     return str(value)
 
 
-async def _handle_project_status_command(
+def _parse_project_datetime(value) -> Optional[datetime]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value
+
+    text = str(value)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def _truncate_project_text(text: str, limit: int = 90) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3] + "..."
+
+
+def _build_history_snippet(history_entry: dict) -> Optional[str]:
+    if not history_entry:
+        return None
+
+    role = str(history_entry.get("role", "unknown"))
+    content = history_entry.get("content")
+    if content is None:
+        if history_entry.get("tool_calls"):
+            content = "[tool calls]"
+        else:
+            return None
+
+    return f"{role}: {_truncate_project_text(str(content))}"
+
+
+def _format_history_count(count: int) -> str:
+    suffix = "message" if count == 1 else "messages"
+    return f"{count} recent {suffix}"
+
+
+def _compute_last_updated(
+    agent_state,
+    recent_command_statuses,
+    recent_deployments,
+    recent_tasks,
+) -> Optional[str]:
+    candidates = []
+
+    if agent_state and getattr(agent_state, "last_activity_timestamp", None):
+        parsed = _parse_project_datetime(agent_state.last_activity_timestamp)
+        if parsed:
+            candidates.append(parsed)
+
+    for status in recent_command_statuses:
+        for value in (status.completed_at, status.picked_up_at, status.queued_at):
+            parsed = _parse_project_datetime(value)
+            if parsed:
+                candidates.append(parsed)
+
+    for deployment in recent_deployments:
+        for value in (deployment.finished_at, deployment.started_at):
+            parsed = _parse_project_datetime(value)
+            if parsed:
+                candidates.append(parsed)
+
+    for task in recent_tasks:
+        for value in (task.completed_at, task.started_at):
+            parsed = _parse_project_datetime(value)
+            if parsed:
+                candidates.append(parsed)
+
+    if not candidates:
+        return None
+
+    return max(candidates).isoformat()
+
+
+async def _load_project_status_snapshot(
     chat_id: int,
     project_name: str,
-    current_project: Optional[str] = None,
-) -> None:
-    current_project = current_project or await redis_service.get_current_project(chat_id)
-
+    command_limit: int = 3,
+    deployment_limit: int = 3,
+    task_limit: int = 3,
+):
     agent_state = None
     recent_command_ids = []
     recent_deployment_ids = []
     recent_tasks = []
+    recent_history = []
 
     try:
         agent_state = await redis_service.get_agent_state(chat_id, project_name)
@@ -659,14 +730,14 @@ async def _handle_project_status_command(
 
     try:
         recent_command_ids = await redis_service.get_recent_command_ids(
-            chat_id, project_name, limit=3
+            chat_id, project_name, limit=command_limit
         )
     except Exception as e:
         logger.warning(f"Failed to load recent command IDs for project {project_name}: {e}")
 
     try:
         recent_deployment_ids = await redis_service.get_recent_deployment_ids(
-            chat_id, project_name, limit=3
+            chat_id, project_name, limit=deployment_limit
         )
     except Exception as e:
         logger.warning(
@@ -677,6 +748,13 @@ async def _handle_project_status_command(
         recent_tasks = await agent_task_service.get_tasks_by_project(project_name)
     except Exception as e:
         logger.warning(f"Failed to load agent tasks for project {project_name}: {e}")
+
+    try:
+        recent_history = await redis_service.get_chat_history(
+            chat_id, project_name=project_name
+        )
+    except Exception as e:
+        logger.warning(f"Failed to load chat history for project {project_name}: {e}")
 
     recent_command_statuses = []
     for command_id in recent_command_ids:
@@ -708,6 +786,41 @@ async def _handle_project_status_command(
         reverse=True,
     )
 
+    history_snippet = None
+    if recent_history:
+        history_snippet = _build_history_snippet(recent_history[-1])
+
+    last_updated = _compute_last_updated(
+        agent_state,
+        recent_command_statuses,
+        recent_deployments,
+        filtered_tasks,
+    )
+
+    return {
+        "agent_state": agent_state,
+        "recent_command_statuses": recent_command_statuses,
+        "recent_deployments": recent_deployments,
+        "recent_tasks": filtered_tasks[:task_limit],
+        "last_updated": last_updated,
+        "history_snippet": history_snippet,
+        "history_count": len(recent_history),
+    }
+
+
+async def _handle_project_status_command(
+    chat_id: int,
+    project_name: str,
+    current_project: Optional[str] = None,
+) -> None:
+    current_project = current_project or await redis_service.get_current_project(chat_id)
+    snapshot = await _load_project_status_snapshot(chat_id, project_name)
+    agent_state = snapshot["agent_state"]
+    recent_command_statuses = snapshot["recent_command_statuses"]
+    recent_deployments = snapshot["recent_deployments"]
+    filtered_tasks = snapshot["recent_tasks"]
+    last_updated = snapshot["last_updated"]
+
     lines = [f"📊 Project Status: `{project_name}`"]
     if project_name == current_project:
         lines.append("✅ This is the active project.")
@@ -724,6 +837,9 @@ async def _handle_project_status_command(
             lines.append(f"🕒 Last note update: `{last_note_update}`")
     else:
         lines.append("📝 Current task: No saved note")
+
+    if last_updated:
+        lines.append(f"🗓️ Last updated: `{last_updated}`")
 
     lines.append("")
     lines.append("⚙️ Recent commands:")
@@ -754,6 +870,157 @@ async def _handle_project_status_command(
     else:
         lines.append("• No recent agent task notifications")
 
+    await _send_response(chat_id, "\n".join(lines))
+
+
+async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
+    if not args or args[0].lower() != "overview":
+        await _send_response(
+            chat_id,
+            "🗂️ Usage:\n• `/projects overview`\n• `/projects overview verbose`\n• `/projects overview markdown`\n• `/projects overview json`\n\nYou can combine options, for example: `/projects overview verbose json`",
+        )
+        return
+
+    options = {arg.lower() for arg in args[1:]}
+    allowed_options = {"verbose", "markdown", "json"}
+    unknown_options = sorted(options - allowed_options)
+    if unknown_options:
+        await _send_response(
+            chat_id,
+            f"❌ Unknown `/projects overview` option(s): {', '.join(unknown_options)}",
+        )
+        return
+
+    verbose = "verbose" in options
+    output_format = "json" if "json" in options else "markdown"
+
+    current_project = await redis_service.get_current_project(chat_id)
+    projects = await redis_service.get_project_list(chat_id)
+    unique_projects = []
+    seen = set()
+    for project in projects:
+        normalized = project.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_projects.append(normalized)
+
+    unique_projects.sort()
+    if current_project in unique_projects:
+        unique_projects.remove(current_project)
+    ordered_projects = [current_project] + unique_projects
+
+    overview_items = []
+    for project_name in ordered_projects:
+        snapshot = await _load_project_status_snapshot(
+            chat_id,
+            project_name,
+            command_limit=1,
+            deployment_limit=1,
+            task_limit=1,
+        )
+        agent_state = snapshot["agent_state"]
+        recent_command_statuses = snapshot["recent_command_statuses"]
+        recent_deployments = snapshot["recent_deployments"]
+        recent_tasks = snapshot["recent_tasks"]
+        last_updated = snapshot["last_updated"]
+        history_snippet = snapshot["history_snippet"]
+        history_count = snapshot["history_count"]
+
+        latest_command = None
+        if recent_command_statuses:
+            status = recent_command_statuses[0]
+            latest_command = {
+                "command_id": status.command_id,
+                "tool": status.tool,
+                "command": status.command,
+                "status": status.status,
+            }
+
+        latest_deployment = None
+        if recent_deployments:
+            deployment = recent_deployments[0]
+            latest_deployment = {
+                "deployment_id": deployment.deployment_id,
+                "command": deployment.command,
+                "status": deployment.status,
+            }
+
+        latest_agent_task = None
+        if recent_tasks:
+            task = recent_tasks[0]
+            latest_agent_task = {
+                "task_id": task.task_id,
+                "task": task.task,
+                "status": task.status,
+                "source": task.source,
+            }
+
+        overview_items.append(
+            {
+                "project": project_name,
+                "active": project_name == current_project,
+                "task": agent_state.current_task if agent_state and agent_state.current_task else None,
+                "last_updated": last_updated,
+                "history_count": history_count,
+                "history_snippet": history_snippet if verbose else None,
+                "latest_command": latest_command,
+                "latest_deployment": latest_deployment,
+                "latest_agent_task": latest_agent_task,
+            }
+        )
+
+    if output_format == "json":
+        payload = {
+            "current_project": current_project,
+            "verbose": verbose,
+            "projects": overview_items,
+        }
+        rendered = "```json\n" + json.dumps(payload, ensure_ascii=False, indent=2) + "\n```"
+        await _send_response(chat_id, rendered)
+        return
+
+    lines = ["🗂️ Projects Overview" + (" (Verbose)" if verbose else ""), ""]
+    for item in overview_items:
+        prefix = "✅" if item["active"] else "•"
+        lines.append(f"{prefix} `{item['project']}`")
+        lines.append(f"Task: {item['task'] or 'No saved note'}")
+        lines.append(
+            f"Last updated: `{item['last_updated']}`" if item["last_updated"] else "Last updated: unknown"
+        )
+        lines.append(f"History count: {_format_history_count(item['history_count'])}")
+
+        latest_command = item["latest_command"]
+        if latest_command:
+            lines.append(
+                f"Command: `{latest_command['tool']} {latest_command['command']}` → `{latest_command['status']}`"
+            )
+        else:
+            lines.append("Command: none")
+
+        latest_deployment = item["latest_deployment"]
+        if latest_deployment:
+            lines.append(
+                f"Deploy: `{latest_deployment['command']}` → `{latest_deployment['status']}`"
+            )
+        else:
+            lines.append("Deploy: none")
+
+        latest_agent_task = item["latest_agent_task"]
+        if latest_agent_task:
+            source = f" ({latest_agent_task['source']})" if latest_agent_task["source"] else ""
+            lines.append(
+                f"Agent: `{latest_agent_task['status']}` — {latest_agent_task['task']}{source}"
+            )
+        else:
+            lines.append("Agent: none")
+
+        if verbose:
+            lines.append(f"History: {item['history_snippet'] or 'none'}")
+
+        lines.append("")
+
+    lines.append("Tip: use `/project status <name>` for full details.")
     await _send_response(chat_id, "\n".join(lines))
 
 

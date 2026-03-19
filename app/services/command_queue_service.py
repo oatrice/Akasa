@@ -386,6 +386,16 @@ async def enqueue_command(
         f"user_id={user_id}, ttl={ttl}s"
     )
 
+    try:
+        from app.services import redis_service as _redis_service
+
+        current_project = await _redis_service.get_current_project(chat_id)
+        await _redis_service.add_recent_command_id(chat_id, current_project, command_id)
+    except Exception as exc:
+        logger.warning(
+            f"[ENQUEUE] Failed to track recent command {command_id} for chat_id={chat_id}: {exc}"
+        )
+
     return CommandQueueResponse(
         command_id=command_id,
         status="queued",

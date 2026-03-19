@@ -540,6 +540,10 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             args = payload.get("args", {})
             meta_key = f"akasa:cmd_meta:{command_id}"
 
+            logger.info(
+                f"DEQUEUED {command_id} — tool={tool}, command={command}, queue={queue_name}"
+            )
+
             if not await redis.exists(meta_key):
                 logger.warning(f"Command {command_id} has expired before execution")
                 await mark_command_expired(command_id)
