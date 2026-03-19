@@ -191,6 +191,63 @@ async def _add_project_to_list(chat_id: int, project_name: str):
     await redis_pool.expire(list_key, settings.REDIS_TTL_SECONDS)
 
 
+# --- Project Activity Indexes ---
+
+def _normalize_project_name(project_name: str) -> str:
+    normalized = (project_name or "").strip().lower()
+    return normalized or "default"
+
+
+def _get_project_commands_key(chat_id: int, project_name: str) -> str:
+    return f"project_commands:{chat_id}:{_normalize_project_name(project_name)}"
+
+
+def _get_project_deployments_key(chat_id: int, project_name: str) -> str:
+    return f"project_deployments:{chat_id}:{_normalize_project_name(project_name)}"
+
+
+async def _push_project_activity_id(key: str, value: str, limit: int = 5):
+    await redis_pool.lpush(key, value)
+    await redis_pool.ltrim(key, 0, max(limit - 1, 0))
+    await redis_pool.expire(key, settings.REDIS_TTL_SECONDS)
+
+
+async def add_recent_command_id(chat_id: int, project_name: str, command_id: str):
+    """Track the most recent command IDs for a project."""
+    await _push_project_activity_id(
+        _get_project_commands_key(chat_id, project_name),
+        command_id,
+    )
+
+
+async def get_recent_command_ids(
+    chat_id: int,
+    project_name: str,
+    limit: int = 3,
+) -> List[str]:
+    """Return recent command IDs for a project, newest first."""
+    key = _get_project_commands_key(chat_id, project_name)
+    return await redis_pool.lrange(key, 0, max(limit - 1, 0))
+
+
+async def add_recent_deployment_id(chat_id: int, project_name: str, deployment_id: str):
+    """Track the most recent deployment IDs for a project."""
+    await _push_project_activity_id(
+        _get_project_deployments_key(chat_id, project_name),
+        deployment_id,
+    )
+
+
+async def get_recent_deployment_ids(
+    chat_id: int,
+    project_name: str,
+    limit: int = 3,
+) -> List[str]:
+    """Return recent deployment IDs for a project, newest first."""
+    key = _get_project_deployments_key(chat_id, project_name)
+    return await redis_pool.lrange(key, 0, max(limit - 1, 0))
+
+
 # --- Agent State (Project-Specific Memory) ---
 
 def _get_agent_state_key(chat_id: int, project_name: str) -> str:

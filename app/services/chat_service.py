@@ -16,6 +16,8 @@ from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_cont
 from app.services import llm_service
 from app.services.llm_service import OpenRouterInsufficientCreditsError
 from app.services import command_queue_service
+from app.services import agent_task_service
+from app.services import deploy_service
 from app.models.command import CommandQueueRequest
 from app.models.notification import TaskNotificationRequest
 from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
@@ -24,6 +26,7 @@ import logging
 import os
 import subprocess
 import json
+from typing import Optional
 from datetime import datetime, timezone
 from app.config import settings
 
@@ -437,6 +440,10 @@ async def _handle_testsource_command(chat_id: int, args: list[str]) -> None:
 async def _handle_queue_command(message: "Message", args: list[str]) -> None:
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else 0
+    try:
+        current_project = await redis_service.get_current_project(chat_id)
+    except Exception:
+        current_project = "default"
     
     if len(args) < 2:
         await _send_response(chat_id, "❌ Usage: `/queue <tool> <command> [args_json]`")
@@ -470,6 +477,14 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
             user_id=user_id, 
             chat_id=chat_id
         )
+        try:
+            await redis_service.add_recent_command_id(
+                chat_id, current_project, result.command_id
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to track recent command {result.command_id} for project {current_project}: {e}"
+            )
         safe_tool = escape_markdown_v2_content(tool)
         safe_command = escape_markdown_v2_content(command)
         msg = f"⏳ *Command Enqueued*\nID: `{result.command_id}`\nTool: {safe_tool}\nCommand: {safe_command}"
@@ -591,11 +606,15 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         msg = f"📁 Current Project: `{current}`\n\nAvailable Projects:\n"
         for p in projects:
             msg += f"{'✅' if p == current else '-'} `{p}`\n"
-        msg += "\nUsage:\n• `/project select <name>`\n• `/project new <name>`\n• `/project rename <old> <new>`"
+        msg += "\nUsage:\n• `/project select <name>`\n• `/project status [name]`\n• `/project new <name>`\n• `/project rename <old> <new>`"
         await _send_response(chat_id, msg)
         return
     sub_cmd = args[0].lower()
-    if sub_cmd == "select" and len(args) > 1:
+    if sub_cmd == "status":
+        current = await redis_service.get_current_project(chat_id)
+        target = args[1].lower() if len(args) > 1 else current
+        await _handle_project_status_command(chat_id, target, current)
+    elif sub_cmd == "select" and len(args) > 1:
         target = args[1].lower()
         await redis_service.set_current_project(chat_id, target)
         agent_state = await redis_service.get_agent_state(chat_id, target)
@@ -611,6 +630,131 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, f"✅ Project renamed from `{args[1].lower()}` to `{args[2].lower()}`.\n(Current project updated if needed)")
     else:
         await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")
+
+
+def _format_project_timestamp(value) -> Optional[str]:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+async def _handle_project_status_command(
+    chat_id: int,
+    project_name: str,
+    current_project: Optional[str] = None,
+) -> None:
+    current_project = current_project or await redis_service.get_current_project(chat_id)
+
+    agent_state = None
+    recent_command_ids = []
+    recent_deployment_ids = []
+    recent_tasks = []
+
+    try:
+        agent_state = await redis_service.get_agent_state(chat_id, project_name)
+    except Exception as e:
+        logger.warning(f"Failed to load AgentState for project {project_name}: {e}")
+
+    try:
+        recent_command_ids = await redis_service.get_recent_command_ids(
+            chat_id, project_name, limit=3
+        )
+    except Exception as e:
+        logger.warning(f"Failed to load recent command IDs for project {project_name}: {e}")
+
+    try:
+        recent_deployment_ids = await redis_service.get_recent_deployment_ids(
+            chat_id, project_name, limit=3
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to load recent deployment IDs for project {project_name}: {e}"
+        )
+
+    try:
+        recent_tasks = await agent_task_service.get_tasks_by_project(project_name)
+    except Exception as e:
+        logger.warning(f"Failed to load agent tasks for project {project_name}: {e}")
+
+    recent_command_statuses = []
+    for command_id in recent_command_ids:
+        try:
+            status = await command_queue_service.get_command_status(command_id)
+        except Exception as e:
+            logger.warning(f"Failed to read command status for {command_id}: {e}")
+            status = None
+        if status is not None:
+            recent_command_statuses.append(status)
+
+    recent_deployments = []
+    for deployment_id in recent_deployment_ids:
+        try:
+            deployment = await deploy_service.get_deployment(deployment_id)
+        except Exception as e:
+            logger.warning(f"Failed to read deployment status for {deployment_id}: {e}")
+            deployment = None
+        if deployment is not None:
+            recent_deployments.append(deployment)
+
+    filtered_tasks = [
+        task
+        for task in recent_tasks
+        if not task.chat_id or task.chat_id == str(chat_id)
+    ]
+    filtered_tasks.sort(
+        key=lambda task: task.completed_at or task.started_at or "",
+        reverse=True,
+    )
+
+    lines = [f"📊 Project Status: `{project_name}`"]
+    if project_name == current_project:
+        lines.append("✅ This is the active project.")
+    else:
+        lines.append(f"Current active project: `{current_project}`")
+
+    lines.append("")
+    if agent_state and agent_state.current_task:
+        lines.append(f"📝 Current task: {agent_state.current_task}")
+        if agent_state.focus_file:
+            lines.append(f"📄 Focus file: `{agent_state.focus_file}`")
+        last_note_update = _format_project_timestamp(agent_state.last_activity_timestamp)
+        if last_note_update:
+            lines.append(f"🕒 Last note update: `{last_note_update}`")
+    else:
+        lines.append("📝 Current task: No saved note")
+
+    lines.append("")
+    lines.append("⚙️ Recent commands:")
+    if recent_command_statuses:
+        for status in recent_command_statuses:
+            lines.append(
+                f"• `{status.command_id}` — `{status.tool} {status.command}` → `{status.status}`"
+            )
+    else:
+        lines.append("• No recent command queue activity")
+
+    lines.append("")
+    lines.append("🚀 Recent deployments:")
+    if recent_deployments:
+        for deployment in recent_deployments:
+            lines.append(
+                f"• `{deployment.deployment_id}` — `{deployment.command}` → `{deployment.status}`"
+            )
+    else:
+        lines.append("• No recent deployments")
+
+    lines.append("")
+    lines.append("🤖 Recent agent tasks:")
+    if filtered_tasks:
+        for task in filtered_tasks[:3]:
+            source = f" ({task.source})" if task.source else ""
+            lines.append(f"• `{task.status}` — {task.task}{source}")
+    else:
+        lines.append("• No recent agent task notifications")
+
+    await _send_response(chat_id, "\n".join(lines))
 
 
 async def _execute_tool_call(function_name: str, arguments_str: str) -> str:

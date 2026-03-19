@@ -222,13 +222,18 @@ class TestCreateDeployment:
         mock_redis.set = AsyncMock()
 
         with patch("app.services.deploy_service.redis_pool", mock_redis):
-            record = await create_deployment(
-                command="echo hi",
-                cwd="/tmp",
-                chat_id="111222333",
-            )
+            with patch(
+                "app.services.deploy_service.add_recent_deployment_id",
+                new_callable=AsyncMock,
+            ) as mock_track:
+                record = await create_deployment(
+                    command="echo hi",
+                    cwd="/tmp",
+                    chat_id="111222333",
+                )
 
         assert record.chat_id == "111222333"
+        mock_track.assert_awaited_once_with(111222333, "General", record.deployment_id)
 
     @pytest.mark.asyncio
     async def test_persists_record_to_redis_on_create(self):

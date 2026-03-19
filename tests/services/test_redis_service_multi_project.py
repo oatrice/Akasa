@@ -106,6 +106,36 @@ async def test_set_owner_current_project_normalizes_lowercase(patch_redis, monke
     assert await get_current_project(4321) == "docs-bot"
 
 
+# --- Recent Project Activity Indexes ---
+
+@pytest.mark.asyncio
+async def test_recent_command_ids_are_tracked_per_project(patch_redis):
+    from app.services.redis_service import add_recent_command_id, get_recent_command_ids
+
+    chat_id = 777
+    await add_recent_command_id(chat_id, "akasa", "cmd_1")
+    await add_recent_command_id(chat_id, "akasa", "cmd_2")
+    await add_recent_command_id(chat_id, "luma", "cmd_other")
+
+    assert await get_recent_command_ids(chat_id, "akasa") == ["cmd_2", "cmd_1"]
+    assert await get_recent_command_ids(chat_id, "luma") == ["cmd_other"]
+
+
+@pytest.mark.asyncio
+async def test_recent_deployment_ids_are_tracked_per_project(patch_redis):
+    from app.services.redis_service import add_recent_deployment_id, get_recent_deployment_ids
+
+    chat_id = 778
+    await add_recent_deployment_id(chat_id, "akasa", "dep_1")
+    await add_recent_deployment_id(chat_id, "akasa", "dep_2")
+    await add_recent_deployment_id(chat_id, "akasa", "dep_3")
+
+    assert await get_recent_deployment_ids(chat_id, "akasa", limit=2) == [
+        "dep_3",
+        "dep_2",
+    ]
+
+
 # --- Project List Management ---
 
 @pytest.mark.asyncio

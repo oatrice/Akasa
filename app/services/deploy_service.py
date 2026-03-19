@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from app.models.deployment import DeploymentRecord
-from app.services.redis_service import redis_pool
+from app.services.redis_service import add_recent_deployment_id, redis_pool
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +90,13 @@ async def create_deployment(
         chat_id=chat_id,
     )
     await save_deployment(record)
+    if chat_id:
+        try:
+            await add_recent_deployment_id(int(chat_id), project, deployment_id)
+        except (TypeError, ValueError):
+            logger.warning(
+                f"Skipping deployment project index for {deployment_id}: invalid chat_id={chat_id!r}"
+            )
     logger.info(
         f"Deployment created: id={deployment_id}, project={project!r}, "
         f"command={command!r}, cwd={cwd!r}"

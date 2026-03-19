@@ -53,7 +53,7 @@ async def test_rename_project_migrates_history(patch_redis):
 
 @pytest.mark.asyncio
 async def test_project_usage_message(patch_redis):
-    """ทดสอบว่าคำสั่ง /project เฉยๆ ต้องแสดงวิธีใช้ที่มี select, new, rename"""
+    """ทดสอบว่าคำสั่ง /project เฉยๆ ต้องแสดงวิธีใช้ที่มี select, status, new, rename"""
     # งานนี้ต้องรันผ่าน ChatService
     from app.services.chat_service import _handle_project_command
     from unittest.mock import AsyncMock
@@ -67,6 +67,7 @@ async def test_project_usage_message(patch_redis):
     # ดึงข้อความที่ส่ง
     sent_msg = mock_send.call_args[0][1]
     assert "select" in sent_msg
+    assert "status" in sent_msg
     assert "new" in sent_msg
     assert "rename" in sent_msg
 
