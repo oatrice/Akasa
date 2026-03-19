@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import subprocess
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
+from app.config import settings
 
 @pytest.fixture
 def github_service():
@@ -88,6 +89,89 @@ def test_create_issue_success(github_service):
         )
         url = github_service.create_issue("owner/repo", "Test Title", "Test Body")
         assert url == "https://github.com/owner/repo/issues/123"
+
+def test_normalize_duration_for_project(github_service):
+    assert github_service._normalize_duration_for_project("38883s") == "10h 48m"
+    assert github_service._normalize_duration_for_project("90m") == "1h 30m"
+    assert github_service._normalize_duration_for_project("2h") == "2h"
+    assert github_service._normalize_duration_for_project("45s") == "45s"
+
+def test_create_issue_with_duration_syncs_project_card(github_service, monkeypatch):
+    monkeypatch.setattr(settings, "GITHUB_PROJECT_OWNER", "oatrice")
+    monkeypatch.setattr(settings, "GITHUB_PROJECT_NUMBER", 9)
+    monkeypatch.setattr(settings, "GITHUB_PROJECT_DURATION_FIELD_NAME", "Duration")
+
+    with patch.object(github_service, "_run_gh_command") as mock_run:
+        mock_run.side_effect = [
+            MagicMock(
+                returncode=0,
+                stdout="https://github.com/owner/repo/issues/123\n",
+                stderr="",
+            ),
+            MagicMock(returncode=0, stdout='{"id":"project_123"}', stderr=""),
+            MagicMock(
+                returncode=0,
+                stdout='{"fields":[{"id":"field_duration","name":"Duration","dataType":"TEXT"}]}',
+                stderr="",
+            ),
+            MagicMock(returncode=0, stdout='{"items":[]}', stderr=""),
+            MagicMock(returncode=0, stdout='{"id":"item_123"}', stderr=""),
+            MagicMock(returncode=0, stdout="", stderr=""),
+        ]
+
+        url = github_service.create_issue(
+            "owner/repo",
+            "Test Title",
+            "Test Body",
+            duration="38883s",
+        )
+
+    assert url == "https://github.com/owner/repo/issues/123"
+    assert mock_run.call_args_list[0].args[0] == [
+        "issue",
+        "create",
+        "--repo",
+        "owner/repo",
+        "--title",
+        "Test Title",
+        "--body",
+        "Test Body",
+    ]
+    assert mock_run.call_args_list[-1].args[0] == [
+        "project",
+        "item-edit",
+        "--id",
+        "item_123",
+        "--project-id",
+        "project_123",
+        "--field-id",
+        "field_duration",
+        "--text",
+        "10h 48m",
+    ]
+
+def test_create_issue_returns_url_when_duration_sync_fails(github_service, monkeypatch):
+    monkeypatch.setattr(settings, "GITHUB_PROJECT_OWNER", "oatrice")
+    monkeypatch.setattr(settings, "GITHUB_PROJECT_NUMBER", 9)
+
+    with patch.object(github_service, "_run_gh_command") as mock_run:
+        mock_run.side_effect = [
+            MagicMock(
+                returncode=0,
+                stdout="https://github.com/owner/repo/issues/123\n",
+                stderr="",
+            ),
+            GitHubServiceError("project scope missing"),
+        ]
+
+        url = github_service.create_issue(
+            "owner/repo",
+            "Test Title",
+            "Test Body",
+            duration="90m",
+        )
+
+    assert url == "https://github.com/owner/repo/issues/123"
 
 def test_get_pr_status_success(github_service):
     """Step 4: Test PR status retrieval."""

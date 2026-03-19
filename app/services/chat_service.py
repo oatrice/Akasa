@@ -48,6 +48,7 @@ GITHUB_TOOLS = [
                     "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
                     "title": {"type": "string", "description": "The title of the issue."},
                     "body": {"type": "string", "description": "The body content of the issue."},
+                    "duration": {"type": "string", "description": "Optional estimated or observed duration for the GitHub Project card (e.g., '90m', '2h', '1h 30m', '38883s')."},
                 },
                 "required": ["repo", "title", "body"],
             },
@@ -1120,7 +1121,14 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
         args = json.loads(arguments_str)
         print(f"--- [DEBUG] Executing tool: {function_name} ---")
         if function_name == "create_github_issue":
-            return github_service.create_issue(repo=args.get("repo"), title=args.get("title"), body=args.get("body"))
+            create_kwargs = {
+                "repo": args.get("repo"),
+                "title": args.get("title"),
+                "body": args.get("body"),
+            }
+            if args.get("duration"):
+                create_kwargs["duration"] = args.get("duration")
+            return github_service.create_issue(**create_kwargs)
         elif function_name == "list_github_open_prs":
             prs = github_service.get_pr_status(repo=args.get("repo"))
             return "\n".join([f"#{pr.number}: {pr.title} by @{pr.author.get('login') if pr.author else 'unknown'} ({pr.url})" for pr in prs]) if prs else "No open PRs."

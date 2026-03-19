@@ -74,6 +74,46 @@ async def test_handle_chat_message_with_create_issue_tool_call(mock_github, mock
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
+async def test_handle_chat_message_with_create_issue_duration_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+    """Test creating a GitHub issue with a duration synced to the project card."""
+    mock_update = mock_update_base
+    mock_update.message.text = "สร้าง issue พร้อม duration 90m ใน oatrice/Akasa"
+
+    mock_redis.get_current_project = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+
+    tool_call = {
+        "id": "call_1b",
+        "type": "function",
+        "function": {
+            "name": "create_github_issue",
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Timed Issue", "body": "Body", "duration": "90m"}'
+        }
+    }
+
+    mock_llm.get_llm_reply = AsyncMock(side_effect=[
+        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+        "สร้าง Issue พร้อม Duration ให้เรียบร้อยแล้วค่ะ"
+    ])
+
+    mock_github.create_issue = MagicMock(return_value="https://github.com/oatrice/Akasa/issues/2")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    mock_github.create_issue.assert_called_once_with(
+        repo="oatrice/Akasa", title="Timed Issue", body="Body", duration="90m"
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.github_service")
 async def test_handle_chat_message_with_list_prs_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
     """Test listing PRs via tool call, ensuring author is displayed."""
     mock_update = mock_update_base

@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     AKASA_API_KEY: str = "default-dev-key"
     AKASA_CHAT_ID: str = ""  # Default Telegram Chat ID for server-side notifications (e.g., task completion alerts)
     GITHUB_TOKEN: str = ""
+    GITHUB_PROJECT_OWNER: str = ""  # Optional owner for gh project commands; defaults to the repo owner when empty
+    GITHUB_PROJECT_NUMBER: int = 0  # Optional GitHub Project number used for syncing issue card metadata
+    GITHUB_PROJECT_DURATION_FIELD_NAME: str = "Duration"  # Custom project field name for normalized duration text
     ALLOWED_TELEGRAM_CHAT_IDS: str = (
         ""  # Comma-separated list of Chat IDs (e.g., "123,456")
     )

@@ -2,12 +2,17 @@ import subprocess
 import json
 import os
 import re
-from typing import List, Optional
+from typing import Any, List, Optional
 from app.config import settings
 from app.models.github import GitHubIssue, GitHubPR, GitHubRepo
 import logging
 
 logger = logging.getLogger(__name__)
+
+_DURATION_TOKEN_RE = re.compile(
+    r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>hours?|hrs?|hr|h|minutes?|mins?|min|m|seconds?|secs?|sec|s)",
+    re.IGNORECASE,
+)
 
 class GitHubServiceError(Exception):
     """Base exception for GitHub Service errors."""
@@ -45,6 +50,230 @@ class GitHubService:
         if not text:
             return ""
         return re.sub(r'[;&|`$]', '', text)
+
+    def _parse_json_output(self, stdout: str) -> Any:
+        text = (stdout or "").strip()
+        if not text:
+            return None
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return text
+
+    def _extract_list_payload(self, data: Any, preferred_key: str) -> list[dict]:
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if isinstance(data, dict):
+            if isinstance(data.get(preferred_key), list):
+                return [item for item in data[preferred_key] if isinstance(item, dict)]
+            for value in data.values():
+                if isinstance(value, list):
+                    return [item for item in value if isinstance(item, dict)]
+        return []
+
+    def _normalize_duration_for_project(self, duration: str) -> str:
+        text = (duration or "").strip()
+        if not text:
+            return text
+
+        matches = list(_DURATION_TOKEN_RE.finditer(text))
+        if not matches:
+            if text.isdigit():
+                return self._format_duration_minutes_hours(float(text))
+            return text
+
+        total_seconds = 0.0
+        for match in matches:
+            value = float(match.group("value"))
+            unit = match.group("unit").lower()
+            if unit.startswith("h"):
+                total_seconds += value * 3600
+            elif unit.startswith("m"):
+                total_seconds += value * 60
+            else:
+                total_seconds += value
+
+        return self._format_duration_minutes_hours(total_seconds)
+
+    def _format_duration_minutes_hours(self, total_seconds: float) -> str:
+        if total_seconds < 60:
+            seconds = max(int(round(total_seconds)), 0)
+            return f"{seconds}s"
+
+        rounded_minutes = max(int(round(total_seconds / 60.0)), 0)
+        hours, minutes = divmod(rounded_minutes, 60)
+
+        if hours and minutes:
+            return f"{hours}h {minutes}m"
+        if hours:
+            return f"{hours}h"
+        return f"{minutes}m"
+
+    def _get_project_owner(self, repo: str) -> str:
+        configured_owner = (settings.GITHUB_PROJECT_OWNER or "").strip()
+        if configured_owner:
+            return configured_owner
+        return repo.split("/", 1)[0]
+
+    def _get_project_id(self, project_owner: str, project_number: int) -> str:
+        result = self._run_gh_command(
+            [
+                "project",
+                "view",
+                str(project_number),
+                "--owner",
+                project_owner,
+                "--format",
+                "json",
+            ]
+        )
+        data = self._parse_json_output(result.stdout)
+        if isinstance(data, dict) and data.get("id"):
+            return str(data["id"])
+        if isinstance(data, str) and data:
+            return data
+        raise GitHubServiceError("Failed to resolve GitHub project ID.")
+
+    def _get_or_create_duration_field_id(
+        self,
+        project_owner: str,
+        project_number: int,
+        field_name: str,
+    ) -> str:
+        result = self._run_gh_command(
+            [
+                "project",
+                "field-list",
+                str(project_number),
+                "--owner",
+                project_owner,
+                "--format",
+                "json",
+            ]
+        )
+        fields = self._extract_list_payload(
+            self._parse_json_output(result.stdout), preferred_key="fields"
+        )
+        for field in fields:
+            if field.get("name") == field_name and field.get("id"):
+                return str(field["id"])
+
+        create_result = self._run_gh_command(
+            [
+                "project",
+                "field-create",
+                str(project_number),
+                "--owner",
+                project_owner,
+                "--name",
+                field_name,
+                "--data-type",
+                "TEXT",
+                "--format",
+                "json",
+            ]
+        )
+        created = self._parse_json_output(create_result.stdout)
+        if isinstance(created, dict) and created.get("id"):
+            return str(created["id"])
+        raise GitHubServiceError(f"Failed to create project field '{field_name}'.")
+
+    def _get_project_item_id(
+        self,
+        project_owner: str,
+        project_number: int,
+        issue_url: str,
+    ) -> Optional[str]:
+        result = self._run_gh_command(
+            [
+                "project",
+                "item-list",
+                str(project_number),
+                "--owner",
+                project_owner,
+                "--format",
+                "json",
+            ]
+        )
+        items = self._extract_list_payload(
+            self._parse_json_output(result.stdout), preferred_key="items"
+        )
+        for item in items:
+            content = item.get("content")
+            if isinstance(content, dict) and content.get("url") == issue_url and item.get("id"):
+                return str(item["id"])
+        return None
+
+    def _ensure_project_item_id(
+        self,
+        project_owner: str,
+        project_number: int,
+        issue_url: str,
+    ) -> str:
+        existing_item_id = self._get_project_item_id(project_owner, project_number, issue_url)
+        if existing_item_id:
+            return existing_item_id
+
+        try:
+            add_result = self._run_gh_command(
+                [
+                    "project",
+                    "item-add",
+                    str(project_number),
+                    "--owner",
+                    project_owner,
+                    "--url",
+                    issue_url,
+                    "--format",
+                    "json",
+                ]
+            )
+            added = self._parse_json_output(add_result.stdout)
+            if isinstance(added, dict) and added.get("id"):
+                return str(added["id"])
+        except GitHubServiceError:
+            # Another automation may have added the issue between list and add.
+            pass
+
+        added_item_id = self._get_project_item_id(project_owner, project_number, issue_url)
+        if added_item_id:
+            return added_item_id
+        raise GitHubServiceError("Failed to resolve GitHub project item ID for the issue.")
+
+    def sync_issue_duration_to_project_card(
+        self,
+        repo: str,
+        issue_url: str,
+        duration: str,
+    ) -> None:
+        project_number = settings.GITHUB_PROJECT_NUMBER
+        if not project_number:
+            raise GitHubServiceError("GITHUB_PROJECT_NUMBER is not configured.")
+
+        project_owner = self._get_project_owner(repo)
+        field_name = (settings.GITHUB_PROJECT_DURATION_FIELD_NAME or "Duration").strip() or "Duration"
+        normalized_duration = self._normalize_duration_for_project(duration)
+
+        project_id = self._get_project_id(project_owner, project_number)
+        field_id = self._get_or_create_duration_field_id(
+            project_owner, project_number, field_name
+        )
+        item_id = self._ensure_project_item_id(project_owner, project_number, issue_url)
+
+        self._run_gh_command(
+            [
+                "project",
+                "item-edit",
+                "--id",
+                item_id,
+                "--project-id",
+                project_id,
+                "--field-id",
+                field_id,
+                "--text",
+                normalized_duration,
+            ]
+        )
 
     def _run_gh_command(self, args: List[str]) -> subprocess.CompletedProcess:
         """Execute a gh CLI command securely."""
@@ -113,7 +342,13 @@ class GitHubService:
         except (json.JSONDecodeError, AttributeError, KeyError):
             raise GitHubServiceError("Failed to parse GitHub search results.")
 
-    def create_issue(self, repo: str, title: str, body: str) -> str:
+    def create_issue(
+        self,
+        repo: str,
+        title: str,
+        body: str,
+        duration: Optional[str] = None,
+    ) -> str:
 
         """Create a new issue and return the URL."""
         title = self.sanitize_input(title)
@@ -124,6 +359,18 @@ class GitHubService:
         
         url = result.stdout.strip()
         if url.startswith("http"):
+            if duration:
+                try:
+                    self.sync_issue_duration_to_project_card(
+                        repo=repo,
+                        issue_url=url,
+                        duration=duration,
+                    )
+                except GitHubServiceError as exc:
+                    logger.warning(
+                        "Issue created but failed to sync Duration project field: %s",
+                        exc,
+                    )
             return url
         raise GitHubServiceError(f"Unexpected output from issue creation: {url}")
 
