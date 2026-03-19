@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/oatrice/Akasa/compare/v0.19.0...v0.20.0) (2026-03-19)
+
+
+### Features
+
+* [Phase 2] Rate limiting + error handling ([#10](https://github.com/oatrice/Akasa/issues/10), [#37](https://github.com/oatrice/Akasa/issues/37)... ([#80](https://github.com/oatrice/Akasa/issues/80)) ([1cf171f](https://github.com/oatrice/Akasa/commit/1cf171fd5b95263441fe408907fdac70ae037a3b))
+
 ## [0.21.0] - 2026-03-19
 
 ### Added
