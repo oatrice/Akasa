@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.21.0] - 2026-03-19
+
+### Added
+- **Project Context Binding**: เพิ่มความสามารถในการผูก Project Path เข้ากับ Context ทำให้ Akasa สามารถจดจำและทำงานในบริบทของแต่ละโปรเจกต์ได้ดียิ่งขึ้น.
+- **Gemini Fallback Model Retry**: เพิ่มกลไกการลองใหม่ (retry) อัตโนมัติสำหรับ Gemini fallback model เพื่อเพิ่มความทนทานในการใช้งาน.
+- **Gemini Quota Error Summarization**: เพิ่มการสรุปข้อผิดพลาดเกี่ยวกับโควต้าการใช้งาน Gemini ให้เข้าใจง่ายขึ้น.
+- **Project Overview and Status Commands**: เพิ่มคำสั่งใหม่สำหรับดูภาพรวมและสถานะของโปรเจกต์ที่กำลังทำงานอยู่.
+- **Context Synchronization and LLM Error Handling**: ปรับปรุงการซิงค์ Context ระหว่างแพลตฟอร์มต่างๆ และเพิ่มการจัดการข้อผิดพลาดจาก LLM ที่แข็งแกร่งขึ้น.
+- **Auto-reload Command Whitelist**: เพิ่มความสามารถในการโหลดรายการคำสั่งที่อนุญาต (command whitelist) ใหม่อัตโนมัติเมื่อมีการเปลี่ยนแปลงโดยไม่ต้องรีสตาร์ท Akasa.
+
 ## [0.19.0](https://github.com/oatrice/Akasa/compare/v0.18.0...v0.19.0) (2026-03-18)
 
 

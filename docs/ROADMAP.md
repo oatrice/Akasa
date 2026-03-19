@@ -28,7 +28,7 @@
 | [#71](https://github.com/oatrice/Akasa/issues/71) | Telegram MarkdownV2 Escape/Fallback + list_github_repos + System Prompt Fix | ✅ Complete |
 | [#25](https://github.com/oatrice/Akasa/issues/25) | Local Bot Build Info in Responses | ✅ Complete |
 | [#9](https://github.com/oatrice/Akasa/issues/9) | เพิ่ม LINE Bot | 🔲 Todo |
-| [#10](https://github.com/oatrice/Akasa/issues/10) | Rate limiting + error handling | 🔲 Todo |
+| [#10](https://github.com/oatrice/Akasa/issues/10) | Rate limiting + error handling | ✅ Complete |
 
 ---
 
@@ -73,7 +73,7 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#37](https://github.com/oatrice/Akasa/issues/37) | Unified User Session & Multi-Platform Context Sync (Telegram + macOS) | 🔲 Todo |
+| [#37](https://github.com/oatrice/Akasa/issues/37) | Unified User Session & Multi-Platform Context Sync (Telegram + macOS) | ✅ Complete |
 | [#28](https://github.com/oatrice/Akasa/issues/28) | Web Dashboard & CLI Integration Hub (GitHub, Render, Vercel) | 🔲 Todo |
 | [#11](https://github.com/oatrice/Akasa/issues/11) | เชื่อม GitHub API (อ่านโค้ด, review PR) | 🔲 Todo |
 | [#12](https://github.com/oatrice/Akasa/issues/12) | Code Sandbox (รันโค้ดได้จากแชท) | 🔲 Todo |
