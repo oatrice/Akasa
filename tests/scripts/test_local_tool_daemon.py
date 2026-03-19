@@ -78,8 +78,10 @@ async def test_daemon_success_flow(
     mock_redis.exists.assert_called_with("akasa:cmd_meta:cmd_123")
 
     mock_subprocess.assert_called_once()
-    assert mock_subprocess.call_args[0][0] == "gemini"
-    assert mock_subprocess.call_args[0][1] == "run_task"
+    cli_args = mock_subprocess.call_args[0]
+    assert cli_args[0] == "gemini"
+    assert "-p" in cli_args
+    assert "test it" in cli_args[-1]
 
     mock_httpx_post.assert_called_once()
     payload = mock_httpx_post.call_args[1]["json"]
@@ -223,15 +225,40 @@ def test_build_cli_command_places_global_flags_before_command():
             "fallback_model": "gemini-2.5-flash-lite",
         },
         execution_cfg={
-            "include_command_name": True,
-            "argument_style": "flags",
+            "prompt_template": "Status check only.",
             "global_flag_args": ["model"],
             "internal_args": ["fallback_model"],
             "flag_aliases": {"model": "-m"},
         },
     )
 
-    assert cmd == ["gemini", "-m", "gemini-2.5-flash", "check_status"]
+    assert cmd == ["gemini", "-m", "gemini-2.5-flash", "-p", "Status check only."]
+
+
+def test_build_cli_command_uses_task_as_headless_prompt():
+    """run_task should invoke Gemini in headless prompt mode instead of subcommands."""
+    cmd = daemon._build_cli_command(
+        executable="gemini",
+        command="run_task",
+        args={
+            "task": "Summarize this repository.",
+            "pr_number": 42,
+            "branch": "main",
+            "model": "gemini-2.5-pro",
+        },
+        execution_cfg={
+            "prompt_arg_key": "task",
+            "prompt_context_keys": ["pr_number", "branch"],
+            "global_flag_args": ["model"],
+            "flag_aliases": {"model": "-m"},
+        },
+    )
+
+    assert cmd[0:3] == ["gemini", "-m", "gemini-2.5-pro"]
+    assert cmd[3] == "-p"
+    assert "Summarize this repository." in cmd[4]
+    assert "PR Number: 42" in cmd[4]
+    assert "Branch: main" in cmd[4]
 
 
 @pytest.mark.asyncio
@@ -249,8 +276,7 @@ async def test_execute_command_retries_gemini_with_fallback_on_quota_error():
         "execution": {
             "type": "cli",
             "executable": "gemini",
-            "include_command_name": True,
-            "argument_style": "flags",
+            "prompt_template": "Status check only.",
             "global_flag_args": ["model"],
             "internal_args": ["fallback_model"],
             "flag_aliases": {"model": "-m"},

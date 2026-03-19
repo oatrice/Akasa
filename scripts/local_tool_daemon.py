@@ -120,6 +120,71 @@ def _flag_for_arg(arg_name: str, flag_aliases: Dict[str, Any]) -> str:
     return f"--{arg_name.replace('_', '-')}"
 
 
+class _PromptFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return ""
+
+
+def _humanize_arg_name(arg_name: str) -> str:
+    words = arg_name.replace("_", " ").strip().split()
+    normalized_words: List[str] = []
+    for word in words:
+        lower = word.lower()
+        if lower == "pr":
+            normalized_words.append("PR")
+        elif lower == "id":
+            normalized_words.append("ID")
+        else:
+            normalized_words.append(word.title())
+    return " ".join(normalized_words)
+
+
+def _build_prompt_text(command: str, args: Dict[str, Any], execution_cfg: Dict[str, Any]) -> Optional[str]:
+    prompt_parts: List[str] = []
+
+    prompt_arg_key = execution_cfg.get("prompt_arg_key")
+    if isinstance(prompt_arg_key, str) and prompt_arg_key:
+        prompt_value = args.get(prompt_arg_key)
+        if not isinstance(prompt_value, str) or not prompt_value.strip():
+            return None
+        prompt_parts.append(prompt_value.strip())
+
+    prompt_template = execution_cfg.get("prompt_template")
+    if isinstance(prompt_template, str) and prompt_template.strip():
+        formatted = prompt_template.format_map(
+            _PromptFormatDict(
+                {
+                    key: value if isinstance(value, str) else str(value)
+                    for key, value in args.items()
+                    if value is not None
+                }
+            )
+        ).strip()
+        if formatted:
+            prompt_parts.append(formatted)
+
+    prompt_context_keys = execution_cfg.get("prompt_context_keys", [])
+    if isinstance(prompt_context_keys, list) and prompt_context_keys:
+        context_lines: List[str] = []
+        for key in prompt_context_keys:
+            key_str = str(key)
+            value = args.get(key_str)
+            if value in (None, ""):
+                continue
+            context_lines.append(f"- {_humanize_arg_name(key_str)}: {value}")
+        if context_lines:
+            prompt_parts.append("Context:\n" + "\n".join(context_lines))
+
+    rendered = "\n\n".join(part for part in prompt_parts if part).strip()
+    if rendered:
+        return rendered
+
+    if command == "check_status":
+        return "Status check for Gemini CLI. Reply briefly with readiness, current model, and blockers."
+
+    return None
+
+
 def _extract_path_without_location(raw_path: str) -> str:
     """Strip optional :line[:column] suffix while preserving regular paths."""
     parts = raw_path.rsplit(":", 2)
@@ -211,6 +276,14 @@ def _build_cli_command(
                 continue
             cmd_parts.extend([_flag_for_arg(key_str, flag_aliases), str(args[key_str])])
             consumed_args.add(key_str)
+
+    prompt_text = _build_prompt_text(command, args, execution_cfg)
+    if prompt_text is not None:
+        output_format = execution_cfg.get("output_format")
+        if isinstance(output_format, str) and output_format.strip():
+            cmd_parts.extend(["--output-format", output_format.strip()])
+        cmd_parts.extend(["-p", prompt_text])
+        return cmd_parts
 
     include_command_name = execution_cfg.get("include_command_name", True)
     if include_command_name:
