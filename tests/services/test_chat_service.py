@@ -61,6 +61,65 @@ def setup_mock_redis(mock_redis):
     return mock_redis
 
 
+# === Slash Command Aliases ===
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service._handle_project_command", new_callable=AsyncMock)
+async def test_project_alias_dispatches_to_project_handler(mock_handle_project):
+    update = Update(
+        update_id=101,
+        message=Message(
+            message_id=101,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/pj status",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_handle_project.assert_awaited_once_with(12345, ["status"])
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service._handle_github_command", new_callable=AsyncMock)
+async def test_github_alias_dispatches_to_github_handler(mock_handle_github):
+    update = Update(
+        update_id=102,
+        message=Message(
+            message_id=102,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/gh issues oatrice/Akasa",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_handle_github.assert_awaited_once_with(12345, ["issues", "oatrice/Akasa"])
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service._handle_queue_command", new_callable=AsyncMock)
+async def test_queue_alias_dispatches_to_queue_handler(mock_handle_queue):
+    update = Update(
+        update_id=103,
+        message=Message(
+            message_id=103,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text='/q gemini check_status {}',
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    assert mock_handle_queue.await_count == 1
+    call_args = mock_handle_queue.await_args.args
+    assert call_args[0] == update.message
+    assert call_args[1] == ["gemini", "check_status", "{}"]
+
+
 # === Success path (with Redis history) ===
 
 @pytest.mark.asyncio

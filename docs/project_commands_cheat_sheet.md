@@ -15,27 +15,35 @@ Quick reference for tracking work per project in Akasa.
 
 ```text
 /project
+/pj
 Show current project and known project list
 
 /project select <name>
+/pj select <name>
 Switch to a project
 
 /project new <name>
+/pj new <name>
 Create and switch to a new project
 
 /project rename <old> <new>
+/pj rename <old> <new>
 Rename a project
 
 /project status
+/pj status
 Show detailed status for the active project
 
 /project status <name>
+/pj status <name>
 Show detailed status for a specific project
 
 /project path [name]
+/pj path [name]
 Show the bound folder path for the current project or a named project
 
 /project bind [name] <absolute_path>
+/pj bind [name] <absolute_path>
 Bind a project to a local folder path
 If the project name is omitted, Akasa binds the current project
 
@@ -63,27 +71,37 @@ Save the current task for the active project
 
 ```text
 /github repo <owner/repo>
+/gh repo <owner/repo>
 /github issues [owner/repo]
+/gh issues [owner/repo]
 /github issue new <repo> <title> [body]
+/gh issue new <repo> <title> [body]
 /github pr [owner/repo]
+/gh pr [owner/repo]
 /github pr new <repo> <title> [body]
+/gh pr new <repo> <title> [body]
 ```
 
-If the repo is omitted for `/github issues` or `/github pr`, Akasa uses the current project name. For best results, use project names in `owner/repo` format.
+If the repo is omitted for `/github issues`, `/gh issues`, `/github pr`, or `/gh pr`, Akasa uses the current project name. For best results, use project names in `owner/repo` format.
 
 ### Local Tool Queue
 
 ```text
 /queue <tool> <command> [args_json]
+/q <tool> <command> [args_json]
 ```
 
 Examples:
 
 ```text
 /queue gemini check_status {}
+/q gemini check_status {}
 /queue gemini run_task {"task":"review open PRs","branch":"main"}
+/q gemini run_task {"task":"review open PRs","branch":"main"}
 /queue luma list_issues {"project":"akasa","state":"open"}
+/q luma list_issues {"project":"akasa","state":"open"}
 /queue zed open_file {"path":"README.md"}
+/q zed open_file {"path":"README.md"}
 ```
 
 Available tools and commands are controlled by:

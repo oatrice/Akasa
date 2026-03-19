@@ -227,6 +227,11 @@ GITHUB_TOOLS = [
 ]
 
 TOOLS_REQUIRING_CONFIRMATION = ["delete_github_issue", "git_push", "git_commit", "git_add"]
+COMMAND_ALIASES = {
+    "/pj": "/project",
+    "/gh": "/github",
+    "/q": "/queue",
+}
 # ------------------------------------------
 
 # Cache build info at startup
@@ -383,7 +388,8 @@ async def handle_chat_message(update: Update) -> None:
 async def _handle_command(message: "Message") -> None:
     chat_id = message.chat.id
     parts = message.text.split()
-    cmd = parts[0].lower()
+    raw_cmd = parts[0].lower()
+    cmd = COMMAND_ALIASES.get(raw_cmd, raw_cmd)
     args = parts[1:] if len(parts) > 1 else []
     
     if cmd == "/model":
@@ -445,7 +451,10 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
     user_id = message.from_user.id if message.from_user else 0
     
     if len(args) < 2:
-        await _send_response(chat_id, "❌ Usage: `/queue <tool> <command> [args_json]`")
+        await _send_response(
+            chat_id,
+            "❌ Usage: `/queue <tool> <command> [args_json]` (alias: `/q`)",
+        )
         return
         
     tool = args[0]
@@ -490,7 +499,7 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
 
 async def _handle_github_command(chat_id: int, args: list[str]) -> None:
     if not args:
-        msg = "🐙 *GitHub Commands:*\n"
+        msg = "🐙 *GitHub Commands* (alias: `/gh`)\n"
         msg += "• `/github repo <owner/repo>` - View repo info\n"
         msg += "• `/github issues [owner/repo]` - List issues\n"
         msg += "• `/github issue new <repo> <title> [body]` - Create issue\n"
@@ -626,7 +635,7 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
     if not args:
         current = await redis_service.get_current_project(chat_id)
         projects = await redis_service.get_project_list(chat_id)
-        msg = f"📁 Current Project: `{current}`\n\nAvailable Projects:\n"
+        msg = f"📁 Current Project: `{current}`\nAlias: `/pj`\n\nAvailable Projects:\n"
         for p in projects:
             msg += f"{'✅' if p == current else '-'} `{p}`\n"
         msg += (
@@ -671,7 +680,7 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
                 + (
                     str(exc)
                     if str(exc) not in {"missing bind arguments", "missing project path"}
-                    else "Usage: `/project bind <name> <absolute_path>` or `/project bind <absolute_path>` for the current project."
+                    else "Usage: `/project bind <name> <absolute_path>` or `/project bind <absolute_path>` for the current project. Alias: `/pj`."
                 ),
             )
             return
@@ -695,7 +704,7 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await redis_service.rename_project(chat_id, args[1].lower(), args[2].lower())
         await _send_response(chat_id, f"✅ Project renamed from `{args[1].lower()}` to `{args[2].lower()}`.\n(Current project updated if needed)")
     else:
-        await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")
+        await _send_response(chat_id, "❌ Invalid usage. Try `/project` or `/pj` for help.")
 
 
 def _format_project_timestamp(value) -> Optional[str]:
