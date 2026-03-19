@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 redis_pool = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
+def _get_owner_chat_id() -> int:
+    """Resolve the canonical owner chat ID used for local context sync."""
+    chat_id = (settings.AKASA_CHAT_ID or "").strip()
+    if not chat_id:
+        raise ValueError("Owner chat is not configured on the server.")
+    if not chat_id.lstrip("-").isdigit():
+        raise ValueError("Owner chat is not configured correctly on the server.")
+    return int(chat_id)
+
+
 async def get_chat_history(chat_id: int, project_name: str = "default") -> list[dict]:
     """ดึงประวัติการสนทนาล่าสุดสำหรับ chat_id ในโปรเจ็กต์ที่กำหนด"""
     if settings.REDIS_HISTORY_LIMIT <= 0:
@@ -115,6 +125,22 @@ async def set_current_project(chat_id: int, project_name: str):
     await redis_pool.set(current_key, project_name, ex=settings.REDIS_TTL_SECONDS)
     # เพิ่มเข้า list ด้วยถ้ายังไม่มี
     await _add_project_to_list(chat_id, project_name)
+
+
+async def get_owner_current_project() -> str:
+    """ดึงโปรเจ็กต์ปัจจุบันของ owner chat สำหรับ local context sync."""
+    return await get_current_project(_get_owner_chat_id())
+
+
+async def set_owner_current_project(project_name: str) -> str:
+    """ตั้งค่าโปรเจ็กต์ปัจจุบันของ owner chat สำหรับ local context sync."""
+    normalized = project_name.strip().lower()
+    if not normalized:
+        raise ValueError("active_project must not be empty")
+
+    chat_id = _get_owner_chat_id()
+    await set_current_project(chat_id, normalized)
+    return normalized
 
 
 async def rename_project(chat_id: int, old_name: str, new_name: str):

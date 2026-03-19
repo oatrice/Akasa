@@ -10,6 +10,7 @@ import asyncio
 import google.generativeai as genai
 from typing import Optional, Any
 from app.config import settings
+from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,12 @@ async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optiona
                          continue
                 
                 # ถ้าไม่ใช่ error เรื่องเงิน ให้ raise ตามปกติ
-                response.raise_for_status()
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    raise LLMUpstreamError(
+                        f"OpenRouter API returned status {response.status_code}."
+                    ) from exc
                 
                 try:
                     message = data["choices"][0]["message"]
@@ -154,17 +160,24 @@ async def _get_openrouter_reply(messages: list[dict], model: str, tools: Optiona
                     # ถ้า API ตอบกลับมาผิดฟอร์มแต่ไม่ได้ติด error credits
                     if isinstance(data, dict) and "error" in data:
                         error_msg = data["error"].get("message", "Unknown OpenRouter error")
-                        raise Exception(f"OpenRouter API Error: {error_msg}")
+                        raise LLMUpstreamError(f"OpenRouter API Error: {error_msg}") from e
                     
                     print(f"--- [DEBUG] Malformed OpenRouter response: {data} ---")
-                    raise e
+                    raise LLMMalformedResponseError("Malformed OpenRouter response.") from e
                     
-            except (httpx.ConnectError, httpx.TimeoutException) as e:
+            except httpx.TimeoutException as e:
                 if attempt < max_retries - 1:
                     logger.warning(f"Network error (attempt {attempt+1}): {e}. Retrying...")
                     await asyncio.sleep(retry_delay)
                     retry_delay *= 2
                     continue
-                raise e
+                raise LLMTimeoutError("The LLM request timed out.") from e
+            except httpx.ConnectError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Network error (attempt {attempt+1}): {e}. Retrying...")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                raise LLMUpstreamError("Unable to reach the LLM provider.") from e
     
-    raise Exception("Max retries exceeded for OpenRouter API")
+    raise LLMUpstreamError("Max retries exceeded for OpenRouter API")

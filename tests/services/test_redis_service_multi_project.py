@@ -84,6 +84,28 @@ async def test_set_and_get_current_project(patch_redis):
     assert project == "my-awesome-project"
 
 
+@pytest.mark.asyncio
+async def test_get_owner_current_project_uses_akasa_chat_id(patch_redis, monkeypatch):
+    from app.services.redis_service import get_owner_current_project, set_current_project
+
+    monkeypatch.setattr("app.services.redis_service.settings.AKASA_CHAT_ID", "4321")
+    await set_current_project(4321, "owner-project")
+
+    project = await get_owner_current_project()
+    assert project == "owner-project"
+
+
+@pytest.mark.asyncio
+async def test_set_owner_current_project_normalizes_lowercase(patch_redis, monkeypatch):
+    from app.services.redis_service import set_owner_current_project, get_current_project
+
+    monkeypatch.setattr("app.services.redis_service.settings.AKASA_CHAT_ID", "4321")
+
+    stored = await set_owner_current_project("  Docs-Bot  ")
+    assert stored == "docs-bot"
+    assert await get_current_project(4321) == "docs-bot"
+
+
 # --- Project List Management ---
 
 @pytest.mark.asyncio

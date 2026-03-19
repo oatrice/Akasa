@@ -2,6 +2,7 @@ import pytest
 import httpx
 from app.services.llm_service import get_llm_reply
 from app.config import settings
+from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 
 @pytest.mark.asyncio
 async def test_get_llm_reply_success(respx_mock):
@@ -53,8 +54,34 @@ async def test_get_llm_reply_api_error(respx_mock):
         return_value=httpx.Response(500, text="Internal Server Error")
     )
 
-    # Calling the service should raise an exception (like HTTPStatusError)
-    with pytest.raises(httpx.HTTPStatusError):
+    # Calling the service should raise a normalized upstream error
+    with pytest.raises(LLMUpstreamError):
+        await get_llm_reply(messages)
+
+
+@pytest.mark.asyncio
+async def test_get_llm_reply_timeout_error(respx_mock):
+    settings.OPENROUTER_API_KEY = "test_api_key"
+    messages = [{"role": "user", "content": "Hello AI"}]
+
+    respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        side_effect=httpx.TimeoutException("Timeout")
+    )
+
+    with pytest.raises(LLMTimeoutError):
+        await get_llm_reply(messages)
+
+
+@pytest.mark.asyncio
+async def test_get_llm_reply_malformed_response(respx_mock):
+    settings.OPENROUTER_API_KEY = "test_api_key"
+    messages = [{"role": "user", "content": "Hello AI"}]
+
+    respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json={"choices": []})
+    )
+
+    with pytest.raises(LLMMalformedResponseError):
         await get_llm_reply(messages)
 
 @pytest.mark.asyncio

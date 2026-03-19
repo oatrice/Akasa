@@ -3,6 +3,7 @@ from unittest.mock import patch, AsyncMock
 from app.services.chat_service import handle_chat_message
 from app.models.telegram import Update, Message, Chat
 from app.config import settings
+from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 import httpx
 
 @pytest.fixture(autouse=True)
@@ -12,6 +13,16 @@ def set_production_env():
     settings.ENVIRONMENT = "production"
     yield
     settings.ENVIRONMENT = original_env
+
+
+@pytest.fixture(autouse=True)
+def allow_telegram_rate_limit():
+    with patch(
+        "app.services.chat_service.rate_limiter.check_telegram_message_rate_limit",
+        new_callable=AsyncMock,
+        return_value=(True, 0),
+    ) as mock_rate_limit:
+        yield mock_rate_limit
 
 @pytest.fixture
 def mock_update():
@@ -244,11 +255,78 @@ async def test_send_response_fallback_to_plain_text_on_400(mock_llm, mock_telegr
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, mock_update):
-    """ถ้า LLM timeout → จะส่งข้อความแจ้งเตือนกลับไป"""
+    """ถ้า LLM timeout → จะส่งข้อความ timeout-friendly กลับไป"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMTimeoutError("Timeout"))
+    mock_telegram.send_message = AsyncMock()
 
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(
+        12345,
+        "ขออภัย คำขอใช้เวลานานเกินไป โปรดลองใหม่อีกครั้งในอีกสักครู่ 🙇‍♂️",
+    )
+    mock_redis.add_message_to_history.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_upstream_error(mock_llm, mock_telegram, mock_redis, mock_update):
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMUpstreamError("Upstream"))
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(
+        12345,
+        "ขออภัย ระบบ AI ภายนอกขัดข้องชั่วคราว โปรดลองใหม่อีกครั้งในภายหลัง 🙇‍♂️",
+    )
+    mock_redis.add_message_to_history.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_malformed_response_error(mock_llm, mock_telegram, mock_redis, mock_update):
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMMalformedResponseError("Bad payload"))
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(
+        12345,
+        "ขออภัย ระบบไม่สามารถประมวลผลคำตอบจาก AI ได้ 🙇‍♂️",
+    )
+    mock_redis.add_message_to_history.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_rate_limited(mock_llm, mock_telegram, mock_redis, mock_update, allow_telegram_rate_limit):
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    allow_telegram_rate_limit.return_value = (False, 42)
+
+    await handle_chat_message(mock_update)
+
+    mock_llm.get_llm_reply.assert_not_called()
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "ถี่เกินไป" in sent_message
+    assert "42" in sent_message
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
