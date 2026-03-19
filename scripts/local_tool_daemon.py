@@ -4,6 +4,7 @@ import logging
 import shlex
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -51,6 +52,25 @@ def _to_float(value: Any, default: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _parse_iso_timestamp(value: Any) -> Optional[float]:
+    if not isinstance(value, str) or not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _format_utc_timestamp(epoch_seconds: float) -> str:
+    return (
+        datetime.fromtimestamp(epoch_seconds, tz=timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def _extract_path_without_location(raw_path: str) -> str:
@@ -539,9 +559,24 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             command = payload["command"]
             args = payload.get("args", {})
             meta_key = f"akasa:cmd_meta:{command_id}"
+            queued_at = payload.get("queued_at")
+            dequeued_at_ts = time.time()
+            dequeued_at = _format_utc_timestamp(dequeued_at_ts)
+            queued_at_ts = _parse_iso_timestamp(queued_at)
+            queue_wait_ms: Optional[int] = None
+            if queued_at_ts is not None:
+                queue_wait_ms = max(int((dequeued_at_ts - queued_at_ts) * 1000), 0)
 
             logger.info(
-                f"DEQUEUED {command_id} — tool={tool}, command={command}, queue={queue_name}"
+                "DEQUEUED %s — tool=%s, command=%s, queue=%s, queued_at=%s, "
+                "dequeued_at=%s, queue_wait_ms=%s",
+                command_id,
+                tool,
+                command,
+                queue_name,
+                queued_at or "unknown",
+                dequeued_at,
+                queue_wait_ms if queue_wait_ms is not None else "unknown",
             )
 
             if not await redis.exists(meta_key):
@@ -555,8 +590,24 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             start_time = time.time()
             exit_code, output = await execute_command(command_id, tool, command, args)
             duration_seconds = time.time() - start_time
+            run_duration_ms = max(int(duration_seconds * 1000), 0)
+            total_latency_ms = (
+                queue_wait_ms + run_duration_ms if queue_wait_ms is not None else None
+            )
 
             status = "success" if exit_code == 0 else "failed"
+            logger.info(
+                "COMPLETED %s — tool=%s, command=%s, status=%s, exit_code=%s, "
+                "queue_wait_ms=%s, run_duration_ms=%s, total_latency_ms=%s",
+                command_id,
+                tool,
+                command,
+                status,
+                exit_code,
+                queue_wait_ms if queue_wait_ms is not None else "unknown",
+                run_duration_ms,
+                total_latency_ms if total_latency_ms is not None else "unknown",
+            )
             reported = await report_result(
                 command_id=command_id,
                 status=status,

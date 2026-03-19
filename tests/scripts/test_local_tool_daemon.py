@@ -4,6 +4,7 @@ Tests for scripts/local_tool_daemon.py
 
 import asyncio
 import json
+from contextlib import suppress
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -107,6 +108,7 @@ async def test_daemon_logs_dequeued_command(
         "command": "check_status",
         "args": {},
         "user_id": 1,
+        "queued_at": "1970-01-01T00:01:39.500000Z",
     }
 
     mock_redis.brpop.side_effect = [
@@ -119,10 +121,16 @@ async def test_daemon_logs_dequeued_command(
         task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
         await asyncio.sleep(0.1)
         task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
     assert "DEQUEUED cmd_log_me" in caplog.text
     assert "tool=gemini" in caplog.text
     assert "command=check_status" in caplog.text
+    assert "queue_wait_ms=" in caplog.text
+    assert "COMPLETED cmd_log_me" in caplog.text
+    assert "run_duration_ms=" in caplog.text
+    assert "total_latency_ms=" in caplog.text
 
 
 @pytest.mark.asyncio
