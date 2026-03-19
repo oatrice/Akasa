@@ -44,6 +44,46 @@ _WHITELIST_PATH = os.path.join(_PROJECT_ROOT, "config", "command_whitelist.yaml"
 # In-memory cache so we only read the YAML once per process lifetime
 _whitelist_cache: Optional[Dict[str, List[str]]] = None
 _whitelist_raw_cache: Optional[Dict[str, Dict[str, Any]]] = None
+_whitelist_mtime: Optional[float] = None
+
+
+def _get_whitelist_mtime() -> Optional[float]:
+    """Return the whitelist file mtime, or None when unavailable."""
+    try:
+        return os.path.getmtime(_WHITELIST_PATH)
+    except OSError:
+        return None
+
+
+def _invalidate_whitelist_cache() -> None:
+    """Clear all whitelist caches so the next access reloads from disk."""
+    global _whitelist_cache
+    global _whitelist_raw_cache
+    global _whitelist_mtime
+    _whitelist_cache = None
+    _whitelist_raw_cache = None
+    _whitelist_mtime = None
+
+
+def _refresh_whitelist_cache_if_needed() -> None:
+    """
+    Invalidate caches when the whitelist file changes on disk.
+
+    This keeps long-lived processes like the local daemon from holding stale
+    command metadata after `config/command_whitelist.yaml` is edited.
+    """
+    global _whitelist_mtime
+
+    current_mtime = _get_whitelist_mtime()
+    has_cache = _whitelist_cache is not None or _whitelist_raw_cache is not None
+    if not has_cache:
+        _whitelist_mtime = current_mtime
+        return
+
+    if current_mtime != _whitelist_mtime:
+        logger.info("Whitelist file changed on disk; clearing cached command metadata.")
+        _invalidate_whitelist_cache()
+        _whitelist_mtime = current_mtime
 
 
 def _load_whitelist_raw() -> Dict[str, Dict[str, Any]]:
@@ -58,6 +98,8 @@ def _load_whitelist_raw() -> Dict[str, Dict[str, Any]]:
         }
     """
     global _whitelist_raw_cache
+    global _whitelist_mtime
+    _refresh_whitelist_cache_if_needed()
     if _whitelist_raw_cache is not None:
         return _whitelist_raw_cache
 
@@ -66,6 +108,7 @@ def _load_whitelist_raw() -> Dict[str, Dict[str, Any]]:
             f"Command whitelist file not found at {_WHITELIST_PATH}. "
             "All commands will be rejected."
         )
+        _whitelist_mtime = None
         _whitelist_raw_cache = {}
         return _whitelist_raw_cache
 
@@ -85,6 +128,7 @@ def _load_whitelist_raw() -> Dict[str, Dict[str, Any]]:
                 continue
             tools[tool_name.lower()] = tool_cfg if isinstance(tool_cfg, dict) else {}
 
+        _whitelist_mtime = _get_whitelist_mtime()
         _whitelist_raw_cache = tools
         return _whitelist_raw_cache
 
@@ -134,10 +178,7 @@ def _load_whitelist() -> Dict[str, List[str]]:
 
 def reload_whitelist() -> None:
     """Force reload of the whitelist from disk (useful for tests)."""
-    global _whitelist_cache
-    global _whitelist_raw_cache
-    _whitelist_cache = None
-    _whitelist_raw_cache = None
+    _invalidate_whitelist_cache()
     _load_whitelist()
 
 
@@ -385,6 +426,16 @@ async def enqueue_command(
         f"[ENQUEUE] {command_id} — tool={tool}, command={command}, "
         f"user_id={user_id}, ttl={ttl}s"
     )
+
+    try:
+        from app.services import redis_service as _redis_service
+
+        current_project = await _redis_service.get_current_project(chat_id)
+        await _redis_service.add_recent_command_id(chat_id, current_project, command_id)
+    except Exception as exc:
+        logger.warning(
+            f"[ENQUEUE] Failed to track recent command {command_id} for chat_id={chat_id}: {exc}"
+        )
 
     return CommandQueueResponse(
         command_id=command_id,

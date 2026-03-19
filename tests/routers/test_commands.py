@@ -390,3 +390,91 @@ class TestResultEndpoint:
 
         assert response.status_code == 200
         assert response.json()["notification_sent"] is True
+
+    @pytest.mark.asyncio
+    async def test_report_result_gemini_quota_error_adds_human_summary(
+        self, auth_override, mock_tg_service
+    ):
+        """Gemini quota failures should include a short human-readable summary."""
+        mock_status = CommandStatusResponse(
+            command_id="cmd_quota",
+            status="queued",
+            tool="gemini",
+            command="check_status",
+            queued_at="2026-01-01T00:00:00Z",
+            chat_id=12345,
+        )
+        quota_output = (
+            "Loaded cached credentials.\n"
+            "TerminalQuotaError: You have exhausted your capacity on this model. "
+            "Your quota will reset after 18m30s."
+        )
+        with patch(
+            "app.routers.commands.command_queue_service.get_command_status",
+            new_callable=AsyncMock,
+            return_value=mock_status,
+        ):
+            with patch(
+                "app.routers.commands.command_queue_service.update_command_status",
+                new_callable=AsyncMock,
+                return_value=True,
+            ):
+                response = client.post(
+                    f"{COMMANDS_URL}/cmd_quota/result",
+                    json={
+                        "status": "failed",
+                        "output": quota_output,
+                        "exit_code": 1,
+                        "duration_seconds": 11.4,
+                    },
+                    headers={"X-Daemon-Secret": settings.AKASA_DAEMON_SECRET},
+                )
+
+        assert response.status_code == 200
+        assert response.json()["notification_sent"] is True
+        sent_text = mock_tg_service.send_message.await_args.kwargs["text"]
+        assert "Gemini quota หมดชั่วคราว รีเซ็ตอีกประมาณ 18 นาที 30 วินาที" in sent_text
+
+    @pytest.mark.asyncio
+    async def test_report_result_gemini_fallback_success_adds_summary(
+        self, auth_override, mock_tg_service
+    ):
+        """Successful fallback should produce a concise Thai summary."""
+        mock_status = CommandStatusResponse(
+            command_id="cmd_fallback",
+            status="queued",
+            tool="gemini",
+            command="check_status",
+            queued_at="2026-01-01T00:00:00Z",
+            chat_id=12345,
+        )
+        fallback_output = (
+            "Gemini quota reached on the primary model.\n"
+            "Primary model: gemini-2.5-pro\n"
+            "Retried with fallback model: gemini-2.5-flash\n\n"
+            "fallback command succeeded"
+        )
+        with patch(
+            "app.routers.commands.command_queue_service.get_command_status",
+            new_callable=AsyncMock,
+            return_value=mock_status,
+        ):
+            with patch(
+                "app.routers.commands.command_queue_service.update_command_status",
+                new_callable=AsyncMock,
+                return_value=True,
+            ):
+                response = client.post(
+                    f"{COMMANDS_URL}/cmd_fallback/result",
+                    json={
+                        "status": "success",
+                        "output": fallback_output,
+                        "exit_code": 0,
+                        "duration_seconds": 7.2,
+                    },
+                    headers={"X-Daemon-Secret": settings.AKASA_DAEMON_SECRET},
+                )
+
+        assert response.status_code == 200
+        sent_text = mock_tg_service.send_message.await_args.kwargs["text"]
+        assert "Gemini quota บนโมเดลหลัก จึงสลับไปใช้ gemini\\-2\\.5\\-flash และรันต่อสำเร็จ" in sent_text

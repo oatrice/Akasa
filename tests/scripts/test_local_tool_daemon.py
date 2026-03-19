@@ -4,6 +4,7 @@ Tests for scripts/local_tool_daemon.py
 
 import asyncio
 import json
+from contextlib import suppress
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -77,8 +78,10 @@ async def test_daemon_success_flow(
     mock_redis.exists.assert_called_with("akasa:cmd_meta:cmd_123")
 
     mock_subprocess.assert_called_once()
-    assert mock_subprocess.call_args[0][0] == "gemini"
-    assert mock_subprocess.call_args[0][1] == "run_task"
+    cli_args = mock_subprocess.call_args[0]
+    assert cli_args[0] == "gemini"
+    assert "-p" in cli_args
+    assert "test it" in cli_args[-1]
 
     mock_httpx_post.assert_called_once()
     payload = mock_httpx_post.call_args[1]["json"]
@@ -94,6 +97,42 @@ async def test_daemon_success_flow(
             status_updates.append(call.args[1])
 
     assert status_updates[:2] == ["picked_up", "running"]
+
+
+@pytest.mark.asyncio
+async def test_daemon_logs_dequeued_command(
+    mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking, caplog
+):
+    """Daemon should log each command as soon as it is popped from Redis."""
+    command_payload = {
+        "command_id": "cmd_log_me",
+        "tool": "gemini",
+        "command": "check_status",
+        "args": {},
+        "user_id": 1,
+        "queued_at": "1970-01-01T00:01:39.500000Z",
+    }
+
+    mock_redis.brpop.side_effect = [
+        (b"akasa:commands:gemini", json.dumps(command_payload).encode("utf-8")),
+        None,
+    ]
+    mock_redis.exists.return_value = 1
+
+    with caplog.at_level("INFO"):
+        task = asyncio.create_task(daemon.poll_queue("gemini", timeout=1))
+        await asyncio.sleep(0.1)
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+    assert "DEQUEUED cmd_log_me" in caplog.text
+    assert "tool=gemini" in caplog.text
+    assert "command=check_status" in caplog.text
+    assert "queue_wait_ms=" in caplog.text
+    assert "COMPLETED cmd_log_me" in caplog.text
+    assert "run_duration_ms=" in caplog.text
+    assert "total_latency_ms=" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -174,6 +213,106 @@ async def test_open_file_accepts_line_col_path():
     }
     args = {"path": "docs/plan.md:10:5"}
     assert daemon._validate_args(entry, args) is None
+
+
+def test_build_cli_command_places_global_flags_before_command():
+    """Global flags should be rendered before command and internal args skipped."""
+    cmd = daemon._build_cli_command(
+        executable="gemini",
+        command="check_status",
+        args={
+            "model": "gemini-2.5-flash",
+            "fallback_model": "gemini-2.5-flash-lite",
+        },
+        execution_cfg={
+            "prompt_template": "Status check only.",
+            "global_flag_args": ["model"],
+            "internal_args": ["fallback_model"],
+            "flag_aliases": {"model": "-m"},
+        },
+    )
+
+    assert cmd == ["gemini", "-m", "gemini-2.5-flash", "-p", "Status check only."]
+
+
+def test_build_cli_command_uses_task_as_headless_prompt():
+    """run_task should invoke Gemini in headless prompt mode instead of subcommands."""
+    cmd = daemon._build_cli_command(
+        executable="gemini",
+        command="run_task",
+        args={
+            "task": "Summarize this repository.",
+            "pr_number": 42,
+            "branch": "main",
+            "model": "gemini-2.5-pro",
+        },
+        execution_cfg={
+            "prompt_arg_key": "task",
+            "prompt_context_keys": ["pr_number", "branch"],
+            "global_flag_args": ["model"],
+            "flag_aliases": {"model": "-m"},
+        },
+    )
+
+    assert cmd[0:3] == ["gemini", "-m", "gemini-2.5-pro"]
+    assert cmd[3] == "-p"
+    assert "Summarize this repository." in cmd[4]
+    assert "PR Number: 42" in cmd[4]
+    assert "Branch: main" in cmd[4]
+
+
+@pytest.mark.asyncio
+async def test_execute_command_retries_gemini_with_fallback_on_quota_error():
+    """Gemini CLI should retry once with fallback_model when quota is exhausted."""
+    quota_output = (
+        "Loaded cached credentials.\n"
+        "TerminalQuotaError: You have exhausted your capacity on this model. "
+        "Your quota will reset after 18m30s."
+    )
+    whitelist_entry = {
+        "tool": "gemini",
+        "command": "check_status",
+        "allowed_args": ["model", "fallback_model"],
+        "execution": {
+            "type": "cli",
+            "executable": "gemini",
+            "prompt_template": "Status check only.",
+            "global_flag_args": ["model"],
+            "internal_args": ["fallback_model"],
+            "flag_aliases": {"model": "-m"},
+        },
+    }
+
+    with patch(
+        "scripts.local_tool_daemon.get_command_whitelist_entry",
+        return_value=whitelist_entry,
+    ):
+        with patch(
+            "scripts.local_tool_daemon._execute_cli",
+            new_callable=AsyncMock,
+            side_effect=[
+                (1, quota_output),
+                (0, "fallback command succeeded"),
+            ],
+        ) as mock_exec:
+            exit_code, output = await daemon.execute_command(
+                command_id="cmd_retry",
+                tool="gemini",
+                command="check_status",
+                args={"model": "pro", "fallback_model": "flash"},
+            )
+
+    assert exit_code == 0
+    assert "Primary model: gemini-2.5-pro" in output
+    assert "Retried with fallback model: gemini-2.5-flash" in output
+    assert "fallback command succeeded" in output
+
+    first_call = mock_exec.await_args_list[0]
+    second_call = mock_exec.await_args_list[1]
+    assert first_call.args[2]["model"] == "gemini-2.5-pro"
+    assert first_call.args[2]["fallback_model"] == "gemini-2.5-flash"
+    assert second_call.args[2]["model"] == "gemini-2.5-flash"
+    assert "fallback_model" not in second_call.args[2]
 
 
 @pytest.mark.asyncio

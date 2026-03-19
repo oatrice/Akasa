@@ -8,6 +8,10 @@ tools:
       execution:
         type: cli
         executable: gemini
+        global_flag_args: [model]
+        internal_args: [fallback_model]
+        flag_aliases:
+          model: "-m"
         include_command_name: true
         argument_style: flags
         timeout_seconds: 120
@@ -15,16 +19,37 @@ tools:
     allowed_commands:
       - name: run_task
         description: "Run a Gemini CLI task"
-        allowed_args: [task, pr_number, branch]
+        allowed_args: [task, pr_number, branch, model, fallback_model]
+        execution:
+          prompt_arg_key: task
+          prompt_context_keys: [pr_number, branch]
       - name: check_status
         description: "Check Gemini CLI status"
-        allowed_args: []
+        allowed_args: [model, fallback_model]
+        execution:
+          prompt_template: |
+            Status check for Gemini CLI in this workspace.
+            Reply in exactly 3 short bullet points:
+            - readiness status
+            - current model name
+            - any quota or authentication limitation that blocks work
+            Do not inspect repository files, do not make a plan, and do not suggest code changes.
       - name: list_issues
         description: "List GitHub issues via Gemini"
-        allowed_args: [state, label]
+        allowed_args: [state, label, model, fallback_model]
+        execution:
+          prompt_template: |
+            List GitHub issues relevant to the current repository context.
+            State filter: {state}
+            Label filter: {label}
+            Reply as concise bullet points. If repository context is unavailable, say so briefly.
       - name: summarize_session
         description: "Summarize the current AI session"
-        allowed_args: []
+        allowed_args: [model, fallback_model]
+        execution:
+          prompt_template: |
+            Summarize the current Gemini CLI session in 5 concise bullet points.
+            Include current goal, recent actions, blockers, and a suggested next step.
 
   luma:
     defaults:

@@ -8,19 +8,25 @@ Graceful degradation: ถ้า Redis ล่ม ยังทำงานได�
 from app.models.telegram import Update, Message, CallbackQuery
 from app.models.agent_state import AgentState
 from app.services import redis_service
+from app.services import rate_limiter
 from app.services.telegram_service import tg_service
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
 from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content, split_markdown_message
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
+from app.services.llm_service import OpenRouterInsufficientCreditsError
 from app.services import command_queue_service
+from app.services import agent_task_service
+from app.services import deploy_service
 from app.models.command import CommandQueueRequest
 from app.models.notification import TaskNotificationRequest
+from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 import httpx
 import logging
 import os
 import subprocess
 import json
+from typing import Optional
 from datetime import datetime, timezone
 from app.config import settings
 
@@ -320,6 +326,32 @@ async def _send_escaped_response(chat_id: int, text: str) -> None:
         logger.error(f"Unexpected error sending escaped message to Telegram for {chat_id}: {e}")
 
 
+async def _check_telegram_rate_limit(message: "Message") -> bool:
+    """Check inbound Telegram message rate limits before command or LLM handling."""
+    identifier = (
+        message.from_user.id
+        if message.from_user is not None
+        else message.chat.id
+    )
+
+    try:
+        allowed, retry_after = await rate_limiter.check_telegram_message_rate_limit(
+            identifier
+        )
+    except Exception as e:
+        logger.warning(f"Telegram rate-limit check failed for {identifier}: {e}")
+        return True
+
+    if allowed:
+        return True
+
+    await _send_response(
+        message.chat.id,
+        f"⏳ คุณส่งข้อความถี่เกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้งใน {retry_after} วินาที",
+    )
+    return False
+
+
 async def handle_chat_message(update: Update) -> None:
     # 1. จัดการ Message ปกติ
     if update.message and update.message.text:
@@ -331,6 +363,9 @@ async def handle_chat_message(update: Update) -> None:
                 )
             except Exception as e:
                 logger.warning(f"Failed to set user_chat_id mapping for user {update.message.from_user.id}: {e}")
+
+        if not await _check_telegram_rate_limit(update.message):
+            return
 
         if update.message.text.startswith("/"):
             await _handle_command(update.message)
@@ -354,6 +389,8 @@ async def _handle_command(message: "Message") -> None:
         await _handle_model_command(chat_id, args)
     elif cmd == "/project":
         await _handle_project_command(chat_id, args)
+    elif cmd == "/projects":
+        await _handle_projects_command(chat_id, args)
     elif cmd == "/note" and len(parts) > 1:
         await _handle_note_command(chat_id, args)
     elif cmd == "/github":
@@ -552,6 +589,38 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, message)
 
 
+def _resolve_project_bind_target_and_path(
+    current_project: str,
+    args: list[str],
+) -> tuple[str, str]:
+    """
+    Parse `/project bind` arguments.
+
+    Supported forms:
+    - `/project bind <name> <absolute_path>`
+    - `/project bind <absolute_path>` (bind current project)
+    """
+    if not args:
+        raise ValueError("missing bind arguments")
+
+    second = args[0]
+    if len(args) == 1 and not (second.startswith("/") or second.startswith("~")):
+        raise ValueError("missing project path")
+
+    if second.startswith("/") or second.startswith("~"):
+        target_project = current_project
+        raw_path = " ".join(args)
+    else:
+        target_project = second.lower()
+        raw_path = " ".join(args[1:])
+
+    raw_path = raw_path.strip()
+    if not raw_path:
+        raise ValueError("missing project path")
+
+    return target_project, raw_path
+
+
 async def _handle_project_command(chat_id: int, args: list[str]) -> None:
     if not args:
         current = await redis_service.get_current_project(chat_id)
@@ -559,11 +628,58 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         msg = f"📁 Current Project: `{current}`\n\nAvailable Projects:\n"
         for p in projects:
             msg += f"{'✅' if p == current else '-'} `{p}`\n"
-        msg += "\nUsage:\n• `/project select <name>`\n• `/project new <name>`\n• `/project rename <old> <new>`"
+        msg += (
+            "\nUsage:\n"
+            "• `/project select <name>`\n"
+            "• `/project status [name]`\n"
+            "• `/project path [name]`\n"
+            "• `/project bind [name] <absolute_path>`\n"
+            "• `/project new <name>`\n"
+            "• `/project rename <old> <new>`"
+        )
         await _send_response(chat_id, msg)
         return
     sub_cmd = args[0].lower()
-    if sub_cmd == "select" and len(args) > 1:
+    if sub_cmd == "status":
+        current = await redis_service.get_current_project(chat_id)
+        target = args[1].lower() if len(args) > 1 else current
+        await _handle_project_status_command(chat_id, target, current)
+    elif sub_cmd == "path":
+        current = await redis_service.get_current_project(chat_id)
+        target = args[1].lower() if len(args) > 1 else current
+        project_path = await redis_service.get_project_path(chat_id, target)
+        if project_path:
+            await _send_response(
+                chat_id,
+                f"📂 Project path for `{target}`:\n`{project_path}`",
+            )
+        else:
+            await _send_response(
+                chat_id,
+                f"ℹ️ No folder path is bound to `{target}` yet.\nUse `/project bind {target} /absolute/path` to save one.",
+            )
+    elif sub_cmd == "bind":
+        current = await redis_service.get_current_project(chat_id)
+        try:
+            target, raw_path = _resolve_project_bind_target_and_path(current, args[1:])
+            bound_path = await redis_service.set_project_path(chat_id, target, raw_path)
+        except ValueError as exc:
+            await _send_response(
+                chat_id,
+                "❌ "
+                + (
+                    str(exc)
+                    if str(exc) not in {"missing bind arguments", "missing project path"}
+                    else "Usage: `/project bind <name> <absolute_path>` or `/project bind <absolute_path>` for the current project."
+                ),
+            )
+            return
+
+        await _send_response(
+            chat_id,
+            f"✅ Bound project `{target}` to:\n`{bound_path}`",
+        )
+    elif sub_cmd == "select" and len(args) > 1:
         target = args[1].lower()
         await redis_service.set_current_project(chat_id, target)
         agent_state = await redis_service.get_agent_state(chat_id, target)
@@ -579,6 +695,424 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await _send_response(chat_id, f"✅ Project renamed from `{args[1].lower()}` to `{args[2].lower()}`.\n(Current project updated if needed)")
     else:
         await _send_response(chat_id, "❌ Invalid usage. Try `/project` for help.")
+
+
+def _format_project_timestamp(value) -> Optional[str]:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _parse_project_datetime(value) -> Optional[datetime]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value
+
+    text = str(value)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def _truncate_project_text(text: str, limit: int = 90) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3] + "..."
+
+
+def _build_history_snippet(history_entry: dict) -> Optional[str]:
+    if not history_entry:
+        return None
+
+    role = str(history_entry.get("role", "unknown"))
+    content = history_entry.get("content")
+    if content is None:
+        if history_entry.get("tool_calls"):
+            content = "[tool calls]"
+        else:
+            return None
+
+    return f"{role}: {_truncate_project_text(str(content))}"
+
+
+def _format_history_count(count: int) -> str:
+    suffix = "message" if count == 1 else "messages"
+    return f"{count} recent {suffix}"
+
+
+def _compute_last_updated(
+    agent_state,
+    recent_command_statuses,
+    recent_deployments,
+    recent_tasks,
+) -> Optional[str]:
+    candidates = []
+
+    if agent_state and getattr(agent_state, "last_activity_timestamp", None):
+        parsed = _parse_project_datetime(agent_state.last_activity_timestamp)
+        if parsed:
+            candidates.append(parsed)
+
+    for status in recent_command_statuses:
+        for value in (status.completed_at, status.picked_up_at, status.queued_at):
+            parsed = _parse_project_datetime(value)
+            if parsed:
+                candidates.append(parsed)
+
+    for deployment in recent_deployments:
+        for value in (deployment.finished_at, deployment.started_at):
+            parsed = _parse_project_datetime(value)
+            if parsed:
+                candidates.append(parsed)
+
+    for task in recent_tasks:
+        for value in (task.completed_at, task.started_at):
+            parsed = _parse_project_datetime(value)
+            if parsed:
+                candidates.append(parsed)
+
+    if not candidates:
+        return None
+
+    return max(candidates).isoformat()
+
+
+async def _load_project_status_snapshot(
+    chat_id: int,
+    project_name: str,
+    command_limit: int = 3,
+    deployment_limit: int = 3,
+    task_limit: int = 3,
+):
+    agent_state = None
+    recent_command_ids = []
+    recent_deployment_ids = []
+    recent_tasks = []
+    recent_history = []
+    project_path = None
+
+    try:
+        agent_state = await redis_service.get_agent_state(chat_id, project_name)
+    except Exception as e:
+        logger.warning(f"Failed to load AgentState for project {project_name}: {e}")
+
+    try:
+        project_path = await redis_service.get_project_path(chat_id, project_name)
+    except Exception as e:
+        logger.warning(f"Failed to load project path for project {project_name}: {e}")
+
+    try:
+        recent_command_ids = await redis_service.get_recent_command_ids(
+            chat_id, project_name, limit=command_limit
+        )
+    except Exception as e:
+        logger.warning(f"Failed to load recent command IDs for project {project_name}: {e}")
+
+    try:
+        recent_deployment_ids = await redis_service.get_recent_deployment_ids(
+            chat_id, project_name, limit=deployment_limit
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to load recent deployment IDs for project {project_name}: {e}"
+        )
+
+    try:
+        recent_tasks = await agent_task_service.get_tasks_by_project(project_name)
+    except Exception as e:
+        logger.warning(f"Failed to load agent tasks for project {project_name}: {e}")
+
+    try:
+        recent_history = await redis_service.get_chat_history(
+            chat_id, project_name=project_name
+        )
+    except Exception as e:
+        logger.warning(f"Failed to load chat history for project {project_name}: {e}")
+
+    recent_command_statuses = []
+    for command_id in recent_command_ids:
+        try:
+            status = await command_queue_service.get_command_status(command_id)
+        except Exception as e:
+            logger.warning(f"Failed to read command status for {command_id}: {e}")
+            status = None
+        if status is not None:
+            recent_command_statuses.append(status)
+
+    recent_deployments = []
+    for deployment_id in recent_deployment_ids:
+        try:
+            deployment = await deploy_service.get_deployment(deployment_id)
+        except Exception as e:
+            logger.warning(f"Failed to read deployment status for {deployment_id}: {e}")
+            deployment = None
+        if deployment is not None:
+            recent_deployments.append(deployment)
+
+    filtered_tasks = [
+        task
+        for task in recent_tasks
+        if not task.chat_id or task.chat_id == str(chat_id)
+    ]
+    filtered_tasks.sort(
+        key=lambda task: task.completed_at or task.started_at or "",
+        reverse=True,
+    )
+
+    history_snippet = None
+    if recent_history:
+        history_snippet = _build_history_snippet(recent_history[-1])
+
+    last_updated = _compute_last_updated(
+        agent_state,
+        recent_command_statuses,
+        recent_deployments,
+        filtered_tasks,
+    )
+
+    return {
+        "agent_state": agent_state,
+        "project_path": project_path,
+        "recent_command_statuses": recent_command_statuses,
+        "recent_deployments": recent_deployments,
+        "recent_tasks": filtered_tasks[:task_limit],
+        "last_updated": last_updated,
+        "history_snippet": history_snippet,
+        "history_count": len(recent_history),
+    }
+
+
+async def _handle_project_status_command(
+    chat_id: int,
+    project_name: str,
+    current_project: Optional[str] = None,
+) -> None:
+    current_project = current_project or await redis_service.get_current_project(chat_id)
+    snapshot = await _load_project_status_snapshot(chat_id, project_name)
+    agent_state = snapshot["agent_state"]
+    project_path = snapshot["project_path"]
+    recent_command_statuses = snapshot["recent_command_statuses"]
+    recent_deployments = snapshot["recent_deployments"]
+    filtered_tasks = snapshot["recent_tasks"]
+    last_updated = snapshot["last_updated"]
+
+    lines = [f"📊 Project Status: `{project_name}`"]
+    if project_name == current_project:
+        lines.append("✅ This is the active project.")
+    else:
+        lines.append(f"Current active project: `{current_project}`")
+
+    if project_path:
+        lines.append(f"📂 Bound path: `{project_path}`")
+    else:
+        lines.append("📂 Bound path: not set")
+
+    lines.append("")
+    if agent_state and agent_state.current_task:
+        lines.append(f"📝 Current task: {agent_state.current_task}")
+        if agent_state.focus_file:
+            lines.append(f"📄 Focus file: `{agent_state.focus_file}`")
+        last_note_update = _format_project_timestamp(agent_state.last_activity_timestamp)
+        if last_note_update:
+            lines.append(f"🕒 Last note update: `{last_note_update}`")
+    else:
+        lines.append("📝 Current task: No saved note")
+
+    if last_updated:
+        lines.append(f"🗓️ Last updated: `{last_updated}`")
+
+    lines.append("")
+    lines.append("⚙️ Recent commands:")
+    if recent_command_statuses:
+        for status in recent_command_statuses:
+            lines.append(
+                f"• `{status.command_id}` — `{status.tool} {status.command}` → `{status.status}`"
+            )
+    else:
+        lines.append("• No recent command queue activity")
+
+    lines.append("")
+    lines.append("🚀 Recent deployments:")
+    if recent_deployments:
+        for deployment in recent_deployments:
+            lines.append(
+                f"• `{deployment.deployment_id}` — `{deployment.command}` → `{deployment.status}`"
+            )
+    else:
+        lines.append("• No recent deployments")
+
+    lines.append("")
+    lines.append("🤖 Recent agent tasks:")
+    if filtered_tasks:
+        for task in filtered_tasks[:3]:
+            source = f" ({task.source})" if task.source else ""
+            lines.append(f"• `{task.status}` — {task.task}{source}")
+    else:
+        lines.append("• No recent agent task notifications")
+
+    await _send_response(chat_id, "\n".join(lines))
+
+
+async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
+    if not args or args[0].lower() != "overview":
+        await _send_response(
+            chat_id,
+            "🗂️ Usage:\n• `/projects overview`\n• `/projects overview verbose`\n• `/projects overview markdown`\n• `/projects overview json`\n\nYou can combine options, for example: `/projects overview verbose json`",
+        )
+        return
+
+    options = {arg.lower() for arg in args[1:]}
+    allowed_options = {"verbose", "markdown", "json"}
+    unknown_options = sorted(options - allowed_options)
+    if unknown_options:
+        await _send_response(
+            chat_id,
+            f"❌ Unknown `/projects overview` option(s): {', '.join(unknown_options)}",
+        )
+        return
+
+    verbose = "verbose" in options
+    output_format = "json" if "json" in options else "markdown"
+
+    current_project = await redis_service.get_current_project(chat_id)
+    projects = await redis_service.get_project_list(chat_id)
+    unique_projects = []
+    seen = set()
+    for project in projects:
+        normalized = project.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_projects.append(normalized)
+
+    unique_projects.sort()
+    if current_project in unique_projects:
+        unique_projects.remove(current_project)
+    ordered_projects = [current_project] + unique_projects
+
+    overview_items = []
+    for project_name in ordered_projects:
+        snapshot = await _load_project_status_snapshot(
+            chat_id,
+            project_name,
+            command_limit=1,
+            deployment_limit=1,
+            task_limit=1,
+        )
+        agent_state = snapshot["agent_state"]
+        recent_command_statuses = snapshot["recent_command_statuses"]
+        recent_deployments = snapshot["recent_deployments"]
+        recent_tasks = snapshot["recent_tasks"]
+        last_updated = snapshot["last_updated"]
+        history_snippet = snapshot["history_snippet"]
+        history_count = snapshot["history_count"]
+        project_path = snapshot["project_path"]
+
+        latest_command = None
+        if recent_command_statuses:
+            status = recent_command_statuses[0]
+            latest_command = {
+                "command_id": status.command_id,
+                "tool": status.tool,
+                "command": status.command,
+                "status": status.status,
+            }
+
+        latest_deployment = None
+        if recent_deployments:
+            deployment = recent_deployments[0]
+            latest_deployment = {
+                "deployment_id": deployment.deployment_id,
+                "command": deployment.command,
+                "status": deployment.status,
+            }
+
+        latest_agent_task = None
+        if recent_tasks:
+            task = recent_tasks[0]
+            latest_agent_task = {
+                "task_id": task.task_id,
+                "task": task.task,
+                "status": task.status,
+                "source": task.source,
+            }
+
+        overview_items.append(
+            {
+                "project": project_name,
+                "active": project_name == current_project,
+                "task": agent_state.current_task if agent_state and agent_state.current_task else None,
+                "project_path": project_path,
+                "last_updated": last_updated,
+                "history_count": history_count,
+                "history_snippet": history_snippet if verbose else None,
+                "latest_command": latest_command,
+                "latest_deployment": latest_deployment,
+                "latest_agent_task": latest_agent_task,
+            }
+        )
+
+    if output_format == "json":
+        payload = {
+            "current_project": current_project,
+            "verbose": verbose,
+            "projects": overview_items,
+        }
+        rendered = "```json\n" + json.dumps(payload, ensure_ascii=False, indent=2) + "\n```"
+        await _send_response(chat_id, rendered)
+        return
+
+    lines = ["🗂️ Projects Overview" + (" (Verbose)" if verbose else ""), ""]
+    for item in overview_items:
+        prefix = "✅" if item["active"] else "•"
+        lines.append(f"{prefix} `{item['project']}`")
+        lines.append(f"Task: {item['task'] or 'No saved note'}")
+        lines.append(f"Path: `{item['project_path']}`" if item["project_path"] else "Path: none")
+        lines.append(
+            f"Last updated: `{item['last_updated']}`" if item["last_updated"] else "Last updated: unknown"
+        )
+        lines.append(f"History count: {_format_history_count(item['history_count'])}")
+
+        latest_command = item["latest_command"]
+        if latest_command:
+            lines.append(
+                f"Command: `{latest_command['tool']} {latest_command['command']}` → `{latest_command['status']}`"
+            )
+        else:
+            lines.append("Command: none")
+
+        latest_deployment = item["latest_deployment"]
+        if latest_deployment:
+            lines.append(
+                f"Deploy: `{latest_deployment['command']}` → `{latest_deployment['status']}`"
+            )
+        else:
+            lines.append("Deploy: none")
+
+        latest_agent_task = item["latest_agent_task"]
+        if latest_agent_task:
+            source = f" ({latest_agent_task['source']})" if latest_agent_task["source"] else ""
+            lines.append(
+                f"Agent: `{latest_agent_task['status']}` — {latest_agent_task['task']}{source}"
+            )
+        else:
+            lines.append("Agent: none")
+
+        if verbose:
+            lines.append(f"History: {item['history_snippet'] or 'none'}")
+
+        lines.append("")
+
+    lines.append("Tip: use `/project status <name>` for full details.")
+    await _send_response(chat_id, "\n".join(lines))
 
 
 async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
@@ -740,9 +1274,20 @@ async def _handle_standard_message(message: "Message") -> None:
             pass
 
     except Exception as e:
-        # Check credit error
-        if "OpenRouterInsufficientCreditsError" in type(e).__name__:
+        if isinstance(e, OpenRouterInsufficientCreditsError):
             await _send_response(chat_id, "🔴 *ยอดเงินใน OpenRouter ไม่เพียงพอ*\n\nไม่สามารถใช้โมเดลปัจจุบันได้เนื่องจากยอดเงินคงเหลือหมดครับ\n\n💡 *คำแนะนำ:*\n1. เติมเงินใน OpenRouter\n2. สลับไปใช้โมเดลอื่น (เช่น Gemini ผ่าน Google SDK หรือโมเดลฟรี) โดยใช้คำสั่ง `/model`")
+            return
+        if isinstance(e, LLMTimeoutError):
+            logger.error(f"LLM timeout: {e}")
+            await _send_response(chat_id, "ขออภัย คำขอใช้เวลานานเกินไป โปรดลองใหม่อีกครั้งในอีกสักครู่ 🙇‍♂️")
+            return
+        if isinstance(e, LLMUpstreamError):
+            logger.error(f"LLM upstream error: {e}")
+            await _send_response(chat_id, "ขออภัย ระบบ AI ภายนอกขัดข้องชั่วคราว โปรดลองใหม่อีกครั้งในภายหลัง 🙇‍♂️")
+            return
+        if isinstance(e, LLMMalformedResponseError):
+            logger.error(f"Malformed LLM response: {e}")
+            await _send_response(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบจาก AI ได้ 🙇‍♂️")
             return
         
         # Avoid mock related errors

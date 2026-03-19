@@ -4,6 +4,7 @@ import logging
 import shlex
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -33,6 +34,21 @@ TOOL_EXECUTABLES = {
 
 RETRYABLE_HTTP_STATUSES = {429, 500, 502, 503, 504}
 SAFE_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+GEMINI_MODEL_ALIASES = {
+    "auto": "auto-gemini-2.5",
+    "pro": "gemini-2.5-pro",
+    "flash": "gemini-2.5-flash",
+    "flash-lite": "gemini-2.5-flash-lite",
+    "flash_lite": "gemini-2.5-flash-lite",
+    "gemini-pro": "gemini-2.5-pro",
+    "gemini-flash": "gemini-2.5-flash",
+    "gemini-flash-lite": "gemini-2.5-flash-lite",
+}
+GEMINI_QUOTA_MARKERS = (
+    "terminalquotaerror",
+    "exhausted your capacity on this model",
+    "quota will reset after",
+)
 
 
 def get_redis() -> Redis:
@@ -51,6 +67,122 @@ def _to_float(value: Any, default: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _parse_iso_timestamp(value: Any) -> Optional[float]:
+    if not isinstance(value, str) or not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _format_utc_timestamp(epoch_seconds: float) -> str:
+    return (
+        datetime.fromtimestamp(epoch_seconds, tz=timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _resolve_gemini_model_alias(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        return value
+    return GEMINI_MODEL_ALIASES.get(normalized.lower(), normalized)
+
+
+def _prepare_command_args(tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    prepared = dict(args)
+    if tool.lower() != "gemini":
+        return prepared
+
+    for key in ("model", "fallback_model"):
+        raw_value = prepared.get(key)
+        if isinstance(raw_value, str):
+            prepared[key] = _resolve_gemini_model_alias(raw_value)
+
+    return prepared
+
+
+def _is_gemini_quota_error(output: str) -> bool:
+    normalized = output.lower()
+    return any(marker in normalized for marker in GEMINI_QUOTA_MARKERS)
+
+
+def _flag_for_arg(arg_name: str, flag_aliases: Dict[str, Any]) -> str:
+    alias = flag_aliases.get(arg_name)
+    if isinstance(alias, str) and alias.strip():
+        return alias.strip()
+    return f"--{arg_name.replace('_', '-')}"
+
+
+class _PromptFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return ""
+
+
+def _humanize_arg_name(arg_name: str) -> str:
+    words = arg_name.replace("_", " ").strip().split()
+    normalized_words: List[str] = []
+    for word in words:
+        lower = word.lower()
+        if lower == "pr":
+            normalized_words.append("PR")
+        elif lower == "id":
+            normalized_words.append("ID")
+        else:
+            normalized_words.append(word.title())
+    return " ".join(normalized_words)
+
+
+def _build_prompt_text(command: str, args: Dict[str, Any], execution_cfg: Dict[str, Any]) -> Optional[str]:
+    prompt_parts: List[str] = []
+
+    prompt_arg_key = execution_cfg.get("prompt_arg_key")
+    if isinstance(prompt_arg_key, str) and prompt_arg_key:
+        prompt_value = args.get(prompt_arg_key)
+        if not isinstance(prompt_value, str) or not prompt_value.strip():
+            return None
+        prompt_parts.append(prompt_value.strip())
+
+    prompt_template = execution_cfg.get("prompt_template")
+    if isinstance(prompt_template, str) and prompt_template.strip():
+        formatted = prompt_template.format_map(
+            _PromptFormatDict(
+                {
+                    key: value if isinstance(value, str) else str(value)
+                    for key, value in args.items()
+                    if value is not None
+                }
+            )
+        ).strip()
+        if formatted:
+            prompt_parts.append(formatted)
+
+    prompt_context_keys = execution_cfg.get("prompt_context_keys", [])
+    if isinstance(prompt_context_keys, list) and prompt_context_keys:
+        context_lines: List[str] = []
+        for key in prompt_context_keys:
+            key_str = str(key)
+            value = args.get(key_str)
+            if value in (None, ""):
+                continue
+            context_lines.append(f"- {_humanize_arg_name(key_str)}: {value}")
+        if context_lines:
+            prompt_parts.append("Context:\n" + "\n".join(context_lines))
+
+    rendered = "\n\n".join(part for part in prompt_parts if part).strip()
+    if rendered:
+        return rendered
+
+    if command == "check_status":
+        return "Status check for Gemini CLI. Reply briefly with readiness, current model, and blockers."
+
+    return None
 
 
 def _extract_path_without_location(raw_path: str) -> str:
@@ -122,10 +254,36 @@ def _build_cli_command(
     execution_cfg: Dict[str, Any],
 ) -> List[str]:
     cmd_parts: List[str] = [executable]
+    consumed_args: set[str] = set()
 
     base_args = execution_cfg.get("base_args", [])
     if isinstance(base_args, list):
         cmd_parts.extend(str(value) for value in base_args)
+
+    flag_aliases = execution_cfg.get("flag_aliases", {})
+    if not isinstance(flag_aliases, dict):
+        flag_aliases = {}
+
+    internal_args = execution_cfg.get("internal_args", [])
+    if isinstance(internal_args, list):
+        consumed_args.update(str(value) for value in internal_args)
+
+    global_flag_args = execution_cfg.get("global_flag_args", [])
+    if isinstance(global_flag_args, list):
+        for key in global_flag_args:
+            key_str = str(key)
+            if key_str not in args:
+                continue
+            cmd_parts.extend([_flag_for_arg(key_str, flag_aliases), str(args[key_str])])
+            consumed_args.add(key_str)
+
+    prompt_text = _build_prompt_text(command, args, execution_cfg)
+    if prompt_text is not None:
+        output_format = execution_cfg.get("output_format")
+        if isinstance(output_format, str) and output_format.strip():
+            cmd_parts.extend(["--output-format", output_format.strip()])
+        cmd_parts.extend(["-p", prompt_text])
+        return cmd_parts
 
     include_command_name = execution_cfg.get("include_command_name", True)
     if include_command_name:
@@ -137,23 +295,74 @@ def _build_cli_command(
         if not isinstance(positional_args, list):
             positional_args = []
 
-        consumed = set()
         for key in positional_args:
             if key in args:
                 cmd_parts.append(str(args[key]))
-                consumed.add(key)
+                consumed_args.add(key)
 
         for arg_name, arg_value in args.items():
-            if arg_name in consumed:
+            if arg_name in consumed_args:
                 continue
-            arg_flag = f"--{arg_name.replace('_', '-')}"
+            arg_flag = _flag_for_arg(arg_name, flag_aliases)
             cmd_parts.extend([arg_flag, str(arg_value)])
     else:
         for arg_name, arg_value in args.items():
-            arg_flag = f"--{arg_name.replace('_', '-')}"
+            if arg_name in consumed_args:
+                continue
+            arg_flag = _flag_for_arg(arg_name, flag_aliases)
             cmd_parts.extend([arg_flag, str(arg_value)])
 
     return cmd_parts
+
+
+async def _maybe_retry_gemini_with_fallback(
+    executable: str,
+    command: str,
+    args: Dict[str, Any],
+    execution_cfg: Dict[str, Any],
+    exit_code: int,
+    output: str,
+) -> tuple[int, str]:
+    if exit_code == 0 or not _is_gemini_quota_error(output):
+        return exit_code, output
+
+    fallback_model = args.get("fallback_model")
+    if not isinstance(fallback_model, str) or not fallback_model.strip():
+        return exit_code, output
+
+    primary_model = str(args.get("model") or "default").strip()
+    fallback_model = fallback_model.strip()
+    if primary_model.lower() == fallback_model.lower():
+        return exit_code, output
+
+    retry_args = dict(args)
+    retry_args["model"] = fallback_model
+    retry_args.pop("fallback_model", None)
+
+    logger.warning(
+        "GEMINI QUOTA FALLBACK %s — primary_model=%s, fallback_model=%s",
+        command,
+        primary_model,
+        fallback_model,
+    )
+
+    retry_exit_code, retry_output = await _execute_cli(
+        executable, command, retry_args, execution_cfg
+    )
+
+    notice_lines = [
+        "Gemini quota reached on the primary model.",
+        f"Primary model: {primary_model}",
+        f"Retried with fallback model: {fallback_model}",
+    ]
+    if retry_exit_code == 0:
+        combined_output = "\n".join(notice_lines + ["", retry_output])
+        return retry_exit_code, combined_output
+
+    combined_output = "\n".join(
+        notice_lines + ["", "Fallback attempt failed.", "", retry_output]
+    )
+    return retry_exit_code, combined_output
 
 
 async def _execute_cli(
@@ -459,7 +668,9 @@ async def execute_command(
     if not isinstance(args, dict):
         return -1, "Command args must be an object/dict"
 
-    args_validation_error = _validate_args(whitelist_entry, args)
+    prepared_args = _prepare_command_args(tool, args)
+
+    args_validation_error = _validate_args(whitelist_entry, prepared_args)
     if args_validation_error:
         logger.warning(
             f"Rejected command {command_id} ({tool}:{command}) - {args_validation_error}"
@@ -473,10 +684,10 @@ async def execute_command(
     execution_type = str(execution_cfg.get("type", "cli")).lower()
 
     if execution_type == "http":
-        return await _execute_http(command_id, tool, command, args, execution_cfg)
+        return await _execute_http(command_id, tool, command, prepared_args, execution_cfg)
 
     if execution_type == "mcp":
-        return await _execute_mcp(command, args, execution_cfg)
+        return await _execute_mcp(command, prepared_args, execution_cfg)
 
     executable = execution_cfg.get("executable")
     if not executable:
@@ -486,7 +697,21 @@ async def execute_command(
         logger.warning(msg)
         return -1, msg
 
-    return await _execute_cli(str(executable), command, args, execution_cfg)
+    exit_code, output = await _execute_cli(
+        str(executable), command, prepared_args, execution_cfg
+    )
+
+    if tool.lower() == "gemini":
+        return await _maybe_retry_gemini_with_fallback(
+            str(executable),
+            command,
+            prepared_args,
+            execution_cfg,
+            exit_code,
+            output,
+        )
+
+    return exit_code, output
 
 
 async def report_result(
@@ -539,6 +764,25 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             command = payload["command"]
             args = payload.get("args", {})
             meta_key = f"akasa:cmd_meta:{command_id}"
+            queued_at = payload.get("queued_at")
+            dequeued_at_ts = time.time()
+            dequeued_at = _format_utc_timestamp(dequeued_at_ts)
+            queued_at_ts = _parse_iso_timestamp(queued_at)
+            queue_wait_ms: Optional[int] = None
+            if queued_at_ts is not None:
+                queue_wait_ms = max(int((dequeued_at_ts - queued_at_ts) * 1000), 0)
+
+            logger.info(
+                "DEQUEUED %s — tool=%s, command=%s, queue=%s, queued_at=%s, "
+                "dequeued_at=%s, queue_wait_ms=%s",
+                command_id,
+                tool,
+                command,
+                queue_name,
+                queued_at or "unknown",
+                dequeued_at,
+                queue_wait_ms if queue_wait_ms is not None else "unknown",
+            )
 
             if not await redis.exists(meta_key):
                 logger.warning(f"Command {command_id} has expired before execution")
@@ -551,8 +795,24 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             start_time = time.time()
             exit_code, output = await execute_command(command_id, tool, command, args)
             duration_seconds = time.time() - start_time
+            run_duration_ms = max(int(duration_seconds * 1000), 0)
+            total_latency_ms = (
+                queue_wait_ms + run_duration_ms if queue_wait_ms is not None else None
+            )
 
             status = "success" if exit_code == 0 else "failed"
+            logger.info(
+                "COMPLETED %s — tool=%s, command=%s, status=%s, exit_code=%s, "
+                "queue_wait_ms=%s, run_duration_ms=%s, total_latency_ms=%s",
+                command_id,
+                tool,
+                command,
+                status,
+                exit_code,
+                queue_wait_ms if queue_wait_ms is not None else "unknown",
+                run_duration_ms,
+                total_latency_ms if total_latency_ms is not None else "unknown",
+            )
             reported = await report_result(
                 command_id=command_id,
                 status=status,

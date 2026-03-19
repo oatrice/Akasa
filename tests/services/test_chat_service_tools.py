@@ -6,6 +6,16 @@ from app.models.github import GitHubPR, GitHubIssue
 from app.services.llm_service import OpenRouterInsufficientCreditsError
 from app.config import settings
 
+
+@pytest.fixture(autouse=True)
+def allow_telegram_rate_limit():
+    with patch(
+        "app.services.chat_service.rate_limiter.check_telegram_message_rate_limit",
+        new_callable=AsyncMock,
+        return_value=(True, 0),
+    ) as mock_rate_limit:
+        yield mock_rate_limit
+
 @pytest.fixture
 def mock_update_base():
     return Update(

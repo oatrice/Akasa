@@ -28,7 +28,7 @@
 | [#71](https://github.com/oatrice/Akasa/issues/71) | Telegram MarkdownV2 Escape/Fallback + list_github_repos + System Prompt Fix | ✅ Complete |
 | [#25](https://github.com/oatrice/Akasa/issues/25) | Local Bot Build Info in Responses | ✅ Complete |
 | [#9](https://github.com/oatrice/Akasa/issues/9) | เพิ่ม LINE Bot | 🔲 Todo |
-| [#10](https://github.com/oatrice/Akasa/issues/10) | Rate limiting + error handling | 🔲 Todo |
+| [#10](https://github.com/oatrice/Akasa/issues/10) | Rate limiting + error handling | ✅ Complete |
 
 ---
 
@@ -56,7 +56,7 @@
 | [#34](https://github.com/oatrice/Akasa/issues/34) | Post-Build Notification System with URL Verification | ✅ Complete |
 | [#67](https://github.com/oatrice/Akasa/issues/67) | AI Agent Timeout Observer (ตรวจจับ Agent ที่หยุดทำงาน) | ✅ Complete |
 | [#66](https://github.com/oatrice/Akasa/issues/66) | Telegram → Local Tools Command Queue (Bidirectional Control) | ✅ Complete |
-| [#68](https://github.com/oatrice/Akasa/issues/68) | IDE Integration for Command Queue (Zed, Antigravity, Windsurf) | 🔲 Todo |
+| [#68](https://github.com/oatrice/Akasa/issues/68) | IDE Integration for Command Queue (Zed, Antigravity, Windsurf) | ✅ Complete |
 
 ---
 
@@ -73,7 +73,7 @@
 
 | # | Issue | Status |
 |---|---|---|
-| [#37](https://github.com/oatrice/Akasa/issues/37) | Unified User Session & Multi-Platform Context Sync (Telegram + macOS) | 🔲 Todo |
+| [#37](https://github.com/oatrice/Akasa/issues/37) | Unified User Session & Multi-Platform Context Sync (Telegram + macOS) | ✅ Complete |
 | [#28](https://github.com/oatrice/Akasa/issues/28) | Web Dashboard & CLI Integration Hub (GitHub, Render, Vercel) | 🔲 Todo |
 | [#11](https://github.com/oatrice/Akasa/issues/11) | เชื่อม GitHub API (อ่านโค้ด, review PR) | 🔲 Todo |
 | [#12](https://github.com/oatrice/Akasa/issues/12) | Code Sandbox (รันโค้ดได้จากแชท) | 🔲 Todo |
@@ -90,7 +90,7 @@
 | Phase 1 — Foundation | 4 | 1 | 5 |
 | Phase 2 — Chat Experience | 7 | 2 | 9 |
 | Phase 3 — Remote Dev Core | 4 | 0 | 4 |
-| Phase 4 — Orchestration & Build | 8 | 1 | 9 |
+| Phase 4 — Orchestration & Build | 9 | 0 | 9 |
 | Phase 5 — Mobile Visual | 0 | 2 | 2 |
 | Phase 6 — Scale & Cross-Platform | 0 | 7 | 7 |
-| **Total** | **23** | **13** | **36** |
+| **Total** | **24** | **12** | **36** |

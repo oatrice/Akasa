@@ -3,6 +3,7 @@ from unittest.mock import patch, AsyncMock
 from app.services.chat_service import handle_chat_message
 from app.models.telegram import Update, Message, Chat
 from app.config import settings
+from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 import httpx
 
 @pytest.fixture(autouse=True)
@@ -12,6 +13,16 @@ def set_production_env():
     settings.ENVIRONMENT = "production"
     yield
     settings.ENVIRONMENT = original_env
+
+
+@pytest.fixture(autouse=True)
+def allow_telegram_rate_limit():
+    with patch(
+        "app.services.chat_service.rate_limiter.check_telegram_message_rate_limit",
+        new_callable=AsyncMock,
+        return_value=(True, 0),
+    ) as mock_rate_limit:
+        yield mock_rate_limit
 
 @pytest.fixture
 def mock_update():
@@ -45,6 +56,7 @@ def setup_mock_redis(mock_redis):
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.get_project_list = AsyncMock(return_value=["default"])
+    mock_redis.get_project_path = AsyncMock(return_value=None)
     mock_redis.set_current_project = AsyncMock()
     return mock_redis
 
@@ -244,11 +256,78 @@ async def test_send_response_fallback_to_plain_text_on_400(mock_llm, mock_telegr
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, mock_update):
-    """ถ้า LLM timeout → จะส่งข้อความแจ้งเตือนกลับไป"""
+    """ถ้า LLM timeout → จะส่งข้อความ timeout-friendly กลับไป"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMTimeoutError("Timeout"))
+    mock_telegram.send_message = AsyncMock()
 
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(
+        12345,
+        "ขออภัย คำขอใช้เวลานานเกินไป โปรดลองใหม่อีกครั้งในอีกสักครู่ 🙇‍♂️",
+    )
+    mock_redis.add_message_to_history.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_upstream_error(mock_llm, mock_telegram, mock_redis, mock_update):
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMUpstreamError("Upstream"))
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(
+        12345,
+        "ขออภัย ระบบ AI ภายนอกขัดข้องชั่วคราว โปรดลองใหม่อีกครั้งในภายหลัง 🙇‍♂️",
+    )
+    mock_redis.add_message_to_history.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_malformed_response_error(mock_llm, mock_telegram, mock_redis, mock_update):
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMMalformedResponseError("Bad payload"))
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+    mock_telegram.send_message.assert_called_once_with(
+        12345,
+        "ขออภัย ระบบไม่สามารถประมวลผลคำตอบจาก AI ได้ 🙇‍♂️",
+    )
+    mock_redis.add_message_to_history.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+async def test_handle_chat_message_rate_limited(mock_llm, mock_telegram, mock_redis, mock_update, allow_telegram_rate_limit):
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    allow_telegram_rate_limit.return_value = (False, 42)
+
+    await handle_chat_message(mock_update)
+
+    mock_llm.get_llm_reply.assert_not_called()
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "ถี่เกินไป" in sent_message
+    assert "42" in sent_message
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
@@ -710,6 +789,113 @@ async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mo
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
+async def test_project_path_command_shows_bound_path(mock_telegram, mock_redis):
+    import datetime
+
+    chat_id = 2003
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=26,
+        message=Message(
+            message_id=26,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project path",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.get_project_path.assert_awaited_once_with(chat_id, "akasa")
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Project path" in sent_message
+    assert "/Users/oatrice/Software-projects/Akasa" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_bind_command_binds_named_project_path(mock_telegram, mock_redis):
+    import datetime
+
+    chat_id = 2004
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="default")
+    mock_redis.set_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=27,
+        message=Message(
+            message_id=27,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project bind akasa /Users/oatrice/Software-projects/Akasa",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.set_project_path.assert_awaited_once_with(
+        chat_id,
+        "akasa",
+        "/Users/oatrice/Software-projects/Akasa",
+    )
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Bound project" in sent_message
+    assert "`akasa`" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_bind_command_defaults_to_current_project_for_path_only(
+    mock_telegram,
+    mock_redis,
+):
+    import datetime
+
+    chat_id = 2005
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.set_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/My App"
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=28,
+        message=Message(
+            message_id=28,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project bind /Users/oatrice/Software-projects/My App",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.set_project_path.assert_awaited_once_with(
+        chat_id,
+        "akasa",
+        "/Users/oatrice/Software-projects/My App",
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
 async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     """ทดสอบ /note <task> ต้องบันทึก AgentState ลง Redis"""
     from app.models.agent_state import AgentState
@@ -756,6 +942,339 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     sent_message = mock_telegram.send_message.call_args[0][1]
     assert "✅ Note saved for project" in sent_message
     assert f"`{project_name}`" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.agent_task_service")
+@patch("app.services.chat_service.deploy_service")
+@patch("app.services.chat_service.command_queue_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_status_command_shows_recent_activity(
+    mock_telegram,
+    mock_redis,
+    mock_command_queue,
+    mock_deploy_service,
+    mock_agent_task_service,
+):
+    from app.models.agent_state import AgentState
+    from app.models.agent_task import AgentTaskLog
+    from app.models.command import CommandStatusResponse
+    from app.models.deployment import DeploymentRecord
+    import datetime
+
+    chat_id = 2002
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_redis.get_agent_state = AsyncMock(
+        return_value=AgentState(
+            current_task="Implement /project status",
+            focus_file="app/services/chat_service.py",
+            last_activity_timestamp=now,
+        )
+    )
+    mock_redis.get_recent_command_ids = AsyncMock(return_value=["cmd_123"])
+    mock_redis.get_recent_deployment_ids = AsyncMock(return_value=["dep_456"])
+    mock_redis.get_chat_history = AsyncMock(
+        return_value=[{"role": "assistant", "content": "Status summary ready"}]
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    mock_command_queue.get_command_status = AsyncMock(
+        return_value=CommandStatusResponse(
+            command_id="cmd_123",
+            status="running",
+            tool="gemini",
+            command="run_task",
+            queued_at="2026-03-19T10:00:00Z",
+        )
+    )
+    mock_deploy_service.get_deployment = AsyncMock(
+        return_value=DeploymentRecord(
+            deployment_id="dep_456",
+            status="success",
+            command="vercel deploy",
+            cwd="/tmp/akasa",
+            project="akasa",
+        )
+    )
+    mock_agent_task_service.get_tasks_by_project = AsyncMock(
+        return_value=[
+            AgentTaskLog(
+                task_id="task_1",
+                project="akasa",
+                task="Review ready summary",
+                status="starting",
+                source="Antigravity",
+                chat_id=str(chat_id),
+            )
+        ]
+    )
+
+    update = Update(
+        update_id=22,
+        message=Message(
+            message_id=22,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/project status",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Project Status" in sent_message
+    assert "Implement /project status" in sent_message
+    assert "cmd_123" in sent_message
+    assert "running" in sent_message
+    assert "dep_456" in sent_message
+    assert "vercel deploy" in sent_message
+    assert "Review ready summary" in sent_message
+    assert "Last updated" in sent_message
+    assert "Bound path" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.agent_task_service")
+@patch("app.services.chat_service.deploy_service")
+@patch("app.services.chat_service.command_queue_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_projects_overview_command_summarizes_multiple_projects(
+    mock_telegram,
+    mock_redis,
+    mock_command_queue,
+    mock_deploy_service,
+    mock_agent_task_service,
+):
+    from app.models.agent_state import AgentState
+    from app.models.agent_task import AgentTaskLog
+    from app.models.command import CommandStatusResponse
+    from app.models.deployment import DeploymentRecord
+    import datetime
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    chat_id = 3001
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_list = AsyncMock(return_value=["akasa", "luma"])
+    mock_telegram.send_message = AsyncMock()
+
+    async def get_chat_history_side_effect(_chat_id, project_name="default"):
+        if project_name == "akasa":
+            return [
+                {"role": "user", "content": "Investigate queue behavior"},
+                {"role": "assistant", "content": "Queue looks healthy"},
+            ]
+        return [{"role": "user", "content": "Deploy started"}]
+
+    async def get_agent_state_side_effect(_chat_id, project_name):
+        if project_name == "akasa":
+            return AgentState(
+                current_task="Finish overview command",
+                last_activity_timestamp=now,
+            )
+        return None
+
+    async def get_recent_command_ids_side_effect(_chat_id, project_name, limit=3):
+        return ["cmd_akasa"] if project_name == "akasa" else []
+
+    async def get_recent_deployment_ids_side_effect(_chat_id, project_name, limit=3):
+        return ["dep_luma"] if project_name == "luma" else []
+
+    async def get_tasks_side_effect(project_name):
+        if project_name == "luma":
+            return [
+                AgentTaskLog(
+                    task_id="task_luma",
+                    project="luma",
+                    task="Review docs",
+                    status="partial",
+                    source="Luma",
+                    chat_id=str(chat_id),
+                )
+            ]
+        return []
+
+    mock_redis.get_agent_state = AsyncMock(side_effect=get_agent_state_side_effect)
+    async def get_project_path_side_effect(_chat_id, project_name):
+        if project_name == "akasa":
+            return "/Users/oatrice/Software-projects/Akasa"
+        return "/Users/oatrice/Software-projects/Luma"
+
+    mock_redis.get_project_path = AsyncMock(side_effect=get_project_path_side_effect)
+    mock_redis.get_recent_command_ids = AsyncMock(
+        side_effect=get_recent_command_ids_side_effect
+    )
+    mock_redis.get_recent_deployment_ids = AsyncMock(
+        side_effect=get_recent_deployment_ids_side_effect
+    )
+    mock_redis.get_chat_history = AsyncMock(side_effect=get_chat_history_side_effect)
+    mock_command_queue.get_command_status = AsyncMock(
+        return_value=CommandStatusResponse(
+            command_id="cmd_akasa",
+            status="queued",
+            tool="gemini",
+            command="check_status",
+            queued_at="2026-03-19T10:00:00Z",
+        )
+    )
+    mock_deploy_service.get_deployment = AsyncMock(
+        return_value=DeploymentRecord(
+            deployment_id="dep_luma",
+            status="running",
+            command="render deploy",
+            cwd="/tmp/luma",
+            project="luma",
+        )
+    )
+    mock_agent_task_service.get_tasks_by_project = AsyncMock(
+        side_effect=get_tasks_side_effect
+    )
+
+    update = Update(
+        update_id=23,
+        message=Message(
+            message_id=23,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/projects overview",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Projects Overview" in sent_message
+    assert "`akasa`" in sent_message
+    assert "Finish overview command" in sent_message
+    assert "check_status" in sent_message
+    assert "`luma`" in sent_message
+    assert "render deploy" in sent_message
+    assert "Review docs" in sent_message
+    assert "Last updated" in sent_message
+    assert "History count" in sent_message
+    assert "Path:" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.agent_task_service")
+@patch("app.services.chat_service.deploy_service")
+@patch("app.services.chat_service.command_queue_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_projects_overview_verbose_includes_history_snippet(
+    mock_telegram,
+    mock_redis,
+    mock_command_queue,
+    mock_deploy_service,
+    mock_agent_task_service,
+):
+    import datetime
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    chat_id = 3002
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_list = AsyncMock(return_value=["akasa"])
+    mock_redis.get_agent_state = AsyncMock(return_value=None)
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_redis.get_recent_command_ids = AsyncMock(return_value=[])
+    mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
+    mock_redis.get_chat_history = AsyncMock(
+        return_value=[
+            {"role": "user", "content": "Can you summarize the deploy status for staging?"}
+        ]
+    )
+    mock_telegram.send_message = AsyncMock()
+    mock_command_queue.get_command_status = AsyncMock(return_value=None)
+    mock_deploy_service.get_deployment = AsyncMock(return_value=None)
+    mock_agent_task_service.get_tasks_by_project = AsyncMock(return_value=[])
+
+    update = Update(
+        update_id=24,
+        message=Message(
+            message_id=24,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/projects overview verbose",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Projects Overview" in sent_message
+    assert "Verbose" in sent_message
+    assert "History count" in sent_message
+    assert "History:" in sent_message
+    assert "summarize the deploy status" in sent_message
+    assert "Path:" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.agent_task_service")
+@patch("app.services.chat_service.deploy_service")
+@patch("app.services.chat_service.command_queue_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_projects_overview_json_returns_machine_readable_payload(
+    mock_telegram,
+    mock_redis,
+    mock_command_queue,
+    mock_deploy_service,
+    mock_agent_task_service,
+):
+    import datetime
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    chat_id = 3003
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_list = AsyncMock(return_value=["akasa"])
+    mock_redis.get_agent_state = AsyncMock(return_value=None)
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_redis.get_recent_command_ids = AsyncMock(return_value=[])
+    mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
+    mock_redis.get_chat_history = AsyncMock(
+        return_value=[{"role": "assistant", "content": "Latest status snapshot"}]
+    )
+    mock_telegram.send_message = AsyncMock()
+    mock_command_queue.get_command_status = AsyncMock(return_value=None)
+    mock_deploy_service.get_deployment = AsyncMock(return_value=None)
+    mock_agent_task_service.get_tasks_by_project = AsyncMock(return_value=[])
+
+    update = Update(
+        update_id=25,
+        message=Message(
+            message_id=25,
+            date=int(now.timestamp()),
+            chat=Chat(id=chat_id, type="private"),
+            text="/projects overview json",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_telegram.send_message.assert_called_once()
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "```json" in sent_message
+    assert '"current_project": "akasa"' in sent_message
+    assert '"history_count": 1' in sent_message
+    assert '"history_snippet": null' in sent_message
+    assert '"project_path": "/Users/oatrice/Software-projects/Akasa"' in sent_message
 
 
 # === Proactive Messaging Support (Issue #30) ===

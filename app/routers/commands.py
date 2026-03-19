@@ -9,6 +9,7 @@ Endpoints:
 """
 
 import logging
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -29,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/commands", tags=["commands"])
 
+_QUOTA_RESET_RE = re.compile(r"quota will reset after ([^\n.]+)", re.IGNORECASE)
+_DURATION_FRAGMENT_RE = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", re.IGNORECASE)
+_FALLBACK_MODEL_RE = re.compile(r"Retried with fallback model:\s*([^\n]+)", re.IGNORECASE)
+
 
 # ---------------------------------------------------------------------------
 # Daemon secret validation
@@ -39,6 +44,67 @@ def _verify_daemon_secret(x_daemon_secret: Optional[str] = Header(None)) -> None
     """Validate the X-Daemon-Secret header for daemon-only endpoints."""
     if not x_daemon_secret or x_daemon_secret != settings.AKASA_DAEMON_SECRET:
         raise HTTPException(status_code=401, detail="Invalid or missing daemon secret")
+
+
+def _format_wait_fragment(fragment: str) -> str:
+    cleaned = fragment.strip()
+    match = _DURATION_FRAGMENT_RE.fullmatch(cleaned)
+    if not match:
+        return cleaned
+
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2) or 0)
+    seconds = int(match.group(3) or 0)
+
+    parts: list[str] = []
+    if hours:
+        parts.append(f"{hours} ชั่วโมง")
+    if minutes:
+        parts.append(f"{minutes} นาที")
+    if seconds:
+        parts.append(f"{seconds} วินาที")
+
+    return " ".join(parts) if parts else cleaned
+
+
+def _summarize_command_output(
+    tool: str,
+    status: str,
+    output: Optional[str],
+) -> Optional[str]:
+    if not output:
+        return None
+
+    if tool.lower() != "gemini":
+        return None
+
+    fallback_match = _FALLBACK_MODEL_RE.search(output)
+    if fallback_match:
+        fallback_model = fallback_match.group(1).strip()
+        if status == "success":
+            return (
+                f"Gemini quota บนโมเดลหลัก จึงสลับไปใช้ {fallback_model} "
+                "และรันต่อสำเร็จ"
+            )
+        return (
+            f"Gemini quota บนโมเดลหลัก จึงลองสลับไปใช้ {fallback_model} "
+            "แล้ว แต่คำสั่งยังไม่สำเร็จ"
+        )
+
+    normalized = output.lower()
+    if (
+        "terminalquotaerror" not in normalized
+        and "exhausted your capacity on this model" not in normalized
+        and "quota will reset after" not in normalized
+    ):
+        return None
+
+    reset_match = _QUOTA_RESET_RE.search(output)
+    if reset_match:
+        wait_text = _format_wait_fragment(reset_match.group(1))
+        return f"Gemini quota หมดชั่วคราว รีเซ็ตอีกประมาณ {wait_text}"
+
+    return "Gemini quota หมดชั่วคราว ลองใหม่อีกครั้งภายหลัง"
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +226,14 @@ async def report_command_result(
         if result.duration_seconds is not None:
             safe_duration = escape_markdown_v2_content(f"{result.duration_seconds:.1f}s")
             msg += f"*Duration:* {safe_duration}\n"
+        summary = _summarize_command_output(
+            status.tool,
+            result.status,
+            result.output,
+        )
+        if summary:
+            safe_summary = escape_markdown_v2_content(summary)
+            msg += f"*Summary:* {safe_summary}\n"
         if result.output:
             # We don't escape output with _content because it goes in a code block
             # where escape_markdown_v2 will preserve it, though if it contains ``` 

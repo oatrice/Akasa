@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     )
     COMMAND_QUEUE_TTL_SECONDS: int = 600  # Default command TTL: 10 minutes (temporarily increased for testing)
     COMMAND_QUEUE_RATE_LIMIT: int = 10  # Max commands per user per minute
+    TELEGRAM_MESSAGE_RATE_LIMIT: int = 5  # Max inbound Telegram messages per rate window
+    TELEGRAM_MESSAGE_RATE_WINDOW_SECONDS: int = 60  # Telegram inbound rate-limit window
 
     # --- Feature: AI Agent Timeout Observer ---
     AGENT_TIMEOUT_THRESHOLD_MINUTES: int = 15  # Minutes before a task is considered timed out

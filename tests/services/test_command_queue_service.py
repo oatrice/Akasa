@@ -12,6 +12,7 @@ Tests cover:
 
 import json
 from datetime import datetime, timezone
+from io import StringIO
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
@@ -66,6 +67,18 @@ tools:
           path_arg_keys: []
 """
 
+SAMPLE_WHITELIST_UPDATED_ARGS = """
+tools:
+  gemini:
+    allowed_commands:
+      - name: run_task
+        description: "Run a Gemini CLI task"
+        allowed_args: [task, pr_number, model, fallback_model]
+      - name: check_status
+        description: "Check Gemini CLI status"
+        allowed_args: [model, fallback_model]
+"""
+
 
 @pytest.fixture(autouse=True)
 def reset_whitelist_cache():
@@ -74,9 +87,11 @@ def reset_whitelist_cache():
 
     svc._whitelist_cache = None
     svc._whitelist_raw_cache = None
+    svc._whitelist_mtime = None
     yield
     svc._whitelist_cache = None
     svc._whitelist_raw_cache = None
+    svc._whitelist_mtime = None
 
 
 @pytest.fixture
@@ -204,12 +219,34 @@ class TestWhitelistLoading:
 
         svc._whitelist_cache = {"cached": ["data"]}
         svc._whitelist_raw_cache = {"cached": {"allowed_commands": []}}
+        svc._whitelist_mtime = 123.0
         with patch("builtins.open", mock_open(read_data=SAMPLE_WHITELIST_YAML)):
             with patch("os.path.exists", return_value=True):
-                svc.reload_whitelist()
+                with patch("os.path.getmtime", return_value=456.0):
+                    svc.reload_whitelist()
 
         assert "gemini" in svc._whitelist_cache
         assert "cached" not in svc._whitelist_cache
+        assert svc._whitelist_mtime == 456.0
+
+    def test_get_command_whitelist_entry_reload_when_file_changes(self):
+        """File mtime change should invalidate caches and expose new allowed args."""
+        import app.services.command_queue_service as svc
+
+        open_sequence = [
+            StringIO(SAMPLE_WHITELIST_YAML),
+            StringIO(SAMPLE_WHITELIST_UPDATED_ARGS),
+        ]
+        with patch("builtins.open", side_effect=open_sequence):
+            with patch("os.path.exists", return_value=True):
+                with patch("os.path.getmtime", side_effect=[1.0, 1.0, 2.0, 2.0]):
+                    first = svc.get_command_whitelist_entry("gemini", "check_status")
+                    second = svc.get_command_whitelist_entry("gemini", "check_status")
+
+        assert first is not None
+        assert second is not None
+        assert first["allowed_args"] == []
+        assert second["allowed_args"] == ["model", "fallback_model"]
 
     def test_get_command_whitelist_entry_merges_execution_defaults(self):
         """Entry-specific execution should override defaults while inheriting base config."""
