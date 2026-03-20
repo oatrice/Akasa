@@ -165,9 +165,35 @@ def _get_project_path_key(chat_id: int, project_name: str) -> str:
     return f"project_path:{chat_id}:{_normalize_project_name(project_name)}"
 
 
+def _normalize_github_repo(repo: str) -> str:
+    normalized = (repo or "").strip()
+    if not normalized:
+        raise ValueError("project_repo must not be empty")
+    if "/" not in normalized:
+        raise ValueError("project_repo must use owner/repo format")
+
+    owner, repo_name = normalized.split("/", 1)
+    owner = owner.strip()
+    repo_name = repo_name.strip()
+    if not owner or not repo_name:
+        raise ValueError("project_repo must use owner/repo format")
+
+    return f"{owner}/{repo_name}"
+
+
+def _get_project_repo_key(chat_id: int, project_name: str) -> str:
+    return f"project_repo:{chat_id}:{_normalize_project_name(project_name)}"
+
+
 async def get_project_path(chat_id: int, project_name: str) -> Optional[str]:
     """Return the bound absolute path for a project, if any."""
     key = _get_project_path_key(chat_id, project_name)
+    return await redis_pool.get(key)
+
+
+async def get_project_repo(chat_id: int, project_name: str) -> Optional[str]:
+    """Return the bound GitHub repository for a project, if any."""
+    key = _get_project_repo_key(chat_id, project_name)
     return await redis_pool.get(key)
 
 
@@ -182,6 +208,17 @@ async def set_project_path(chat_id: int, project_name: str, project_path: str) -
     return normalized_path
 
 
+async def set_project_repo(chat_id: int, project_name: str, project_repo: str) -> str:
+    """Bind a project name to a GitHub repository."""
+    normalized_project = _normalize_project_name(project_name)
+    normalized_repo = _normalize_github_repo(project_repo)
+    key = _get_project_repo_key(chat_id, normalized_project)
+
+    await redis_pool.set(key, normalized_repo, ex=settings.REDIS_TTL_SECONDS)
+    await _add_project_to_list(chat_id, normalized_project)
+    return normalized_repo
+
+
 async def get_owner_project_path(project_name: Optional[str] = None) -> Optional[str]:
     """Return the bound path for the owner's current project or an explicit project."""
     chat_id = _get_owner_chat_id()
@@ -189,10 +226,23 @@ async def get_owner_project_path(project_name: Optional[str] = None) -> Optional
     return await get_project_path(chat_id, target_project)
 
 
+async def get_owner_project_repo(project_name: Optional[str] = None) -> Optional[str]:
+    """Return the bound GitHub repo for the owner's current project or an explicit project."""
+    chat_id = _get_owner_chat_id()
+    target_project = project_name or await get_current_project(chat_id)
+    return await get_project_repo(chat_id, target_project)
+
+
 async def set_owner_project_path(project_name: str, project_path: str) -> str:
     """Bind an owner project to an absolute path for local context sync."""
     chat_id = _get_owner_chat_id()
     return await set_project_path(chat_id, project_name, project_path)
+
+
+async def set_owner_project_repo(project_name: str, project_repo: str) -> str:
+    """Bind an owner project to a GitHub repo for local context sync."""
+    chat_id = _get_owner_chat_id()
+    return await set_project_repo(chat_id, project_name, project_repo)
 
 
 async def rename_project(chat_id: int, old_name: str, new_name: str):
@@ -204,6 +254,8 @@ async def rename_project(chat_id: int, old_name: str, new_name: str):
     new_history_key = f"chat_history:{chat_id}:{new_name}"
     old_path_key = _get_project_path_key(chat_id, old_name)
     new_path_key = _get_project_path_key(chat_id, new_name)
+    old_repo_key = _get_project_repo_key(chat_id, old_name)
+    new_repo_key = _get_project_repo_key(chat_id, new_name)
     list_key = f"user_projects:{chat_id}"
     current_key = f"user_current_project:{chat_id}"
 
@@ -215,6 +267,10 @@ async def rename_project(chat_id: int, old_name: str, new_name: str):
     path_exists = await redis_pool.exists(old_path_key)
     if path_exists:
         await redis_pool.rename(old_path_key, new_path_key)
+
+    repo_exists = await redis_pool.exists(old_repo_key)
+    if repo_exists:
+        await redis_pool.rename(old_repo_key, new_repo_key)
 
     # 2. อัปเดตรายชื่อโปรเจ็กต์ (ลบชื่อเก่า เพิ่มชื่อใหม่)
     await redis_pool.srem(list_key, old_name)

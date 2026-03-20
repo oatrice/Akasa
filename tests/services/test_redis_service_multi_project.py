@@ -146,6 +146,17 @@ async def test_get_owner_project_path_uses_akasa_chat_id(patch_redis, monkeypatc
     assert await get_owner_project_path() == str(project_dir)
 
 
+@pytest.mark.asyncio
+async def test_set_and_get_project_repo(patch_redis):
+    from app.services.redis_service import set_project_repo, get_project_repo
+
+    chat_id = 4321
+    stored = await set_project_repo(chat_id, "Akasa", "oatrice/Akasa")
+
+    assert stored == "oatrice/Akasa"
+    assert await get_project_repo(chat_id, "akasa") == "oatrice/Akasa"
+
+
 # --- Recent Project Activity Indexes ---
 
 @pytest.mark.asyncio
@@ -218,6 +229,25 @@ async def test_rename_project_migrates_bound_path(patch_redis, tmp_path):
 
     assert await get_project_path(chat_id, old_name) is None
     assert await get_project_path(chat_id, new_name) == str(project_dir)
+
+
+@pytest.mark.asyncio
+async def test_rename_project_migrates_bound_repo(patch_redis):
+    from app.services.redis_service import (
+        get_project_repo,
+        rename_project,
+        set_project_repo,
+    )
+
+    chat_id = 602
+    old_name = "legacy-app"
+    new_name = "akasa"
+
+    await set_project_repo(chat_id, old_name, "oatrice/Akasa")
+    await rename_project(chat_id, old_name, new_name)
+
+    assert await get_project_repo(chat_id, old_name) is None
+    assert await get_project_repo(chat_id, new_name) == "oatrice/Akasa"
 
 
 # --- Migration Support ---

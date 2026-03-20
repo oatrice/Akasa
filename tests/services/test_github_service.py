@@ -1,8 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import subprocess
+import base64
 from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
 from app.config import settings
+from app.models.github import GitHubIssue
 
 @pytest.fixture
 def github_service():
@@ -211,3 +213,158 @@ def test_get_repo_info_success(github_service):
         repo = github_service.get_repo_info("owner/repo")
         assert repo.full_name == "owner/repo"
         assert repo.stargazers_count == 10
+
+
+def test_extract_repo_from_remote_url_supports_https_and_ssh(github_service):
+    assert (
+        github_service._extract_repo_from_remote_url(
+            "https://github.com/oatrice/Akasa.git"
+        )
+        == "oatrice/Akasa"
+    )
+    assert (
+        github_service._extract_repo_from_remote_url("git@github.com:oatrice/Akasa.git")
+        == "oatrice/Akasa"
+    )
+
+
+def test_get_repo_from_local_path_uses_origin_when_available(github_service):
+    with patch.object(github_service, "_run_git_command") as mock_git:
+        mock_git.side_effect = [
+            "https://github.com/oatrice/Akasa.git",
+            "origin\nupstream\n",
+            "git@github.com:someone/else.git",
+        ]
+
+        repo = github_service.get_repo_from_local_path("/tmp/akasa")
+
+    assert repo == "oatrice/Akasa"
+
+
+def test_get_local_roadmap_content_reads_docs_roadmap(github_service, tmp_path):
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    roadmap_path = docs_dir / "ROADMAP.md"
+    roadmap_path.write_text("# Roadmap\n\n## Phase 1\n", encoding="utf-8")
+
+    resolved_path, content = github_service.get_local_roadmap_content(str(tmp_path))
+
+    assert resolved_path.endswith("docs/ROADMAP.md")
+    assert "Phase 1" in content
+
+
+def test_get_remote_roadmap_content_decodes_base64(github_service):
+    encoded = base64.b64encode(b"# Roadmap\n\n## Phase 1\n").decode("ascii")
+    with patch.object(github_service, "_run_gh_command") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=(
+                '{"content":"%s","encoding":"base64","html_url":"https://github.com/owner/repo/blob/main/docs/ROADMAP.md"}'
+                % encoded
+            ),
+            stderr="",
+        )
+
+        url, content = github_service.get_remote_roadmap_content("owner/repo")
+
+    assert url == "https://github.com/owner/repo/blob/main/docs/ROADMAP.md"
+    assert "Phase 1" in content
+
+
+def test_get_repo_kanban_summary_chooses_linked_project_with_most_matches(github_service):
+    with patch.object(github_service, "_list_owner_projects") as mock_projects, patch.object(
+        github_service, "_get_project_items"
+    ) as mock_items, patch.object(github_service, "_get_project_view_data") as mock_view:
+        mock_projects.return_value = [
+            {"number": 1, "title": "Platform"},
+            {"number": 2, "title": "Akasa Delivery"},
+        ]
+        mock_items.side_effect = [
+            [
+                {
+                    "status": "In Progress",
+                    "content": {
+                        "repository": "oatrice/Akasa",
+                        "title": "Investigate queue lag",
+                        "number": 81,
+                        "url": "https://github.com/oatrice/Akasa/issues/81",
+                    },
+                }
+            ],
+            [
+                {
+                    "status": "Todo",
+                    "content": {
+                        "repository": "oatrice/Akasa",
+                        "title": "Add kanban command",
+                        "number": 82,
+                        "url": "https://github.com/oatrice/Akasa/issues/82",
+                    },
+                },
+                {
+                    "status": "Todo",
+                    "content": {
+                        "repository": "oatrice/Akasa",
+                        "title": "Summarize roadmap",
+                        "number": 83,
+                        "url": "https://github.com/oatrice/Akasa/issues/83",
+                    },
+                },
+            ],
+        ]
+        mock_view.return_value = {
+            "title": "Akasa Delivery",
+            "url": "https://github.com/users/oatrice/projects/2",
+        }
+
+        summary = github_service.get_repo_kanban_summary("oatrice/Akasa")
+
+    assert summary["source"] == "project"
+    assert summary["project_title"] == "Akasa Delivery"
+    assert summary["selection_note"] is not None
+    assert summary["columns"][0]["name"] == "Todo"
+    assert summary["columns"][0]["count"] == 2
+
+
+def test_get_repo_kanban_summary_falls_back_to_open_issues(github_service):
+    with patch.object(github_service, "_list_owner_projects", return_value=[]), patch.object(
+        github_service,
+        "list_issues",
+        return_value=[
+            GitHubIssue(
+                number=82,
+                title="Add kanban command",
+                state="OPEN",
+                url="https://github.com/oatrice/Akasa/issues/82",
+            )
+        ],
+    ):
+        summary = github_service.get_repo_kanban_summary("oatrice/Akasa")
+
+    assert summary["source"] == "open_issues"
+    assert summary["issues"][0]["number"] == 82
+
+
+def test_get_repo_kanban_summary_falls_back_to_open_issues_when_project_discovery_fails(
+    github_service,
+):
+    with patch.object(
+        github_service,
+        "_list_owner_projects",
+        side_effect=GitHubServiceError("unknown owner type"),
+    ), patch.object(
+        github_service,
+        "list_issues",
+        return_value=[
+            GitHubIssue(
+                number=82,
+                title="Add kanban command",
+                state="OPEN",
+                url="https://github.com/oatrice/Akasa/issues/82",
+            )
+        ],
+    ):
+        summary = github_service.get_repo_kanban_summary("oatrice/Akasa")
+
+    assert summary["source"] == "open_issues"
+    assert summary["issues"][0]["title"] == "Add kanban command"

@@ -12,6 +12,7 @@ class ProjectContextResponse(BaseModel):
 
     active_project: str
     project_path: Optional[str] = None
+    project_repo: Optional[str] = None
 
 
 class ProjectContextUpdateRequest(BaseModel):
@@ -21,6 +22,10 @@ class ProjectContextUpdateRequest(BaseModel):
     project_path: Optional[str] = Field(
         default=None,
         description="Optional absolute path to bind to the active project",
+    )
+    project_repo: Optional[str] = Field(
+        default=None,
+        description="Optional GitHub repository in owner/repo format to bind to the active project",
     )
 
     @field_validator("active_project")
@@ -40,4 +45,15 @@ class ProjectContextUpdateRequest(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("project_path must not be empty")
+        return normalized
+
+    @field_validator("project_repo")
+    @classmethod
+    def normalize_project_repo(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("project_repo must not be empty")
         return normalized

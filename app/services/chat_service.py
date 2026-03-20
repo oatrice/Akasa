@@ -179,6 +179,38 @@ GITHUB_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_github_kanban",
+            "description": "Gets a compact kanban-style summary for a GitHub repository. Use this when the user asks what is in progress, what is on the board, what is next, current project status, backlog, open work, kanban, or board status. If no project board exists, it should summarize open issues instead.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Optional repository in owner/repo format. Omit this when the current Telegram project context should be used.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_github_roadmap",
+            "description": "Gets a compact roadmap summary from docs/ROADMAP.md for a GitHub repository or the current project context. Use this when the user asks about the roadmap, future plans, milestones, phases, strategic direction, upcoming work, or what the project will do next.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Optional repository in owner/repo format. Omit this when the current Telegram project context should be used.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "git_status",
             "description": "Check local git status (uncommitted changes).",
             "parameters": {"type": "object", "properties": {}},
@@ -232,6 +264,35 @@ COMMAND_ALIASES = {
     "/gh": "/github",
     "/q": "/queue",
 }
+
+KANBAN_SHORTCUT_PHRASES = (
+    "งานถึงไหนแล้ว",
+    "สถานะโปรเจกต์",
+    "สถานะโปรเจ็ค",
+    "สถานะโปรเจกต์นี้",
+    "สถานะโปรเจ็คนี้",
+    "มีอะไรค้างอยู่",
+    "ค้างอะไรอยู่",
+    "what is in progress",
+    "project status",
+    "board status",
+    "backlog",
+    "kanban",
+)
+
+ROADMAP_SHORTCUT_PHRASES = (
+    "โปรเจกต์นี้จะทำอะไรต่อ",
+    "โปรเจ็คนี้จะทำอะไรต่อ",
+    "แผนต่อไป",
+    "roadmap",
+    "future plans",
+    "what's next",
+    "what is next",
+    "next milestone",
+    "next milestones",
+    "milestone",
+    "milestones",
+)
 # ------------------------------------------
 
 # Cache build info at startup
@@ -500,12 +561,18 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
 async def _handle_github_command(chat_id: int, args: list[str]) -> None:
     if not args:
         msg = "🐙 *GitHub Commands* (alias: `/gh`)\n"
-        msg += "• `/github repo <owner/repo>` - View repo info\n"
-        msg += "• `/github issues [owner/repo]` - List issues\n"
-        msg += "• `/github issue new <repo> <title> [body]` - Create issue\n"
-        msg += "• `/github pr [owner/repo]` - View PR status\n"
-        msg += "• `/github pr new <repo> <title> [body]` - Create PR\n\n"
-        msg += "💡 *Tip:* If repo is omitted, it uses the current project name."
+        msg += "• `/gh repo <owner/repo>` - View repo info\n"
+        msg += "• `/gh issues [owner/repo]` - List issues\n"
+        msg += "• `/gh issue new <repo> <title> [body]` - Create issue\n"
+        msg += "• `/gh pr [owner/repo]` - View PR status\n"
+        msg += "• `/gh pr new <repo> <title> [body]` - Create PR\n"
+        msg += "• `/gh kanban [owner/repo]` - View kanban or fallback open issues\n"
+        msg += "• `/gh roadmap [owner/repo]` - Summarize `docs/ROADMAP.md`\n\n"
+        msg += (
+            "💡 *Tip:* If repo is omitted, Akasa first tries the project's bound GitHub repo, "
+            "then the current project name. `/gh kanban` and `/gh roadmap` can also derive "
+            "from the bound project path."
+        )
         await _send_response(chat_id, msg)
         return
 
@@ -516,9 +583,18 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
             msg = f"📦 *{repo.full_name}*\n📝 {repo.description or 'No description'}\n⭐ Stars: {repo.stargazers_count}\n🔗 [View on GitHub]({repo.html_url})"
             await _send_response(chat_id, msg)
         elif sub_cmd == "issues":
-            repo_name = args[1] if len(args) > 1 else await redis_service.get_current_project(chat_id)
-            if not repo_name or "/" not in repo_name:
-                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo` or select a project that matches a repo name.")
+            explicit_repo = args[1] if len(args) > 1 else None
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                return
+
+            target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+            repo_name = target.get("repo")
+            if not repo_name or not _looks_like_repo_name(repo_name):
+                await _send_response(
+                    chat_id,
+                    "⚠️ Please specify repository or bind a GitHub repo first, for example `/project repo akasa owner/repo`.",
+                )
                 return
             issues = github_service.list_issues(repo_name)
             if not issues:
@@ -536,9 +612,18 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                 url = github_service.pr_create(args[2], args[3], " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot")
                 await _send_response(chat_id, f"✅ Pull Request created: {url}")
             else:
-                repo_name = args[1] if len(args) > 1 else await redis_service.get_current_project(chat_id)
-                if not repo_name or "/" not in repo_name:
+                explicit_repo = args[1] if len(args) > 1 else None
+                if explicit_repo and not _looks_like_repo_name(explicit_repo):
                     await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                    return
+
+                target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+                repo_name = target.get("repo")
+                if not repo_name or not _looks_like_repo_name(repo_name):
+                    await _send_response(
+                        chat_id,
+                        "⚠️ Please specify repository or bind a GitHub repo first, for example `/project repo akasa owner/repo`.",
+                    )
                     return
                 prs = github_service.get_pr_status(repo_name)
                 if not prs:
@@ -549,6 +634,41 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                     status = "🛠️ Draft" if pr.is_draft else "🚀 Active"
                     msg += f"• #{pr.number} {pr.title} ({status}) [link]({pr.url})\n"
                 await _send_response(chat_id, msg)
+        elif sub_cmd == "kanban":
+            explicit_repo = args[1] if len(args) > 1 else None
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                return
+
+            target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+            repo_name = target.get("repo")
+            if not repo_name or not _looks_like_repo_name(repo_name):
+                await _send_response(
+                    chat_id,
+                    "⚠️ Please specify repository or bind a GitHub repo first, for example `/project repo akasa owner/repo` or `/gh kanban owner/repo`.",
+                )
+                return
+
+            summary = github_service.get_repo_kanban_summary(repo_name)
+            await _send_response(chat_id, _render_kanban_summary(summary))
+        elif sub_cmd == "roadmap":
+            explicit_repo = args[1] if len(args) > 1 else None
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                return
+
+            target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+            try:
+                summary = _load_roadmap_summary(
+                    repo=target.get("repo"),
+                    project_name=target.get("project_name", "current project"),
+                    project_path=target.get("roadmap_project_path"),
+                )
+            except GitHubServiceError as e:
+                await _send_response(chat_id, f"⚠️ {str(e)}")
+                return
+
+            await _send_response(chat_id, _render_roadmap_summary(summary))
         else:
             await _send_response(chat_id, f"❌ Invalid GitHub command or missing arguments.")
     except Exception as e:
@@ -631,19 +751,342 @@ def _resolve_project_bind_target_and_path(
     return target_project, raw_path
 
 
+def _looks_like_repo_name(value: Optional[str]) -> bool:
+    if not value or "/" not in value:
+        return False
+    owner, repo = value.split("/", 1)
+    return bool(owner.strip() and repo.strip())
+
+
+async def _get_project_repo_binding(chat_id: int, project_name: Optional[str]) -> Optional[str]:
+    if not project_name:
+        return None
+
+    try:
+        repo_name = await redis_service.get_project_repo(chat_id, project_name)
+    except Exception as e:
+        logger.warning(f"Failed to resolve bound GitHub repo for {project_name}: {e}")
+        return None
+
+    return repo_name if _looks_like_repo_name(repo_name) else None
+
+
+async def _resolve_github_target(
+    chat_id: int,
+    explicit_repo: Optional[str] = None,
+    current_project: Optional[str] = None,
+) -> dict:
+    target_project = current_project or await redis_service.get_current_project(chat_id)
+    project_repo = await _get_project_repo_binding(chat_id, target_project)
+
+    project_path = None
+    try:
+        project_path = await redis_service.get_project_path(chat_id, target_project)
+    except Exception as e:
+        logger.warning(f"Failed to resolve project path for {target_project}: {e}")
+
+    current_project_repo = target_project if _looks_like_repo_name(target_project) else None
+
+    repo_from_path = None
+    if project_path:
+        try:
+            repo_from_path = github_service.get_repo_from_local_path(project_path)
+        except Exception as e:
+            logger.warning(f"Failed to resolve repo from path {project_path}: {e}")
+
+    normalized_explicit_repo = (explicit_repo or "").strip() or None
+    resolved_repo = normalized_explicit_repo
+    repo_source = "explicit" if normalized_explicit_repo else None
+
+    if not resolved_repo and project_repo:
+        resolved_repo = project_repo
+        repo_source = "bound_repo"
+
+    if not resolved_repo and current_project_repo:
+        resolved_repo = current_project_repo
+        repo_source = "current_project"
+
+    if not resolved_repo and repo_from_path:
+        resolved_repo = repo_from_path
+        repo_source = "bound_path"
+
+    roadmap_project_path = None
+    if project_path:
+        target_roadmap_repo = normalized_explicit_repo or project_repo
+        if target_roadmap_repo:
+            if repo_from_path and repo_from_path.lower() == target_roadmap_repo.lower():
+                roadmap_project_path = project_path
+        else:
+            roadmap_project_path = project_path
+
+    return {
+        "project_name": target_project,
+        "project_path": project_path,
+        "project_repo": project_repo,
+        "repo": resolved_repo,
+        "repo_source": repo_source or "unresolved",
+        "repo_from_path": repo_from_path,
+        "roadmap_project_path": roadmap_project_path,
+    }
+
+
+def _summarize_roadmap_content(content: str, max_sections: int = 5) -> list[str]:
+    raw_lines = [line.rstrip() for line in content.splitlines()]
+    sections: list[dict] = []
+    current_section: Optional[dict] = None
+
+    def flush_current_section():
+        if current_section and current_section.get("title"):
+            sections.append(current_section.copy())
+
+    for raw_line in raw_lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line.startswith("#"):
+            level = len(line) - len(line.lstrip("#"))
+            title = line[level:].strip()
+            if level == 1:
+                continue
+            flush_current_section()
+            current_section = {"title": title, "lines": []}
+            continue
+
+        if current_section is None:
+            current_section = {"title": "Highlights", "lines": []}
+
+        current_section["lines"].append(line)
+
+    flush_current_section()
+
+    summary_lines: list[str] = []
+    for section in sections:
+        title = str(section["title"]).strip()
+        lines = section.get("lines", [])
+        complete = sum("✅" in line for line in lines)
+        todo = sum("🔲" in line for line in lines)
+        in_progress = sum(
+            ("🟡" in line) or ("in progress" in line.lower()) or ("running" in line.lower())
+            for line in lines
+        )
+
+        status_parts = []
+        if complete:
+            status_parts.append(f"{complete} complete")
+        if in_progress:
+            status_parts.append(f"{in_progress} in progress")
+        if todo:
+            status_parts.append(f"{todo} todo")
+
+        if status_parts:
+            summary_lines.append(f"{title} — {', '.join(status_parts)}")
+            continue
+
+        bullet_line = next(
+            (
+                line.lstrip("-*0123456789. ").strip()
+                for line in lines
+                if line.startswith(("-", "*")) or line[:1].isdigit()
+            ),
+            None,
+        )
+        if bullet_line:
+            summary_lines.append(f"{title} — {bullet_line}")
+            continue
+
+        text_line = next(
+            (
+                line.replace("|", " ").strip()
+                for line in lines
+                if set(line) != {"-"} and not line.startswith("|---")
+            ),
+            None,
+        )
+        if text_line:
+            compact = " ".join(text_line.split())
+            summary_lines.append(f"{title} — {compact[:90]}")
+
+        if len(summary_lines) >= max_sections:
+            break
+
+    if summary_lines:
+        return summary_lines[:max_sections]
+
+    fallback_lines = []
+    for line in raw_lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith("|---"):
+            continue
+        fallback_lines.append(" ".join(stripped.replace("|", " ").split()))
+        if len(fallback_lines) >= max_sections:
+            break
+    return fallback_lines
+
+
+def _render_kanban_summary(summary: dict) -> str:
+    repo = summary.get("repo", "unknown/repo")
+    lines = [f"🗂️ *Kanban for {repo}*"]
+
+    if summary.get("source") == "project":
+        lines.append(f"Board: *{summary.get('project_title', 'GitHub Project')}*")
+        if summary.get("selection_note"):
+            lines.append(summary["selection_note"])
+
+        columns = summary.get("columns", [])
+        if not columns:
+            lines.append("No linked project items found.")
+        else:
+            for column in columns[:5]:
+                items = column.get("items", [])
+                item_parts = []
+                for item in items[:2]:
+                    prefix = f"#{item['number']}" if item.get("number") else "item"
+                    item_parts.append(f"{prefix} {item.get('title', 'Untitled')}")
+                if item_parts:
+                    lines.append(
+                        f"• {column.get('name', 'Open')}: {column.get('count', 0)} — "
+                        + "; ".join(item_parts)
+                    )
+                else:
+                    lines.append(f"• {column.get('name', 'Open')}: {column.get('count', 0)}")
+
+        if summary.get("project_url"):
+            lines.append(f"🔗 [View project]({summary['project_url']})")
+        return "\n".join(lines)
+
+    lines.append("Source: open issues fallback")
+    issues = summary.get("issues", [])
+    if not issues:
+        lines.append("No open issues found.")
+        return "\n".join(lines)
+
+    lines.append(f"Open issues: {len(issues)}")
+    for issue in issues[:5]:
+        lines.append(f"• #{issue.get('number')} {issue.get('title')}")
+    lines.append(f"🔗 [View issues](https://github.com/{repo}/issues)")
+    return "\n".join(lines)
+
+
+def _render_roadmap_summary(summary: dict) -> str:
+    display_name = summary.get("repo") or summary.get("project_name") or "current project"
+    lines = [f"🗺️ *Roadmap for {display_name}*"]
+
+    if summary.get("source") == "local":
+        lines.append("Source: local `docs/ROADMAP.md`")
+    else:
+        lines.append("Source: repository `docs/ROADMAP.md`")
+
+    for line in summary.get("summary_lines", [])[:5]:
+        lines.append(f"• {line}")
+
+    if summary.get("url"):
+        lines.append(f"🔗 [View ROADMAP.md]({summary['url']})")
+    return "\n".join(lines)
+
+
+def _load_roadmap_summary(
+    repo: Optional[str],
+    project_name: str,
+    project_path: Optional[str],
+) -> dict:
+    local_error = None
+
+    if project_path:
+        try:
+            _, content = github_service.get_local_roadmap_content(project_path)
+            return {
+                "repo": repo,
+                "project_name": project_name,
+                "source": "local",
+                "summary_lines": _summarize_roadmap_content(content),
+                "url": (
+                    f"https://github.com/{repo}/blob/HEAD/docs/ROADMAP.md"
+                    if repo
+                    else None
+                ),
+            }
+        except GitHubServiceError as e:
+            local_error = str(e)
+
+    if repo:
+        url, content = github_service.get_remote_roadmap_content(repo)
+        return {
+            "repo": repo,
+            "project_name": project_name,
+            "source": "remote",
+            "summary_lines": _summarize_roadmap_content(content),
+            "url": url,
+        }
+
+    if local_error:
+        raise GitHubServiceError(local_error)
+
+    raise GitHubServiceError(
+        "Could not resolve project context or docs/ROADMAP.md for the current project."
+    )
+
+
+def _normalize_prompt_for_shortcuts(prompt: str) -> str:
+    return " ".join((prompt or "").strip().lower().split())
+
+
+def _matches_shortcut_phrase(prompt: str, phrases: tuple[str, ...]) -> bool:
+    normalized_prompt = _normalize_prompt_for_shortcuts(prompt)
+    return any(phrase in normalized_prompt for phrase in phrases)
+
+
+async def _try_handle_project_insight_shortcut(
+    chat_id: int,
+    prompt: str,
+    current_project: str,
+) -> Optional[str]:
+    if _matches_shortcut_phrase(prompt, ROADMAP_SHORTCUT_PHRASES):
+        target = await _resolve_github_target(chat_id, current_project=current_project)
+        try:
+            summary = _load_roadmap_summary(
+                repo=target.get("repo"),
+                project_name=target.get("project_name", current_project),
+                project_path=target.get("roadmap_project_path"),
+            )
+        except GitHubServiceError as e:
+            return f"⚠️ {str(e)}"
+        return _render_roadmap_summary(summary)
+
+    if _matches_shortcut_phrase(prompt, KANBAN_SHORTCUT_PHRASES):
+        target = await _resolve_github_target(chat_id, current_project=current_project)
+        repo_name = target.get("repo")
+        if not repo_name or not _looks_like_repo_name(repo_name):
+            return (
+                "⚠️ Please specify repository or bind a GitHub repo first, "
+                "for example `/project repo akasa owner/repo`."
+            )
+        summary = github_service.get_repo_kanban_summary(repo_name)
+        return _render_kanban_summary(summary)
+
+    return None
+
+
 async def _handle_project_command(chat_id: int, args: list[str]) -> None:
-    if not args:
+    if not args or args[0].lower() == "list":
         current = await redis_service.get_current_project(chat_id)
         projects = await redis_service.get_project_list(chat_id)
+        ordered_projects = [current] + sorted(
+            [project for project in projects if project != current]
+        )
         msg = f"📁 Current Project: `{current}`\nAlias: `/pj`\n\nAvailable Projects:\n"
-        for p in projects:
-            msg += f"{'✅' if p == current else '-'} `{p}`\n"
+        for p in ordered_projects:
+            repo_name = await _get_project_repo_binding(chat_id, p)
+            repo_suffix = f" → `{repo_name}`" if repo_name else ""
+            msg += f"{'✅' if p == current else '-'} `{p}`{repo_suffix}\n"
         msg += (
             "\nUsage:\n"
+            "• `/project list`\n"
             "• `/project select <name>`\n"
             "• `/project status [name]`\n"
             "• `/project path [name]`\n"
             "• `/project bind [name] <absolute_path>`\n"
+            "• `/project repo [name] [owner/repo]`\n"
             "• `/project new <name>`\n"
             "• `/project rename <old> <new>`"
         )
@@ -688,6 +1131,57 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await _send_response(
             chat_id,
             f"✅ Bound project `{target}` to:\n`{bound_path}`",
+        )
+    elif sub_cmd in {"repo", "github"}:
+        current = await redis_service.get_current_project(chat_id)
+
+        if len(args) == 1:
+            target = current
+            repo_name = await _get_project_repo_binding(chat_id, target)
+            if repo_name:
+                await _send_response(
+                    chat_id,
+                    f"🐙 GitHub repo for `{target}`:\n`{repo_name}`\n🔗 [View on GitHub](https://github.com/{repo_name})",
+                )
+            else:
+                await _send_response(
+                    chat_id,
+                    f"ℹ️ No GitHub repo is bound to `{target}` yet.\nUse `/project repo {target} owner/repo` to save one.",
+                )
+            return
+
+        if len(args) == 2 and _looks_like_repo_name(args[1]):
+            target = current
+            repo_value = args[1]
+        elif len(args) == 2:
+            target = args[1].lower()
+            repo_name = await _get_project_repo_binding(chat_id, target)
+            if repo_name:
+                await _send_response(
+                    chat_id,
+                    f"🐙 GitHub repo for `{target}`:\n`{repo_name}`\n🔗 [View on GitHub](https://github.com/{repo_name})",
+                )
+            else:
+                await _send_response(
+                    chat_id,
+                    f"ℹ️ No GitHub repo is bound to `{target}` yet.\nUse `/project repo {target} owner/repo` to save one.",
+                )
+            return
+        else:
+            target = args[1].lower()
+            repo_value = args[2]
+
+        if not _looks_like_repo_name(repo_value):
+            await _send_response(
+                chat_id,
+                "❌ Usage: `/project repo <name> <owner/repo>` or `/project repo <owner/repo>` for the current project.",
+            )
+            return
+
+        bound_repo = await redis_service.set_project_repo(chat_id, target, repo_value)
+        await _send_response(
+            chat_id,
+            f"✅ Bound GitHub repo for `{target}` to:\n`{bound_repo}`\n🔗 [View on GitHub](https://github.com/{bound_repo})",
         )
     elif sub_cmd == "select" and len(args) > 1:
         target = args[1].lower()
@@ -808,6 +1302,8 @@ async def _load_project_status_snapshot(
     recent_tasks = []
     recent_history = []
     project_path = None
+    project_repo = None
+    project_repo_source = None
 
     try:
         agent_state = await redis_service.get_agent_state(chat_id, project_name)
@@ -818,6 +1314,20 @@ async def _load_project_status_snapshot(
         project_path = await redis_service.get_project_path(chat_id, project_name)
     except Exception as e:
         logger.warning(f"Failed to load project path for project {project_name}: {e}")
+
+    project_repo = await _get_project_repo_binding(chat_id, project_name)
+    if project_repo:
+        project_repo_source = "bound_repo"
+    elif _looks_like_repo_name(project_name):
+        project_repo = project_name
+        project_repo_source = "project_name"
+    elif project_path:
+        try:
+            project_repo = github_service.get_repo_from_local_path(project_path)
+        except Exception as e:
+            logger.warning(f"Failed to derive repo from path for {project_name}: {e}")
+        if project_repo:
+            project_repo_source = "bound_path"
 
     try:
         recent_command_ids = await redis_service.get_recent_command_ids(
@@ -891,6 +1401,8 @@ async def _load_project_status_snapshot(
     return {
         "agent_state": agent_state,
         "project_path": project_path,
+        "project_repo": project_repo,
+        "project_repo_source": project_repo_source,
         "recent_command_statuses": recent_command_statuses,
         "recent_deployments": recent_deployments,
         "recent_tasks": filtered_tasks[:task_limit],
@@ -909,6 +1421,8 @@ async def _handle_project_status_command(
     snapshot = await _load_project_status_snapshot(chat_id, project_name)
     agent_state = snapshot["agent_state"]
     project_path = snapshot["project_path"]
+    project_repo = snapshot["project_repo"]
+    project_repo_source = snapshot["project_repo_source"]
     recent_command_statuses = snapshot["recent_command_statuses"]
     recent_deployments = snapshot["recent_deployments"]
     filtered_tasks = snapshot["recent_tasks"]
@@ -924,6 +1438,17 @@ async def _handle_project_status_command(
         lines.append(f"📂 Bound path: `{project_path}`")
     else:
         lines.append("📂 Bound path: not set")
+
+    if project_repo:
+        source_label = {
+            "bound_repo": "bound repo",
+            "project_name": "project name",
+            "bound_path": "bound path",
+        }.get(project_repo_source, "resolved")
+        lines.append(f"🐙 GitHub repo: `{project_repo}` ({source_label})")
+        lines.append(f"🔗 [View on GitHub](https://github.com/{project_repo})")
+    else:
+        lines.append("🐙 GitHub repo: not set")
 
     lines.append("")
     if agent_state and agent_state.current_task:
@@ -1025,6 +1550,8 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
         history_snippet = snapshot["history_snippet"]
         history_count = snapshot["history_count"]
         project_path = snapshot["project_path"]
+        project_repo = snapshot["project_repo"]
+        project_repo_source = snapshot["project_repo_source"]
 
         latest_command = None
         if recent_command_statuses:
@@ -1061,6 +1588,8 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
                 "active": project_name == current_project,
                 "task": agent_state.current_task if agent_state and agent_state.current_task else None,
                 "project_path": project_path,
+                "project_repo": project_repo,
+                "project_repo_source": project_repo_source,
                 "last_updated": last_updated,
                 "history_count": history_count,
                 "history_snippet": history_snippet if verbose else None,
@@ -1086,6 +1615,11 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
         lines.append(f"{prefix} `{item['project']}`")
         lines.append(f"Task: {item['task'] or 'No saved note'}")
         lines.append(f"Path: `{item['project_path']}`" if item["project_path"] else "Path: none")
+        lines.append(
+            f"GitHub: `{item['project_repo']}`"
+            if item["project_repo"]
+            else "GitHub: none"
+        )
         lines.append(
             f"Last updated: `{item['last_updated']}`" if item["last_updated"] else "Last updated: unknown"
         )
@@ -1125,7 +1659,12 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
     await _send_response(chat_id, "\n".join(lines))
 
 
-async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
+async def _execute_tool_call(
+    function_name: str,
+    arguments_str: str,
+    chat_id: Optional[int] = None,
+    current_project: Optional[str] = None,
+) -> str:
     try:
         args = json.loads(arguments_str)
         print(f"--- [DEBUG] Executing tool: {function_name} ---")
@@ -1165,6 +1704,39 @@ async def _execute_tool_call(function_name: str, arguments_str: str) -> str:
                 stars = f" ⭐{r.stargazers_count}" if r.stargazers_count else ""
                 lines.append(f"• {r.full_name}{desc}{stars}")
             return f"Found {len(repos)} repositories:\n" + "\n".join(lines)
+        elif function_name == "get_github_kanban":
+            explicit_repo = args.get("repo")
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                return "Error: Invalid repository format. Please use owner/repo."
+            if chat_id is None:
+                return "Error: Missing Telegram chat context for kanban lookup."
+            target = await _resolve_github_target(
+                chat_id,
+                explicit_repo=explicit_repo,
+                current_project=current_project,
+            )
+            repo_name = target.get("repo")
+            if not repo_name or not _looks_like_repo_name(repo_name):
+                return "Error: Could not resolve repository from the current project context."
+            summary = github_service.get_repo_kanban_summary(repo_name)
+            return _render_kanban_summary(summary)
+        elif function_name == "get_github_roadmap":
+            explicit_repo = args.get("repo")
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                return "Error: Invalid repository format. Please use owner/repo."
+            if chat_id is None:
+                return "Error: Missing Telegram chat context for roadmap lookup."
+            target = await _resolve_github_target(
+                chat_id,
+                explicit_repo=explicit_repo,
+                current_project=current_project,
+            )
+            summary = _load_roadmap_summary(
+                repo=target.get("repo"),
+                project_name=target.get("project_name", "current project"),
+                project_path=target.get("roadmap_project_path"),
+            )
+            return _render_roadmap_summary(summary)
         elif function_name == "git_status":
             return github_service.git_status() or "Working tree clean."
         elif function_name == "git_add":
@@ -1223,7 +1795,12 @@ async def _handle_standard_message(message: "Message") -> None:
                     call_id = tc["id"] if hasattr(tc, "__getitem__") else tc.id
                     fname = tc["function"]["name"] if hasattr(tc, "__getitem__") else tc.function.name
                     args_str = tc["function"]["arguments"] if hasattr(tc, "__getitem__") else tc.function.arguments
-                    result = await _execute_tool_call(fname, args_str)
+                    result = await _execute_tool_call(
+                        fname,
+                        args_str,
+                        chat_id=chat_id,
+                        current_project=current_project,
+                    )
                     tool_msg = {"role": "tool", "tool_call_id": call_id, "name": fname, "content": str(result)}
                     messages.append(tool_msg)
                     try:
@@ -1240,13 +1817,34 @@ async def _handle_standard_message(message: "Message") -> None:
                 pass
             return
 
+    shortcut_reply = await _try_handle_project_insight_shortcut(
+        chat_id,
+        prompt,
+        current_project,
+    )
+    if shortcut_reply:
+        await _send_response(chat_id, shortcut_reply)
+        try:
+            await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
+            await redis_service.add_message_to_history(chat_id, "assistant", shortcut_reply, project_name=current_project)
+        except Exception:
+            pass
+        return
+
     # 1. Normal Message Handling
     try:
         history = await redis_service.get_chat_history(chat_id, project_name=current_project)
     except Exception:
         history = []
 
-    workflow_instruction = "\n\n[GIT WORKFLOW]\nIf user wants a PR, call 'git_status' first. If dirty, ASK to add/commit/push first."
+    workflow_instruction = (
+        "\n\n[GIT WORKFLOW]\n"
+        "If user wants a PR, call 'git_status' first. If dirty, ASK to add/commit/push first."
+        "\n\n[PROJECT INSIGHTS]\n"
+        "If the user asks about kanban, board status, backlog, what is in progress, "
+        "what is next, current project status, roadmap, future plans, milestones, "
+        "or what the project will do next, prefer the dedicated GitHub kanban/roadmap tools."
+    )
     messages = [{"role": "system", "content": f"{settings.SYSTEM_PROMPT}\nProject: {current_project}{workflow_instruction}"}] + history + [{"role": "user", "content": prompt}]
 
     try:
@@ -1273,7 +1871,12 @@ async def _handle_standard_message(message: "Message") -> None:
                 call_id = tc["id"] if hasattr(tc, "__getitem__") else tc.id
                 fname = tc["function"]["name"] if hasattr(tc, "__getitem__") else tc.function.name
                 args_str = tc["function"]["arguments"] if hasattr(tc, "__getitem__") else tc.function.arguments
-                result = await _execute_tool_call(fname, args_str)
+                result = await _execute_tool_call(
+                    fname,
+                    args_str,
+                    chat_id=chat_id,
+                    current_project=current_project,
+                )
                 tool_msg = {"role": "tool", "tool_call_id": call_id, "name": fname, "content": str(result)}
                 messages.append(tool_msg)
                 try:

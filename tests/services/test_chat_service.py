@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from app.services.chat_service import handle_chat_message
 from app.models.telegram import Update, Message, Chat
 from app.config import settings
@@ -57,6 +57,7 @@ def setup_mock_redis(mock_redis):
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.get_project_list = AsyncMock(return_value=["default"])
     mock_redis.get_project_path = AsyncMock(return_value=None)
+    mock_redis.get_project_repo = AsyncMock(return_value=None)
     mock_redis.set_current_project = AsyncMock()
     return mock_redis
 
@@ -118,6 +119,220 @@ async def test_queue_alias_dispatches_to_queue_handler(mock_handle_queue):
     call_args = mock_handle_queue.await_args.args
     assert call_args[0] == update.message
     assert call_args[1] == ["gemini", "check_status", "{}"]
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_github_help_prefers_gh_commands(mock_telegram, mock_redis):
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=104,
+        message=Message(
+            message_id=104,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/gh",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "/gh kanban" in sent_message
+    assert "/gh roadmap" in sent_message
+    assert "/github repo" not in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.github_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_github_kanban_command_uses_current_project_context(
+    mock_telegram,
+    mock_redis,
+    mock_github,
+):
+    mock_redis.get_current_project = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_project_path = AsyncMock(return_value=None)
+    mock_redis.get_project_repo = AsyncMock(return_value=None)
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_github.get_repo_kanban_summary = MagicMock(
+        return_value={
+            "repo": "oatrice/Akasa",
+            "source": "open_issues",
+            "issues": [
+                {"number": 82, "title": "Add kanban command", "url": "https://github.com/oatrice/Akasa/issues/82"}
+            ],
+        }
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=105,
+        message=Message(
+            message_id=105,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/gh kanban",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_github.get_repo_kanban_summary.assert_called_once_with("oatrice/Akasa")
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Kanban for oatrice/Akasa" in sent_message
+    assert "open issues fallback" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.github_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_github_roadmap_command_uses_bound_path_and_derived_repo(
+    mock_telegram,
+    mock_redis,
+    mock_github,
+):
+    roadmap_content = "# Roadmap\n\n## Phase 1\n| # | Issue | Status |\n|---|---|---|\n| 1 | Bot | ✅ Complete |\n"
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Software-projects/Akasa")
+    mock_redis.get_project_repo = AsyncMock(return_value=None)
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_github.get_repo_from_local_path = MagicMock(return_value="oatrice/Akasa")
+    mock_github.get_local_roadmap_content = MagicMock(
+        return_value=("/Users/oatrice/Software-projects/Akasa/docs/ROADMAP.md", roadmap_content)
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=106,
+        message=Message(
+            message_id=106,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/gh roadmap",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_github.get_repo_from_local_path.assert_called_once_with(
+        "/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_github.get_local_roadmap_content.assert_called_once_with(
+        "/Users/oatrice/Software-projects/Akasa"
+    )
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Roadmap for oatrice/Akasa" in sent_message
+    assert "Source: local" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.github_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_github_roadmap_command_prefers_bound_repo_when_path_points_elsewhere(
+    mock_telegram,
+    mock_redis,
+    mock_github,
+):
+    remote_roadmap_content = "# Roadmap\n\n## Metadata\n- Keep schema aligned\n"
+
+    mock_redis.get_current_project = AsyncMock(return_value="the-middle-way")
+    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Software-projects/TheMiddleWay")
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/TheMiddleWay-Metadata")
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_github.get_repo_from_local_path = MagicMock(
+        return_value="mdwmediaworld072/TheMiddleWay"
+    )
+    mock_github.get_local_roadmap_content = MagicMock()
+    mock_github.get_remote_roadmap_content = MagicMock(
+        return_value=(
+            "https://github.com/oatrice/TheMiddleWay-Metadata/blob/main/docs/ROADMAP.md",
+            remote_roadmap_content,
+        )
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=109,
+        message=Message(
+            message_id=109,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/gh roadmap",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_github.get_local_roadmap_content.assert_not_called()
+    mock_github.get_remote_roadmap_content.assert_called_once_with(
+        "oatrice/TheMiddleWay-Metadata"
+    )
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Roadmap for oatrice/TheMiddleWay-Metadata" in sent_message
+    assert "Source: repository" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_list_command_lists_projects_with_bound_repo(mock_telegram, mock_redis):
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_list = AsyncMock(return_value=["akasa", "luma"])
+    mock_redis.get_project_repo = AsyncMock(
+        side_effect=lambda _chat_id, project_name: "oatrice/Akasa" if project_name == "akasa" else None
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=107,
+        message=Message(
+            message_id=107,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/project list",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Available Projects" in sent_message
+    assert "`akasa`" in sent_message
+    assert "`oatrice/Akasa`" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_project_repo_command_binds_current_project_repo(mock_telegram, mock_redis):
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.set_project_repo = AsyncMock(return_value="oatrice/Akasa")
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=108,
+        message=Message(
+            message_id=108,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/project repo oatrice/Akasa",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    mock_redis.set_project_repo.assert_awaited_once_with(12345, "akasa", "oatrice/Akasa")
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Bound GitHub repo" in sent_message
+    assert "`oatrice/Akasa`" in sent_message
 
 
 # === Success path (with Redis history) ===
@@ -1029,6 +1244,7 @@ async def test_project_status_command_shows_recent_activity(
     mock_redis.get_project_path = AsyncMock(
         return_value="/Users/oatrice/Software-projects/Akasa"
     )
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
     mock_redis.get_agent_state = AsyncMock(
         return_value=AgentState(
             current_task="Implement /project status",
@@ -1097,6 +1313,7 @@ async def test_project_status_command_shows_recent_activity(
     assert "Review ready summary" in sent_message
     assert "Last updated" in sent_message
     assert "Bound path" in sent_message
+    assert "oatrice/Akasa" in sent_message
 
 
 @pytest.mark.asyncio
@@ -1123,6 +1340,12 @@ async def test_projects_overview_command_summarizes_multiple_projects(
 
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
     mock_redis.get_project_list = AsyncMock(return_value=["akasa", "luma"])
+    async def get_project_repo_side_effect(_chat_id, project_name):
+        if project_name == "akasa":
+            return "oatrice/Akasa"
+        return "oatrice/Luma"
+
+    mock_redis.get_project_repo = AsyncMock(side_effect=get_project_repo_side_effect)
     mock_telegram.send_message = AsyncMock()
 
     async def get_chat_history_side_effect(_chat_id, project_name="default"):
@@ -1221,6 +1444,7 @@ async def test_projects_overview_command_summarizes_multiple_projects(
     assert "Last updated" in sent_message
     assert "History count" in sent_message
     assert "Path:" in sent_message
+    assert "GitHub:" in sent_message
 
 
 @pytest.mark.asyncio
@@ -1247,6 +1471,7 @@ async def test_projects_overview_verbose_includes_history_snippet(
     mock_redis.get_project_path = AsyncMock(
         return_value="/Users/oatrice/Software-projects/Akasa"
     )
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
     mock_redis.get_recent_command_ids = AsyncMock(return_value=[])
     mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
     mock_redis.get_chat_history = AsyncMock(
@@ -1279,6 +1504,7 @@ async def test_projects_overview_verbose_includes_history_snippet(
     assert "History:" in sent_message
     assert "summarize the deploy status" in sent_message
     assert "Path:" in sent_message
+    assert "GitHub:" in sent_message
 
 
 @pytest.mark.asyncio
@@ -1305,6 +1531,7 @@ async def test_projects_overview_json_returns_machine_readable_payload(
     mock_redis.get_project_path = AsyncMock(
         return_value="/Users/oatrice/Software-projects/Akasa"
     )
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
     mock_redis.get_recent_command_ids = AsyncMock(return_value=[])
     mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
     mock_redis.get_chat_history = AsyncMock(

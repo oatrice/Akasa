@@ -18,6 +18,10 @@ Quick reference for tracking work per project in Akasa.
 /pj
 Show current project and known project list
 
+/project list
+/pj list
+Show current project and known project list
+
 /project select <name>
 /pj select <name>
 Switch to a project
@@ -47,6 +51,11 @@ Show the bound folder path for the current project or a named project
 Bind a project to a local folder path
 If the project name is omitted, Akasa binds the current project
 
+/project repo [name] [owner/repo]
+/pj repo [name] [owner/repo]
+Show or bind the GitHub repo for the current project or a named project
+You can also use `/project repo owner/repo` to bind the current project directly
+
 /projects overview
 Show a compact overview of all known projects
 
@@ -70,19 +79,16 @@ Save the current task for the active project
 ### GitHub Shortcuts
 
 ```text
-/github repo <owner/repo>
 /gh repo <owner/repo>
-/github issues [owner/repo]
 /gh issues [owner/repo]
-/github issue new <repo> <title> [body]
 /gh issue new <repo> <title> [body]
-/github pr [owner/repo]
 /gh pr [owner/repo]
-/github pr new <repo> <title> [body]
 /gh pr new <repo> <title> [body]
+/gh kanban [owner/repo]
+/gh roadmap [owner/repo]
 ```
 
-If the repo is omitted for `/github issues`, `/gh issues`, `/github pr`, or `/gh pr`, Akasa uses the current project name. For best results, use project names in `owner/repo` format.
+If the repo is omitted for `/gh issues`, `/gh pr`, `/gh kanban`, or `/gh roadmap`, Akasa first tries the bound GitHub repo for the current project, then the current project name. For kanban and roadmap, Akasa can also use the bound project path when available. For best results, bind the repo explicitly with `/project repo`.
 
 ### Local Tool Queue
 
@@ -127,6 +133,12 @@ curl -X PUT \
   -H "X-Akasa-API-Key: $AKASA_KEY" \
   -H "Content-Type: application/json" \
   -d '{"active_project":"akasa","project_path":"/Users/oatrice/Software-projects/Akasa"}' \
+  "$BASE_URL/api/v1/context/project"
+
+curl -X PUT \
+  -H "X-Akasa-API-Key: $AKASA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"active_project":"the-middle-way","project_path":"/Users/oatrice/Software-projects/TheMiddleWay","project_repo":"oatrice/TheMiddleWay"}' \
   "$BASE_URL/api/v1/context/project"
 ```
 
