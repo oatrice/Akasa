@@ -188,7 +188,13 @@ class TelegramService:
             lines.append(f"*Duration:* {safe_duration}")
 
         if request.source:
+            logger.info(
+                f"[SOURCE DEBUG] raw source from payload: {request.source!r}"
+            )
             normalized_source = normalize_source_display(request.source)
+            logger.info(
+                f"[SOURCE DEBUG] after normalize_source_display: {normalized_source!r}"
+            )
             safe_source = escape_markdown_v2_content(normalized_source or request.source)
             lines.append(f"*Source:* {safe_source}")
 
