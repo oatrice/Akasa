@@ -36,7 +36,7 @@ POLL_INTERVAL = 1.0  # Wait between poll attempts (seconds)
 
 # Session config
 MCP_SESSION_ID = str(uuid.uuid4())
-MCP_CLIENT_NAME = "AI Assistant"
+MCP_CLIENT_NAME = "Antigravity"
 
 
 
