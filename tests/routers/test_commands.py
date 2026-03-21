@@ -517,3 +517,39 @@ class TestResultEndpoint:
         assert response.status_code == 200
         sent_text = mock_tg_service.send_message.await_args.kwargs["text"]
         assert "Gemini quota บนโมเดลหลัก จึงสลับไปใช้ gemini\\-2\\.5\\-flash และรันต่อสำเร็จ" in sent_text
+
+    @pytest.mark.asyncio
+    async def test_report_result_chunks_long_output(self, auth_override, mock_tg_service):
+        """Long output (>4000 chars) should be chunked and sent in multiple messages."""
+        mock_status = CommandStatusResponse(
+            command_id="cmd_long",
+            status="queued",
+            tool="gemini",
+            command="run_task",
+            queued_at="2026-01-01T00:00:00Z",
+            chat_id=12345,
+        )
+        long_output = "A" * 5000
+        with patch(
+            "app.routers.commands.command_queue_service.get_command_status",
+            new_callable=AsyncMock,
+            return_value=mock_status,
+        ):
+            with patch(
+                "app.routers.commands.command_queue_service.update_command_status",
+                new_callable=AsyncMock,
+                return_value=True,
+            ):
+                response = client.post(
+                    f"{COMMANDS_URL}/cmd_long/result",
+                    json={
+                        "status": "success",
+                        "output": long_output,
+                        "exit_code": 0,
+                    },
+                    headers={"X-Daemon-Secret": settings.AKASA_DAEMON_SECRET},
+                )
+
+        assert response.status_code == 200
+        assert mock_tg_service.send_message.call_count >= 2
+

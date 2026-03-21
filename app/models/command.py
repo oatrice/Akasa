@@ -161,9 +161,9 @@ class CommandResultRequest(BaseModel):
     @field_validator("output")
     @classmethod
     def truncate_output(cls, v: Optional[str]) -> Optional[str]:
-        """Prevent oversized payloads — cap at 3,000 characters."""
-        if v and len(v) > 3000:
-            return v[:2997] + "..."
+        """Prevent oversized payloads — cap at 20,000 characters."""
+        if v and len(v) > 20000:
+            return v[:19997] + "..."
         return v
 
     @field_validator("cwd")
