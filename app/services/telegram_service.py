@@ -8,6 +8,7 @@ from app.exceptions import BotBlockedException, UserChatIdNotFoundException
 from app.services import redis_service
 from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
 from app.utils.source_display import normalize_source_display
+from app.utils.format_utils import format_duration_str
 
 if TYPE_CHECKING:
     from app.models.deployment import DeploymentRecord
@@ -184,7 +185,8 @@ class TelegramService:
         lines.append(f"*Task:* {safe_task}")
 
         if request.duration:
-            safe_duration = escape_markdown_v2_content(request.duration)
+            formatted_duration = format_duration_str(request.duration)
+            safe_duration = escape_markdown_v2_content(formatted_duration)
             lines.append(f"*Duration:* {safe_duration}")
 
         if request.source:
@@ -265,9 +267,7 @@ class TelegramService:
                 start = datetime.fromisoformat(record.started_at)
                 end = datetime.fromisoformat(record.finished_at)
                 secs = int((end - start).total_seconds())
-                duration_str = (
-                    f"{secs // 60}m {secs % 60}s" if secs >= 60 else f"{secs}s"
-                )
+                duration_str = format_duration_str(f"{secs}s")
                 lines.append(f"*Duration:* {escape_markdown_v2_content(duration_str)}")
             except Exception:
                 pass
