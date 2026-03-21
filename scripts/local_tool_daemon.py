@@ -213,6 +213,26 @@ def _is_path_allowed(raw_path: str, allowed_paths: List[str]) -> bool:
     return False
 
 
+def _resolve_execution_cwd(cwd: Optional[str]) -> str:
+    if isinstance(cwd, str) and cwd.strip():
+        return str(Path(cwd).expanduser().resolve(strict=False))
+    return str(Path.cwd())
+
+
+def _validate_cwd(execution_cfg: Dict[str, Any], cwd: Optional[str]) -> Optional[str]:
+    if not isinstance(cwd, str) or not cwd.strip():
+        return None
+
+    allowed_paths = execution_cfg.get("allowed_paths", [])
+    if not isinstance(allowed_paths, list) or not allowed_paths:
+        return None
+
+    if not _is_path_allowed(cwd, allowed_paths):
+        return f"Working directory '{cwd}' is outside allowed paths"
+
+    return None
+
+
 def _validate_args(whitelist_entry: Dict[str, Any], args: Dict[str, Any]) -> Optional[str]:
     allowed_args = whitelist_entry.get("allowed_args", [])
     if not isinstance(allowed_args, list):
@@ -320,6 +340,7 @@ async def _maybe_retry_gemini_with_fallback(
     command: str,
     args: Dict[str, Any],
     execution_cfg: Dict[str, Any],
+    cwd: Optional[str],
     exit_code: int,
     output: str,
 ) -> tuple[int, str]:
@@ -347,7 +368,7 @@ async def _maybe_retry_gemini_with_fallback(
     )
 
     retry_exit_code, retry_output = await _execute_cli(
-        executable, command, retry_args, execution_cfg
+        executable, command, retry_args, execution_cfg, cwd=cwd
     )
 
     notice_lines = [
@@ -370,13 +391,16 @@ async def _execute_cli(
     command: str,
     args: Dict[str, Any],
     execution_cfg: Dict[str, Any],
+    cwd: Optional[str] = None,
 ) -> tuple[int, str]:
     cmd_parts = _build_cli_command(executable, command, args, execution_cfg)
     timeout_seconds = _to_float(execution_cfg.get("timeout_seconds"), 60.0)
+    actual_cwd = _resolve_execution_cwd(cwd)
 
     try:
         process = await asyncio.create_subprocess_exec(
             *cmd_parts,
+            cwd=actual_cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -389,7 +413,7 @@ async def _execute_cli(
             await process.wait()
             return -1, (
                 f"CLI command timed out after {timeout_seconds:.1f}s: "
-                f"{' '.join(cmd_parts)}"
+                f"{' '.join(cmd_parts)} (cwd={actual_cwd})"
             )
 
         output = ""
@@ -657,7 +681,11 @@ async def _execute_mcp(
 
 
 async def execute_command(
-    command_id: str, tool: str, command: str, args: Dict[str, Any]
+    command_id: str,
+    tool: str,
+    command: str,
+    args: Dict[str, Any],
+    cwd: Optional[str] = None,
 ) -> tuple[int, str]:
     whitelist_entry = get_command_whitelist_entry(tool, command)
     if not whitelist_entry:
@@ -681,6 +709,13 @@ async def execute_command(
     if not isinstance(execution_cfg, dict):
         execution_cfg = {}
 
+    cwd_validation_error = _validate_cwd(execution_cfg, cwd)
+    if cwd_validation_error:
+        logger.warning(
+            f"Rejected command {command_id} ({tool}:{command}) - {cwd_validation_error}"
+        )
+        return -1, cwd_validation_error
+
     execution_type = str(execution_cfg.get("type", "cli")).lower()
 
     if execution_type == "http":
@@ -698,7 +733,7 @@ async def execute_command(
         return -1, msg
 
     exit_code, output = await _execute_cli(
-        str(executable), command, prepared_args, execution_cfg
+        str(executable), command, prepared_args, execution_cfg, cwd=cwd
     )
 
     if tool.lower() == "gemini":
@@ -707,6 +742,7 @@ async def execute_command(
             command,
             prepared_args,
             execution_cfg,
+            cwd,
             exit_code,
             output,
         )
@@ -720,6 +756,7 @@ async def report_result(
     output: str,
     exit_code: Optional[int] = None,
     duration_seconds: Optional[float] = None,
+    cwd: Optional[str] = None,
 ) -> bool:
     api_url = f"http://localhost:8000/api/v1/commands/{command_id}/result"
     payload: Dict[str, Any] = {
@@ -730,6 +767,8 @@ async def report_result(
         payload["exit_code"] = exit_code
     if duration_seconds is not None:
         payload["duration_seconds"] = duration_seconds
+    if cwd is not None:
+        payload["cwd"] = cwd
 
     headers = {
         "X-Daemon-Secret": settings.AKASA_DAEMON_SECRET,
@@ -763,6 +802,8 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             command_id = payload["command_id"]
             command = payload["command"]
             args = payload.get("args", {})
+            payload_cwd = payload.get("cwd")
+            execution_cwd = _resolve_execution_cwd(payload_cwd)
             meta_key = f"akasa:cmd_meta:{command_id}"
             queued_at = payload.get("queued_at")
             dequeued_at_ts = time.time()
@@ -774,7 +815,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
 
             logger.info(
                 "DEQUEUED %s — tool=%s, command=%s, queue=%s, queued_at=%s, "
-                "dequeued_at=%s, queue_wait_ms=%s",
+                "dequeued_at=%s, queue_wait_ms=%s, cwd=%s",
                 command_id,
                 tool,
                 command,
@@ -782,6 +823,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
                 queued_at or "unknown",
                 dequeued_at,
                 queue_wait_ms if queue_wait_ms is not None else "unknown",
+                execution_cwd,
             )
 
             if not await redis.exists(meta_key):
@@ -789,11 +831,17 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
                 await mark_command_expired(command_id)
                 continue
 
-            await update_command_status(command_id, "picked_up")
-            await update_command_status(command_id, "running")
+            await update_command_status(command_id, "picked_up", cwd=execution_cwd)
+            await update_command_status(command_id, "running", cwd=execution_cwd)
 
             start_time = time.time()
-            exit_code, output = await execute_command(command_id, tool, command, args)
+            exit_code, output = await execute_command(
+                command_id,
+                tool,
+                command,
+                args,
+                cwd=payload_cwd,
+            )
             duration_seconds = time.time() - start_time
             run_duration_ms = max(int(duration_seconds * 1000), 0)
             total_latency_ms = (
@@ -803,7 +851,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
             status = "success" if exit_code == 0 else "failed"
             logger.info(
                 "COMPLETED %s — tool=%s, command=%s, status=%s, exit_code=%s, "
-                "queue_wait_ms=%s, run_duration_ms=%s, total_latency_ms=%s",
+                "queue_wait_ms=%s, run_duration_ms=%s, total_latency_ms=%s, cwd=%s",
                 command_id,
                 tool,
                 command,
@@ -812,6 +860,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
                 queue_wait_ms if queue_wait_ms is not None else "unknown",
                 run_duration_ms,
                 total_latency_ms if total_latency_ms is not None else "unknown",
+                execution_cwd,
             )
             reported = await report_result(
                 command_id=command_id,
@@ -819,6 +868,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
                 output=output,
                 exit_code=exit_code,
                 duration_seconds=duration_seconds,
+                cwd=execution_cwd,
             )
 
             if not reported:
@@ -827,6 +877,7 @@ async def poll_queue(tool: str, timeout: int = 1) -> None:
                     status=status,  # type: ignore[arg-type]
                     result=output if status == "success" else None,
                     error=output if status == "failed" else None,
+                    cwd=execution_cwd,
                 )
 
         except asyncio.CancelledError:

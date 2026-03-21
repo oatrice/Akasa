@@ -463,6 +463,8 @@ async def _handle_command(message: "Message") -> None:
         await _handle_note_command(chat_id, args)
     elif cmd == "/github":
         await _handle_github_command(chat_id, args)
+    elif cmd == "/gemini":
+        await _handle_gemini_command(message, args)
     elif cmd == "/queue":
         await _handle_queue_command(message, args)
     elif cmd == "/testsource":
@@ -508,47 +510,122 @@ async def _handle_testsource_command(chat_id: int, args: list[str]) -> None:
 
 
 async def _handle_queue_command(message: "Message", args: list[str]) -> None:
-    chat_id = message.chat.id
-    user_id = message.from_user.id if message.from_user else 0
-    
     if len(args) < 2:
         await _send_response(
-            chat_id,
+            message.chat.id,
             "❌ Usage: `/queue <tool> <command> [args_json]` (alias: `/q`)",
         )
         return
-        
+
     tool = args[0]
     command = args[1]
     payload_str = " ".join(args[2:]) if len(args) > 2 else "{}"
-    
+
     try:
         payload = json.loads(payload_str)
     except json.JSONDecodeError:
-        await _send_response(chat_id, "❌ Invalid JSON payload.")
+        await _send_response(message.chat.id, "❌ Invalid JSON payload.")
         return
-        
-    request = CommandQueueRequest(
-        tool=tool,
-        command=command,
-        args=payload
+
+    if not isinstance(payload, dict):
+        await _send_response(message.chat.id, "❌ Payload must be a JSON object.")
+        return
+
+    await _enqueue_telegram_command(message, tool, command, payload)
+
+
+async def _resolve_queued_command_context(chat_id: int, tool: str) -> dict[str, Optional[str]]:
+    context = {
+        "project_name": None,
+        "cwd": None,
+        "note": None,
+    }
+
+    if tool.strip().lower() != "gemini":
+        return context
+
+    try:
+        project_name = await redis_service.get_current_project(chat_id)
+    except Exception as exc:
+        logger.warning(f"Failed to resolve current project for queued {tool} command: {exc}")
+        return context
+
+    if not project_name:
+        return context
+
+    context["project_name"] = project_name
+
+    try:
+        project_path = await redis_service.get_project_path(chat_id, project_name)
+    except Exception as exc:
+        logger.warning(
+            f"Failed to resolve bound project path for queued {tool} command on {project_name}: {exc}"
+        )
+        context["note"] = (
+            f"Project `{project_name}` could not resolve a bound path. "
+            "Gemini will use the daemon default cwd."
+        )
+        return context
+
+    if project_path:
+        context["cwd"] = project_path
+        return context
+
+    context["note"] = (
+        f"Project `{project_name}` has no bound path yet. "
+        "Gemini will use the daemon default cwd."
     )
-    
-    # Check rate limit
+    return context
+
+
+async def _enqueue_telegram_command(
+    message: "Message",
+    tool: str,
+    command: str,
+    payload: dict,
+) -> None:
+    chat_id = message.chat.id
+    user_id = message.from_user.id if message.from_user else 0
+
+    context = await _resolve_queued_command_context(chat_id, tool)
+    request_kwargs = {
+        "tool": tool,
+        "command": command,
+        "args": payload,
+    }
+    if context["cwd"]:
+        request_kwargs["cwd"] = context["cwd"]
+
     allowed, retry_after = await command_queue_service.check_rate_limit(user_id)
     if not allowed:
         await _send_response(chat_id, f"❌ Rate limit exceeded. Retry after {retry_after}s.")
         return
-        
+
     try:
+        request = CommandQueueRequest(**request_kwargs)
         result = await command_queue_service.enqueue_command(
-            request, 
-            user_id=user_id, 
+            request,
+            user_id=user_id,
             chat_id=chat_id
         )
         safe_tool = escape_markdown_v2_content(tool)
         safe_command = escape_markdown_v2_content(command)
-        msg = f"⏳ *Command Enqueued*\nID: `{result.command_id}`\nTool: {safe_tool}\nCommand: {safe_command}"
+        lines = [
+            "⏳ *Command Enqueued*",
+            f"ID: `{result.command_id}`",
+            f"Tool: {safe_tool}",
+            f"Command: {safe_command}",
+        ]
+        if context["project_name"]:
+            safe_project = escape_markdown_v2_content(context["project_name"])
+            lines.append(f"Project: `{safe_project}`")
+        if result.cwd:
+            safe_cwd = escape_markdown_v2_content(result.cwd)
+            lines.append(f"CWD: `{safe_cwd}`")
+        elif context["note"]:
+            safe_note = escape_markdown_v2_content(context["note"])
+            lines.append(f"Note: {safe_note}")
+        msg = "\n".join(lines)
         await _send_response(chat_id, msg)
     except ValueError as e:
         await _send_escaped_response(chat_id, f"❌ {e}")
@@ -557,6 +634,52 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
     except Exception as e:
         logger.error(f"Error enqueuing command from Telegram: {e}")
         await _send_response(chat_id, "❌ Internal error.")
+
+
+async def _handle_gemini_command(message: "Message", args: list[str]) -> None:
+    chat_id = message.chat.id
+
+    if not args:
+        await _send_response(
+            chat_id,
+            "\n".join(
+                [
+                    "🧠 *Gemini CLI Commands*",
+                    "• `/gemini status [model] [fallback_model]`",
+                    "• `/gemini <task>`",
+                    "",
+                    "Akasa will use the active project's bound path as `cwd` when available.",
+                    "Tip: bind the project first with `/project bind <absolute_path>`.",
+                ]
+            ),
+        )
+        return
+
+    sub_cmd = args[0].lower()
+    if sub_cmd in {"status", "check_status"}:
+        payload = {}
+        if len(args) > 1:
+            payload["model"] = args[1]
+        if len(args) > 2:
+            payload["fallback_model"] = args[2]
+        await _enqueue_telegram_command(message, "gemini", "check_status", payload)
+        return
+
+    task_args = args[1:] if sub_cmd in {"run", "task"} and len(args) > 1 else args
+    task_text = " ".join(task_args).strip()
+    if not task_text:
+        await _send_response(
+            chat_id,
+            "❌ Usage: `/gemini <task>` or `/gemini status [model] [fallback_model]`",
+        )
+        return
+
+    await _enqueue_telegram_command(
+        message,
+        "gemini",
+        "run_task",
+        {"task": task_text},
+    )
 
 async def _handle_github_command(chat_id: int, args: list[str]) -> None:
     if not args:
@@ -1087,6 +1210,7 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
             "• `/project path [name]`\n"
             "• `/project bind [name] <absolute_path>`\n"
             "• `/project repo [name] [owner/repo]`\n"
+            "• `/gemini <task>`\n"
             "• `/project new <name>`\n"
             "• `/project rename <old> <new>`"
         )
@@ -1468,9 +1592,12 @@ async def _handle_project_status_command(
     lines.append("⚙️ Recent commands:")
     if recent_command_statuses:
         for status in recent_command_statuses:
-            lines.append(
+            line = (
                 f"• `{status.command_id}` — `{status.tool} {status.command}` → `{status.status}`"
             )
+            if status.cwd:
+                line += f" @ `{status.cwd}`"
+            lines.append(line)
     else:
         lines.append("• No recent command queue activity")
 

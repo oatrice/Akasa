@@ -56,6 +56,12 @@ If the project name is omitted, Akasa binds the current project
 Show or bind the GitHub repo for the current project or a named project
 You can also use `/project repo owner/repo` to bind the current project directly
 
+/gemini <task>
+Queue a Gemini CLI task for the current project
+
+/gemini status [model] [fallback_model]
+Check Gemini CLI status for the current project
+
 /projects overview
 Show a compact overview of all known projects
 
@@ -104,11 +110,15 @@ Examples:
 /q gemini check_status {}
 /queue gemini run_task {"task":"review open PRs","branch":"main"}
 /q gemini run_task {"task":"review open PRs","branch":"main"}
+/gemini review the current local repository
+/gemini status flash flash-lite
 /queue luma list_issues {"project":"akasa","state":"open"}
 /q luma list_issues {"project":"akasa","state":"open"}
 /queue zed open_file {"path":"README.md"}
 /q zed open_file {"path":"README.md"}
 ```
+
+For `gemini`, Akasa uses the active project's bound path as `cwd` when available. If the project has no bound path yet, Gemini falls back to the daemon's default cwd and Telegram will say so clearly.
 
 Available tools and commands are controlled by:
 [command_whitelist.yaml](/Users/oatrice/Software-projects/Akasa/config/command_whitelist.yaml)
@@ -148,7 +158,7 @@ curl -X PUT \
 curl -X POST \
   -H "X-Akasa-API-Key: $AKASA_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"tool":"gemini","command":"check_status","args":{}}' \
+  -d '{"tool":"gemini","command":"check_status","args":{},"cwd":"/Users/oatrice/Software-projects/Akasa"}' \
   "$BASE_URL/api/v1/commands"
 
 curl -H "X-Akasa-API-Key: $AKASA_KEY" \

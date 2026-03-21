@@ -201,6 +201,7 @@ async def report_command_result(
         status=result.status,
         result=result.output,
         error=result.output if result.status == "failed" else None,
+        cwd=result.cwd,
     )
 
     # Send Telegram notification
@@ -226,6 +227,10 @@ async def report_command_result(
         if result.duration_seconds is not None:
             safe_duration = escape_markdown_v2_content(f"{result.duration_seconds:.1f}s")
             msg += f"*Duration:* {safe_duration}\n"
+        effective_cwd = result.cwd or status.cwd
+        if effective_cwd:
+            safe_cwd = escape_markdown_v2_content(effective_cwd)
+            msg += f"*CWD:* `{safe_cwd}`\n"
         summary = _summarize_command_output(
             status.tool,
             result.status,

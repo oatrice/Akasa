@@ -122,6 +122,104 @@ async def test_queue_alias_dispatches_to_queue_handler(mock_handle_queue):
 
 
 @pytest.mark.asyncio
+@patch("app.services.chat_service.command_queue_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_queue_gemini_command_uses_bound_project_path_as_cwd(
+    mock_telegram,
+    mock_redis,
+    mock_command_queue,
+):
+    from app.models.command import CommandQueueResponse
+
+    project_path = "/Users/oatrice/Software-projects/Akasa"
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(return_value=project_path)
+    mock_command_queue.check_rate_limit = AsyncMock(return_value=(True, 0))
+    mock_command_queue.enqueue_command = AsyncMock(
+        return_value=CommandQueueResponse(
+            command_id="cmd_cwd",
+            status="queued",
+            tool="gemini",
+            command="check_status",
+            cwd=project_path,
+            queued_at="2026-03-21T00:00:00Z",
+            expires_at="2026-03-21T00:05:00Z",
+        )
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=104,
+        message=Message(
+            message_id=104,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/queue gemini check_status {}",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    request = mock_command_queue.enqueue_command.await_args.args[0]
+    assert request.cwd == project_path
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "cmd_cwd" in sent_message
+    assert project_path in sent_message
+    assert "akasa" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.command_queue_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_gemini_command_enqueues_run_task_for_current_project(
+    mock_telegram,
+    mock_redis,
+    mock_command_queue,
+):
+    from app.models.command import CommandQueueResponse
+
+    project_path = "/Users/oatrice/Software-projects/Akasa"
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(return_value=project_path)
+    mock_command_queue.check_rate_limit = AsyncMock(return_value=(True, 0))
+    mock_command_queue.enqueue_command = AsyncMock(
+        return_value=CommandQueueResponse(
+            command_id="cmd_gemini",
+            status="queued",
+            tool="gemini",
+            command="run_task",
+            cwd=project_path,
+            queued_at="2026-03-21T00:00:00Z",
+            expires_at="2026-03-21T00:05:00Z",
+        )
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=105,
+        message=Message(
+            message_id=105,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="/gemini inspect the current local repo",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    request = mock_command_queue.enqueue_command.await_args.args[0]
+    assert request.command == "run_task"
+    assert request.args == {"task": "inspect the current local repo"}
+    assert request.cwd == project_path
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "cmd_gemini" in sent_message
+
+
+@pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 async def test_github_help_prefers_gh_commands(mock_telegram, mock_redis):
@@ -1265,6 +1363,7 @@ async def test_project_status_command_shows_recent_activity(
             status="running",
             tool="gemini",
             command="run_task",
+            cwd="/Users/oatrice/Software-projects/Akasa",
             queued_at="2026-03-19T10:00:00Z",
         )
     )
@@ -1308,6 +1407,7 @@ async def test_project_status_command_shows_recent_activity(
     assert "Implement /project status" in sent_message
     assert "cmd_123" in sent_message
     assert "running" in sent_message
+    assert "/Users/oatrice/Software-projects/Akasa" in sent_message
     assert "dep_456" in sent_message
     assert "vercel deploy" in sent_message
     assert "Review ready summary" in sent_message

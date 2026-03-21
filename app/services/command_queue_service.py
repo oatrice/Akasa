@@ -375,6 +375,7 @@ async def enqueue_command(
         tool=tool,
         command=command,
         args=request.args or {},
+        cwd=request.cwd,
         user_id=user_id,
         chat_id=chat_id,
         queued_at=queued_at_str,
@@ -405,6 +406,7 @@ async def enqueue_command(
             "status": "queued",
             "tool": tool,
             "command": command,
+            "cwd": request.cwd or "",
             "queued_at": queued_at_str,
             "picked_up_at": "",
             "completed_at": "",
@@ -424,7 +426,7 @@ async def enqueue_command(
 
     logger.info(
         f"[ENQUEUE] {command_id} — tool={tool}, command={command}, "
-        f"user_id={user_id}, ttl={ttl}s"
+        f"user_id={user_id}, ttl={ttl}s, cwd={request.cwd or 'daemon-default'}"
     )
 
     try:
@@ -442,6 +444,7 @@ async def enqueue_command(
         status="queued",
         tool=tool,
         command=command,
+        cwd=request.cwd,
         queued_at=queued_at_str,
         expires_at=expires_str,
     )
@@ -516,6 +519,7 @@ async def get_command_status(command_id: str) -> Optional[CommandStatusResponse]
         status=data.get("status", "queued"),  # type: ignore[arg-type]
         tool=data.get("tool", ""),
         command=data.get("command", ""),
+        cwd=_opt(data.get("cwd", "")),
         queued_at=data.get("queued_at", ""),
         picked_up_at=_opt(data.get("picked_up_at", "")),
         completed_at=_opt(data.get("completed_at", "")),
@@ -530,6 +534,7 @@ async def update_command_status(
     status: CommandStatusLiteral,
     result: Optional[str] = None,
     error: Optional[str] = None,
+    cwd: Optional[str] = None,
 ) -> bool:
     """
     Update the status Hash for a command.
@@ -563,6 +568,9 @@ async def update_command_status(
 
     if error is not None:
         update["error"] = error[:1000] if len(error) > 1000 else error
+
+    if cwd is not None:
+        update["cwd"] = cwd
 
     await redis_pool.hset(key, mapping=update)
     logger.info(f"[STATUS] {command_id} → {status}")

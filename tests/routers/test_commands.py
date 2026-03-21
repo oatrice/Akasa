@@ -293,6 +293,7 @@ class TestResultEndpoint:
             status="queued",
             tool="gemini",
             command="run_task",
+            cwd="/tmp/project",
             queued_at="2026-01-01T00:00:00Z",
             chat_id=12345,
         )
@@ -311,6 +312,7 @@ class TestResultEndpoint:
                     json={
                         "status": "success",
                         "output": "Task completed",
+                        "cwd": "/tmp/project",
                         "exit_code": 0,
                         "duration_seconds": 5.0,
                     },
@@ -321,6 +323,43 @@ class TestResultEndpoint:
         body = response.json()
         assert body["command_id"] == "cmd_abc"
         assert body["notification_sent"] is True
+
+    @pytest.mark.asyncio
+    async def test_report_result_includes_cwd_in_notification(self, auth_override, mock_tg_service):
+        """Telegram result notification should show the execution cwd when provided."""
+        mock_status = CommandStatusResponse(
+            command_id="cmd_cwd",
+            status="queued",
+            tool="gemini",
+            command="run_task",
+            queued_at="2026-01-01T00:00:00Z",
+            chat_id=12345,
+        )
+        with patch(
+            "app.routers.commands.command_queue_service.get_command_status",
+            new_callable=AsyncMock,
+            return_value=mock_status,
+        ):
+            with patch(
+                "app.routers.commands.command_queue_service.update_command_status",
+                new_callable=AsyncMock,
+                return_value=True,
+            ) as mock_update:
+                response = client.post(
+                    f"{COMMANDS_URL}/cmd_cwd/result",
+                    json={
+                        "status": "success",
+                        "output": "done",
+                        "cwd": "/tmp/project",
+                    },
+                    headers={"X-Daemon-Secret": settings.AKASA_DAEMON_SECRET},
+                )
+
+        assert response.status_code == 200
+        mock_update.assert_awaited_once()
+        assert mock_update.await_args.kwargs["cwd"] == "/tmp/project"
+        sent_text = mock_tg_service.send_message.await_args.kwargs["text"]
+        assert "CWD" in sent_text
 
     @pytest.mark.asyncio
     async def test_report_result_invalid_daemon_secret(self):
