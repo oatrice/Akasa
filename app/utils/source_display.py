@@ -10,6 +10,8 @@ def normalize_source_display(source: Optional[str]) -> Optional[str]:
 
     The backend intentionally accepts free-form source strings. This helper provides a
     best-effort mapping for common IDEs/agents while preserving unknown values.
+
+    Parenthesized context is preserved: e.g. "Luma CLI (MyProject)" → "Luma (MyProject)"
     """
 
     if source is None:
@@ -19,33 +21,47 @@ def normalize_source_display(source: Optional[str]) -> Optional[str]:
     if not raw:
         return None
 
-    s = raw.lower()
+    # Extract parenthesized context if present, e.g. "Luma CLI (dir-name)"
+    context = None
+    base = raw
+    paren_start = raw.find("(")
+    if paren_start > 0 and raw.endswith(")"):
+        context = raw[paren_start:]  # "(dir-name)"
+        base = raw[:paren_start].strip()
+
+    s = base.lower()
 
     # IDEs / tools
+    label = None
     if s in {"cursor", "cursor ide"} or "cursor" in s:
-        return "Cursor"
+        label = "Cursor"
 
-    if s in {"windsurf", "winsurf", "windsurf ide", "winsurf ide"} or "windsurf" in s or "winsurf" in s:
-        return "Windsurf"
+    elif s in {"windsurf", "winsurf", "windsurf ide", "winsurf ide"} or "windsurf" in s or "winsurf" in s:
+        label = "Windsurf"
 
-    if s in {"codex", "openai codex"} or "codex" in s:
-        return "Codex"
+    elif s in {"codex", "openai codex"} or "codex" in s:
+        label = "Codex"
 
-    if s in {"antigravity", "antigravity ide"} or "antigravity" in s:
-        return "Antigravity"
+    elif s in {"antigravity", "antigravity ide"} or "antigravity" in s:
+        label = "Antigravity"
 
     # Assistants / CLIs
-    if s in {"luma", "luma cli"} or "luma" in s:
-        return "Luma"
+    elif s in {"luma", "luma cli"} or "luma" in s:
+        label = "Luma"
 
-    if s in {"gemini", "gemini cli"} or "gemini" in s:
-        return "Gemini"
+    elif s in {"gemini", "gemini cli"} or "gemini" in s:
+        label = "Gemini"
 
-    if s in {"zed", "zed ide"} or "zed" in s:
-        return "Zed"
+    elif s in {"zed", "zed ide"} or "zed" in s:
+        label = "Zed"
 
-    if s in {"ai assistant"}:
-        return "AI Assistant"
+    elif s in {"ai assistant"}:
+        label = "AI Assistant"
+
+    if label:
+        if context:
+            return f"{label} {context}"
+        return label
 
     # Fallback: preserve the original value
     return raw

@@ -197,6 +197,16 @@ class TelegramService:
             logger.info(
                 f"[SOURCE DEBUG] after normalize_source_display: {normalized_source!r}"
             )
+            
+            # Remove redundant project name from source. E.g., Project: "Akasa", Source: "Luma (Akasa)" -> "Luma"
+            if request.project and normalized_source:
+                suffix = f"({request.project})"
+                if normalized_source.endswith(suffix) or normalized_source.endswith(suffix + " "):
+                    # Might have a space before parentheses
+                    prefix_end = normalized_source.rfind("(")
+                    if prefix_end > 0:
+                        normalized_source = normalized_source[:prefix_end].strip()
+
             safe_source = escape_markdown_v2_content(normalized_source or request.source)
             lines.append(f"*Source:* {safe_source}")
 
