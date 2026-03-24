@@ -284,20 +284,35 @@ KANBAN_SHORTCUT_PHRASES = (
 ROADMAP_SHORTCUT_PHRASES = (
     "โปรเจกต์นี้จะทำอะไรต่อ",
     "โปรเจ็คนี้จะทำอะไรต่อ",
-    "แผนต่อไป",
     "แผนงาน",
-    "งานต่อไป",
-    "งานต่อไปในแผน",
-    "ทำอะไรต่อดี",
     "roadmap",
     "future plans",
-    "what's next",
-    "what is next",
     "next milestone",
     "next milestones",
     "milestone",
     "milestones",
+)
+
+NEXT_ISSUE_SHORTCUT_PHRASES = (
     "next steps",
+    "next issue",
+    "งานต่อไปในแผน",
+    "งานต่อไป",
+    "แผนต่อไป",
+    "ทำอะไรต่อดี",
+    "issue ต่อไป",
+    "what's next",
+    "what is next",
+)
+
+NEXT_WEEK_SHORTCUT_PHRASES = (
+    "next week",
+    "next-week",
+    "theme สัปดาห์",
+    "theme ประจำสัปดาห์",
+    "สัปดาห์นี้ทำอะไร",
+    "สัปดาห์หน้าทำอะไร",
+    "แผนสัปดาห์",
 )
 
 CURRENT_WORK_SHORTCUT_PHRASES = (
@@ -481,6 +496,12 @@ async def _handle_command(message: "Message") -> None:
         await _handle_gemini_command(message, args)
     elif cmd == "/queue":
         await _handle_queue_command(message, args)
+    elif cmd == "/roadmap":
+        await _handle_roadmap_command(chat_id, args)
+    elif cmd in {"/next-issue", "/nextissue"}:
+        await _handle_next_issue_command(chat_id, args)
+    elif cmd in {"/next-week", "/nextweek"}:
+        await _handle_next_week_command(chat_id, args)
     elif cmd == "/testsource":
         await _handle_testsource_command(chat_id, args)
     else:
@@ -704,7 +725,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
         msg += "• `/gh pr [owner/repo]` - View PR status\n"
         msg += "• `/gh pr new <repo> <title> [body]` - Create PR\n"
         msg += "• `/gh kanban [owner/repo]` - View kanban or fallback open issues\n"
-        msg += "• `/gh roadmap [owner/repo]` - Summarize `docs/ROADMAP.md`\n\n"
+        msg += "• `/gh roadmap [owner/repo]` - Summarize `docs/ROADMAP.md`\n"
+        msg += "• `/gh next-issue [owner/repo]` - Show `docs/7_ISSUE_NEXT_STEPS.md` (issue chains)\n"
+        msg += "• `/gh next-week [owner/repo]` - Show `docs/8_NEXT_WEEK_THEME.md` (weekly theme)\n\n"
         msg += (
             "💡 *Tip:* If repo is omitted, Akasa first tries the project's bound GitHub repo, "
             "then the current project name. `/gh kanban` and `/gh roadmap` can also derive "
@@ -806,6 +829,40 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                 return
 
             await _send_response(chat_id, _render_roadmap_summary(summary))
+        elif sub_cmd in ("next-issue", "nextissue"):
+            explicit_repo = args[1] if len(args) > 1 else None
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                return
+            target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+            try:
+                doc = _load_single_planning_doc(
+                    repo=target.get("repo"),
+                    project_name=target.get("project_name", "current project"),
+                    project_path=target.get("roadmap_project_path"),
+                    doc_filename="docs/7_ISSUE_NEXT_STEPS.md",
+                )
+            except GitHubServiceError as e:
+                await _send_response(chat_id, f"⚠️ {str(e)}")
+                return
+            await _send_response(chat_id, _render_single_doc(doc))
+        elif sub_cmd in ("next-week", "nextweek"):
+            explicit_repo = args[1] if len(args) > 1 else None
+            if explicit_repo and not _looks_like_repo_name(explicit_repo):
+                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                return
+            target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+            try:
+                doc = _load_single_planning_doc(
+                    repo=target.get("repo"),
+                    project_name=target.get("project_name", "current project"),
+                    project_path=target.get("roadmap_project_path"),
+                    doc_filename="docs/8_NEXT_WEEK_THEME.md",
+                )
+            except GitHubServiceError as e:
+                await _send_response(chat_id, f"⚠️ {str(e)}")
+                return
+            await _send_response(chat_id, _render_single_doc(doc))
         else:
             await _send_response(chat_id, f"❌ Invalid GitHub command or missing arguments.")
     except Exception as e:
@@ -1105,10 +1162,47 @@ def _render_kanban_summary(summary: dict) -> str:
     return "\n".join(lines)
 
 
+def _split_roadmap_docs(content: str) -> list[tuple[str, str]]:
+    """Split combined roadmap content (joined by '## 📁 docs/...') into (filename, text) pairs."""
+    import re
+    pattern = re.compile(r"## 📁 (docs/[^\n]+)")
+    parts = pattern.split(content)
+    result: list[tuple[str, str]] = []
+    if len(parts) < 3:
+        # No file headers found, treat as single ROADMAP.md block
+        return [("docs/ROADMAP.md", content)]
+    # parts = ['preamble', 'docs/ROADMAP.md', 'content', 'docs/7_ISSUE_NEXT_STEPS.md', 'content', ...]
+    it = iter(parts[1:])
+    for fname, body in zip(it, it):
+        result.append((fname.strip(), body.strip()))
+    return result
+
+
 def _render_roadmap_summary(summary: dict) -> str:
     display_name = summary.get("repo") or summary.get("project_name") or "current project"
     lines = [f"🗺️ *Roadmap for {display_name}*"]
 
+    # New: render per-file raw content if available
+    docs_content: dict[str, str] = summary.get("docs_content", {})
+    if docs_content:
+        if summary.get("source") == "local":
+            lines.append("Source: local `docs/ROADMAP.md` (and related plans)")
+        else:
+            lines.append("Source: repository `docs/ROADMAP.md` (and related plans)")
+        emoji_map = {
+            "docs/ROADMAP.md": "🗺️",
+            "docs/7_ISSUE_NEXT_STEPS.md": "📋",
+            "docs/8_NEXT_WEEK_THEME.md": "🎯",
+        }
+        for fname, body in docs_content.items():
+            icon = emoji_map.get(fname, "📁")
+            lines.append(f"\n{icon} *{fname}*")
+            lines.append(body)
+        if summary.get("url"):
+            lines.append(f"\n🔗 [View ROADMAP.md]({summary['url']})")
+        return "\n".join(lines)
+
+    # Fallback: legacy summary_lines
     if summary.get("source") == "local":
         lines.append("Source: local `docs/ROADMAP.md` (and related plans)")
     else:
@@ -1132,10 +1226,12 @@ def _load_roadmap_summary(
     if project_path:
         try:
             _, content = github_service.get_local_roadmap_content(project_path)
+            docs_content = dict(_split_roadmap_docs(content))
             return {
                 "repo": repo,
                 "project_name": project_name,
                 "source": "local",
+                "docs_content": docs_content,
                 "summary_lines": _summarize_roadmap_content(content),
                 "url": (
                     f"https://github.com/{repo}/blob/HEAD/docs/ROADMAP.md"
@@ -1148,10 +1244,12 @@ def _load_roadmap_summary(
 
     if repo:
         url, content = github_service.get_remote_roadmap_content(repo)
+        docs_content = dict(_split_roadmap_docs(content))
         return {
             "repo": repo,
             "project_name": project_name,
             "source": "remote",
+            "docs_content": docs_content,
             "summary_lines": _summarize_roadmap_content(content),
             "url": url,
         }
@@ -1164,7 +1262,237 @@ def _load_roadmap_summary(
     )
 
 
+def _load_single_planning_doc(
+    repo: Optional[str],
+    project_name: str,
+    project_path: Optional[str],
+    doc_filename: str,  # e.g. "docs/7_ISSUE_NEXT_STEPS.md"
+) -> dict:
+    """Load a single planning document by filename."""
+    local_error = None
+
+    if project_path:
+        try:
+            _, content = github_service.get_local_roadmap_content(project_path)
+            docs_content = dict(_split_roadmap_docs(content))
+            body = docs_content.get(doc_filename)
+            if body:
+                return {
+                    "repo": repo,
+                    "project_name": project_name,
+                    "source": "local",
+                    "doc_filename": doc_filename,
+                    "body": body,
+                    "url": (
+                        f"https://github.com/{repo}/blob/HEAD/{doc_filename}"
+                        if repo
+                        else None
+                    ),
+                }
+        except GitHubServiceError as e:
+            local_error = str(e)
+
+    if repo:
+        url, content = github_service.get_remote_roadmap_content(repo)
+        docs_content = dict(_split_roadmap_docs(content))
+        body = docs_content.get(doc_filename)
+        if body:
+            return {
+                "repo": repo,
+                "project_name": project_name,
+                "source": "remote",
+                "doc_filename": doc_filename,
+                "body": body,
+                "url": url,
+            }
+
+    if local_error:
+        raise GitHubServiceError(local_error)
+
+    raise GitHubServiceError(
+        f"Could not find {doc_filename} for the current project."
+    )
+
+
+_SINGLE_DOC_ICON = {
+    "docs/ROADMAP.md": "🗺️",
+    "docs/7_ISSUE_NEXT_STEPS.md": "📋",
+    "docs/8_NEXT_WEEK_THEME.md": "🎯",
+}
+
+
+def _render_single_doc(summary: dict) -> str:
+    display_name = summary.get("repo") or summary.get("project_name") or "current project"
+    fname = summary.get("doc_filename", "docs/planning.md")
+    icon = _SINGLE_DOC_ICON.get(fname, "📁")
+    lines = [
+        f"{icon} *{fname} — {display_name}*",
+        "",
+        summary.get("body", ""),
+    ]
+    if summary.get("url"):
+        lines.append(f"\n🔗 [View on GitHub]({summary['url']})")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Doc Shortcut Commands: /roadmap, /next-issue, /next-week
+# ---------------------------------------------------------------------------
+
+_DOC_SHORTCUT_FILES = {
+    "roadmap": "ROADMAP.md",
+    "next-issue": "7_ISSUE_NEXT_STEPS.md",
+    "next-week": "8_NEXT_WEEK_THEME.md",
+}
+
+_DOC_SHORTCUT_SYSTEM_PROMPTS = {
+    "roadmap": (
+        "You are concisely summarizing a ROADMAP.md for a software project. "
+        "Extract key upcoming milestones, current progress (✅ done, 🔲 todo, 🟡 in-progress), "
+        "and what's coming next. Be concise, use bullet points. "
+        "Reply in Thai if the content is in Thai."
+    ),
+    "next-issue": (
+        "You are summarizing an ISSUE_NEXT_STEPS.md file for a software project. "
+        "Extract the most important next issues to work on, with priority and brief context. "
+        "Be concise, use bullet points. Reply in Thai if the content is in Thai."
+    ),
+    "next-week": (
+        "You are summarizing a NEXT_WEEK_THEME.md file for a software project. "
+        "Extract the key theme and goals for next week. "
+        "Be concise, use bullet points. Reply in Thai if the content is in Thai."
+    ),
+}
+
+
+async def _read_local_doc_file(chat_id: int, doc_type: str) -> tuple[str, str]:
+    """
+    อ่านไฟล์ doc จาก bound project path.
+    Returns (filepath, content). Raises GitHubServiceError ถ้าไม่มี path หรือไฟล์.
+    """
+    project_name = await redis_service.get_current_project(chat_id)
+    project_path = await redis_service.get_project_path(chat_id, project_name) if project_name else None
+    if not project_path:
+        raise GitHubServiceError(
+            "No folder path is bound to the current project. "
+            "Use `/project bind <absolute_path>` first."
+        )
+    filename = _DOC_SHORTCUT_FILES.get(doc_type, "")
+    filepath = os.path.join(project_path, "docs", filename)
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        raise GitHubServiceError(
+            f"`docs/{filename}` not found in `{project_path}`."
+        )
+    return filepath, content
+
+
+async def _summarize_doc_with_llm(content: str, doc_type: str, chat_id: int) -> str:
+    """ส่ง raw content ไปให้ LLM สรุป"""
+    system = _DOC_SHORTCUT_SYSTEM_PROMPTS.get(doc_type, "Summarize this document concisely.")
+    truncated = content[:8000]
+    return await llm_service.get_llm_reply(
+        chat_id=chat_id,
+        message=f"Please summarize the following document:\n\n{truncated}",
+        history=[],
+        system_prompt=system,
+    )
+
+
+async def _handle_doc_shortcut_command(
+    chat_id: int,
+    doc_type: str,
+    title: str,
+) -> None:
+    """Shared handler สำหรับ /roadmap /next-issue /next-week"""
+    try:
+        _filepath, content = await _read_local_doc_file(chat_id, doc_type)
+    except GitHubServiceError as e:
+        await _send_response(chat_id, f"⚠️ {e}")
+        return
+
+    try:
+        summary = await _summarize_doc_with_llm(content, doc_type, chat_id)
+    except Exception as e:
+        logger.warning(f"LLM summarization failed for {doc_type}: {e}")
+        bullet_lines = _summarize_roadmap_content(content, max_sections=5)
+        summary = "\n".join(f"• {line}" for line in bullet_lines) if bullet_lines else content[:500]
+
+    safe_title = escape_markdown_v2_content(title)
+    safe_summary = escape_markdown_v2_content(summary)
+    msg = f"*{safe_title}*\n\n{safe_summary}"
+
+    reply_markup = {
+        "inline_keyboard": [[
+            {
+                "text": "📄 ดูฉบับเต็ม",
+                "callback_data": f"view_full:{doc_type}:{chat_id}",
+            }
+        ]]
+    }
+    await tg_service.send_message(chat_id=chat_id, text=msg, reply_markup=reply_markup)
+
+
+async def _handle_roadmap_command(chat_id: int, args: list[str]) -> None:
+    await _handle_doc_shortcut_command(chat_id, "roadmap", "🗺️ Roadmap")
+
+
+async def _handle_next_issue_command(chat_id: int, args: list[str]) -> None:
+    await _handle_doc_shortcut_command(chat_id, "next-issue", "📋 Next Issue")
+
+
+async def _handle_next_week_command(chat_id: int, args: list[str]) -> None:
+    await _handle_doc_shortcut_command(chat_id, "next-week", "📅 Next Week")
+
+
+async def _handle_view_full_callback(callback: "CallbackQuery") -> None:
+    """จัดการการกดปุ่ม 'ดูฉบับเต็ม' → ส่งเนื้อหา raw ของไฟล์"""
+    data = callback.data or ""
+    # format: view_full:{doc_type}:{orig_chat_id}
+    parts = data.split(":", 2)
+    if len(parts) < 3:
+        return
+
+    doc_type = parts[1]
+    try:
+        orig_chat_id = int(parts[2])
+    except (ValueError, IndexError):
+        return
+
+    if doc_type not in _DOC_SHORTCUT_FILES:
+        return
+
+    chat_id = callback.message.chat.id if callback.message else orig_chat_id
+
+    try:
+        _filepath, content = await _read_local_doc_file(orig_chat_id, doc_type)
+    except GitHubServiceError as e:
+        await _send_response(chat_id, f"⚠️ {e}")
+        return
+
+    filename = _DOC_SHORTCUT_FILES[doc_type]
+    MAX_CHUNK = 4000
+    chunks = [content[i:i + MAX_CHUNK] for i in range(0, len(content), MAX_CHUNK)]
+
+    for i, chunk in enumerate(chunks[:3]):
+        if i == 0:
+            header = escape_markdown_v2_content(f"docs/{filename}")
+            msg = f"📄 `{header}`\n\n```\n{chunk}\n```"
+        else:
+            msg = f"```\n{chunk}\n```"
+        await tg_service.send_message(chat_id=chat_id, text=msg)
+
+    if len(chunks) > 3:
+        await _send_response(
+            chat_id,
+            f"_(ไฟล์ยาวเกินไป แสดงแค่ส่วนแรก {3 * MAX_CHUNK}/{len(content)} ตัวอักษร)_",
+        )
+
+
 def _normalize_prompt_for_shortcuts(prompt: str) -> str:
+
     return " ".join((prompt or "").strip().lower().split())
 
 
@@ -1189,6 +1517,32 @@ async def _try_handle_project_insight_shortcut(
         except GitHubServiceError as e:
             return f"⚠️ {str(e)}"
         return _render_roadmap_summary(summary)
+
+    if _matches_shortcut_phrase(prompt, NEXT_ISSUE_SHORTCUT_PHRASES):
+        target = await _resolve_github_target(chat_id, current_project=current_project)
+        try:
+            doc = _load_single_planning_doc(
+                repo=target.get("repo"),
+                project_name=target.get("project_name", current_project),
+                project_path=target.get("roadmap_project_path"),
+                doc_filename="docs/7_ISSUE_NEXT_STEPS.md",
+            )
+        except GitHubServiceError as e:
+            return f"⚠️ {str(e)}"
+        return _render_single_doc(doc)
+
+    if _matches_shortcut_phrase(prompt, NEXT_WEEK_SHORTCUT_PHRASES):
+        target = await _resolve_github_target(chat_id, current_project=current_project)
+        try:
+            doc = _load_single_planning_doc(
+                repo=target.get("repo"),
+                project_name=target.get("project_name", current_project),
+                project_path=target.get("roadmap_project_path"),
+                doc_filename="docs/8_NEXT_WEEK_THEME.md",
+            )
+        except GitHubServiceError as e:
+            return f"⚠️ {str(e)}"
+        return _render_single_doc(doc)
 
     if _matches_shortcut_phrase(prompt, KANBAN_SHORTCUT_PHRASES):
         target = await _resolve_github_target(chat_id, current_project=current_project)
@@ -2218,6 +2572,10 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
 
     if data.startswith("current_work_summary:"):
         await _handle_current_work_summary_callback(callback)
+        return
+
+    if data.startswith("view_full:"):
+        await _handle_view_full_callback(callback)
         return
 
     if not data.startswith("confirm:"):

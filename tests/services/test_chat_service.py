@@ -1833,3 +1833,152 @@ async def test_handle_chat_message_saves_user_chat_id_mapping(
         chat_id=chat_id
     )
     mock_send_message.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# 🟥 RED: /roadmap, /next-issue, /next-week, view_full callback (Issue #82)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.github_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_roadmap_command_sends_llm_summary_with_view_full_button(
+    mock_telegram, mock_redis, mock_github, mock_llm
+):
+    """🟥 /roadmap → LLM summary + inline View Full button"""
+    roadmap_content = "# Roadmap\n## Q1\n- Feature A ✅\n- Feature B 🔲\n"
+
+    mock_redis.get_current_project = AsyncMock(return_value="mdw-metadata")
+    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Projects/MDW")
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Q1: Feature A done ✅, Feature B todo 🔲")
+    mock_telegram.send_message = AsyncMock()
+
+    with patch("builtins.open", MagicMock(return_value=MagicMock(
+        __enter__=lambda s, *a: s,
+        __exit__=lambda s, *a: None,
+        read=lambda: roadmap_content,
+    ))):
+        update = Update(
+            update_id=500,
+            message=Message(
+                message_id=500,
+                date=1,
+                chat=Chat(id=12345, type="private"),
+                text="/roadmap",
+            ),
+        )
+        await handle_chat_message(update)
+
+    mock_llm.get_llm_reply.assert_awaited_once()
+    call_kwargs = mock_telegram.send_message.call_args[1]
+    assert call_kwargs.get("reply_markup") is not None
+    kb = call_kwargs["reply_markup"]["inline_keyboard"][0]
+    assert any("view_full:roadmap" in btn["callback_data"] for btn in kb)
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_roadmap_command_no_bound_path_sends_error(mock_telegram, mock_redis):
+    """🟥 /roadmap หากไม่มี project path → error บอก bind"""
+    mock_redis.get_current_project = AsyncMock(return_value="mdw-metadata")
+    mock_redis.get_project_path = AsyncMock(return_value=None)
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=501,
+        message=Message(
+            message_id=501,
+            date=1,
+            chat=Chat(id=12345, type="private"),
+            text="/roadmap",
+        ),
+    )
+    await handle_chat_message(update)
+
+    sent = mock_telegram.send_message.call_args[0][1]
+    assert "project bind" in sent.lower() or "/project bind" in sent
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_next_issue_command_reads_correct_file(mock_telegram, mock_redis, mock_llm):
+    """🟥 /next-issue → อ่าน 7_ISSUE_NEXT_STEPS.md"""
+    content = "# Next Issues\n- Fix bug #99\n- Implement feature X\n"
+
+    mock_redis.get_current_project = AsyncMock(return_value="mdw-metadata")
+    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Projects/MDW")
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Next: Fix #99, Feature X")
+    mock_telegram.send_message = AsyncMock()
+
+    opened_paths = []
+
+    def mock_open(path, *args, **kwargs):
+        opened_paths.append(path)
+        m = MagicMock()
+        m.__enter__ = lambda s: s
+        m.__exit__ = lambda s, *a: None
+        m.read = lambda: content
+        return m
+
+    with patch("builtins.open", side_effect=mock_open):
+        update = Update(
+            update_id=502,
+            message=Message(
+                message_id=502,
+                date=1,
+                chat=Chat(id=12345, type="private"),
+                text="/next-issue",
+            ),
+        )
+        await handle_chat_message(update)
+
+    assert any("7_ISSUE_NEXT_STEPS.md" in p for p in opened_paths)
+    mock_llm.get_llm_reply.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_next_week_command_reads_correct_file(mock_telegram, mock_redis, mock_llm):
+    """🟥 /next-week → อ่าน 8_NEXT_WEEK_THEME.md"""
+    content = "# Next Week\n- Theme: Performance\n"
+
+    mock_redis.get_current_project = AsyncMock(return_value="mdw-metadata")
+    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Projects/MDW")
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="Theme: Performance week")
+    mock_telegram.send_message = AsyncMock()
+
+    opened_paths = []
+
+    def mock_open(path, *args, **kwargs):
+        opened_paths.append(path)
+        m = MagicMock()
+        m.__enter__ = lambda s: s
+        m.__exit__ = lambda s, *a: None
+        m.read = lambda: content
+        return m
+
+    with patch("builtins.open", side_effect=mock_open):
+        update = Update(
+            update_id=503,
+            message=Message(
+                message_id=503,
+                date=1,
+                chat=Chat(id=12345, type="private"),
+                text="/next-week",
+            ),
+        )
+        await handle_chat_message(update)
+
+    assert any("8_NEXT_WEEK_THEME.md" in p for p in opened_paths)
+    mock_llm.get_llm_reply.assert_awaited_once()
