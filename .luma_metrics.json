@@ -684,6 +684,24 @@
       "notes": null,
       "created_at": "2026-03-20T20:59:53.577488",
       "updated_at": "2026-03-20T20:59:53.577489"
+    },
+    "oatrice/Akasa#83": {
+      "issue_key": "oatrice/Akasa#83",
+      "issue_number": 83,
+      "issue_title": "Gemini CLI local project inspection from Telegram context",
+      "issue_url": "https://github.com/oatrice/Akasa/issues/83",
+      "repository": "oatrice/Akasa",
+      "project_name": "Akasa",
+      "issue_status": "🔲 Todo",
+      "estimate_points": 1,
+      "estimated_mandays": 1.0,
+      "actual_mandays": 0.0,
+      "due_date": "2026-03-20T23:59:59",
+      "actual_completion_date": null,
+      "effort_level": "Low",
+      "notes": null,
+      "created_at": "2026-03-21T22:29:18.927698",
+      "updated_at": "2026-03-21T22:29:18.927700"
     }
   }
 }

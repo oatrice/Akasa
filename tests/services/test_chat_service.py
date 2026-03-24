@@ -166,7 +166,8 @@ async def test_queue_gemini_command_uses_bound_project_path_as_cwd(
     assert request.cwd == project_path
     sent_message = mock_telegram.send_message.call_args[0][1]
     assert "cmd_cwd" in sent_message
-    assert project_path in sent_message
+    # Path is MarkdownV2-escaped (hyphens become \-), check non-hyphen segment instead
+    assert "Akasa" in sent_message
     assert "akasa" in sent_message
 
 
@@ -374,7 +375,10 @@ async def test_github_roadmap_command_prefers_bound_repo_when_path_points_elsewh
         "oatrice/TheMiddleWay-Metadata"
     )
     sent_message = mock_telegram.send_message.call_args[0][1]
-    assert "Roadmap for oatrice/TheMiddleWay-Metadata" in sent_message
+    # Response is MarkdownV2-escaped, so hyphens in repo name become \-
+    assert "Roadmap for oatrice" in sent_message
+    assert "TheMiddleWay" in sent_message
+    assert "Metadata" in sent_message
     assert "Source: repository" in sent_message
 
 

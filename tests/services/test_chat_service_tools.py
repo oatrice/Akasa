@@ -535,6 +535,8 @@ async def test_handle_chat_message_shortcut_roadmap_reads_local_bound_path_witho
     mock_redis.set_user_chat_id_mapping = AsyncMock()
 
     mock_llm.get_llm_reply = AsyncMock()
+    # get_repo_from_local_path must match project_repo so roadmap_project_path is set to local path
+    mock_github.get_repo_from_local_path = MagicMock(return_value="oatrice/Akasa")
     mock_github.get_local_roadmap_content = MagicMock(
         return_value=(
             "/Users/oatrice/Software-projects/Akasa/docs/ROADMAP.md",
