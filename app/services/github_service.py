@@ -376,7 +376,7 @@ class GitHubService:
             if os.path.isfile(full_path):
                 try:
                     with open(full_path, "r", encoding="utf-8") as f:
-                        combined_content.append(f"=== {doc_path} ===\n{f.read()}")
+                        combined_content.append(f"## 📁 {doc_path}\n{f.read()}")
                         found_paths.append(doc_path)
                 except OSError as e:
                     logger.warning(f"Failed to read local roadmap {doc_path}: {e}")
@@ -404,7 +404,7 @@ class GitHubService:
                     if encoded_content:
                         raw_bytes = base64.b64decode(str(encoded_content), validate=False)
                         content = raw_bytes.decode("utf-8")
-                        combined_content.append(f"=== {doc_path} ===\n{content}")
+                        combined_content.append(f"## 📁 {doc_path}\n{content}")
                         
                         url = data.get("html_url") or data.get("download_url") or f"https://github.com/{repo}/blob/HEAD/{doc_path}"
                         found_urls.append(str(url))

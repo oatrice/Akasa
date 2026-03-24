@@ -967,7 +967,7 @@ async def _resolve_github_target(
     }
 
 
-def _summarize_roadmap_content(content: str, max_sections: int = 5) -> list[str]:
+def _summarize_roadmap_content(content: str, max_sections: int = 15) -> list[str]:
     raw_lines = [line.rstrip() for line in content.splitlines()]
     sections: list[dict] = []
     current_section: Optional[dict] = None
@@ -1110,11 +1110,11 @@ def _render_roadmap_summary(summary: dict) -> str:
     lines = [f"🗺️ *Roadmap for {display_name}*"]
 
     if summary.get("source") == "local":
-        lines.append("Source: local `docs/ROADMAP.md`")
+        lines.append("Source: local `docs/ROADMAP.md` (and related plans)")
     else:
-        lines.append("Source: repository `docs/ROADMAP.md`")
+        lines.append("Source: repository `docs/ROADMAP.md` (and related plans)")
 
-    for line in summary.get("summary_lines", [])[:5]:
+    for line in summary.get("summary_lines", [])[:15]:
         lines.append(f"• {line}")
 
     if summary.get("url"):
