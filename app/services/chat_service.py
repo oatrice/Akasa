@@ -133,12 +133,13 @@ GITHUB_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_github_issues",
-            "description": "Searches for GitHub issues based on a query.",
+            "description": "Searches for GitHub issues based on a query. Supports GitHub advanced search syntax (e.g., 'is:closed sort:updated-desc' for recently closed/completed issues, or 'state:open label:bug').",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "query": {"type": "string", "description": "The search query (e.g., 'bug', 'feature')."},
+                    "query": {"type": "string", "description": "The search query (e.g., 'bug', 'is:closed sort:updated-desc')."},
+                    "limit": {"type": "integer", "description": "Max number of issues to return (default: 30)."},
                 },
                 "required": ["repo", "query"],
             },
@@ -284,6 +285,10 @@ ROADMAP_SHORTCUT_PHRASES = (
     "โปรเจกต์นี้จะทำอะไรต่อ",
     "โปรเจ็คนี้จะทำอะไรต่อ",
     "แผนต่อไป",
+    "แผนงาน",
+    "งานต่อไป",
+    "งานต่อไปในแผน",
+    "ทำอะไรต่อดี",
     "roadmap",
     "future plans",
     "what's next",
@@ -292,6 +297,7 @@ ROADMAP_SHORTCUT_PHRASES = (
     "next milestones",
     "milestone",
     "milestones",
+    "next steps",
 )
 
 CURRENT_WORK_SHORTCUT_PHRASES = (
@@ -1890,7 +1896,7 @@ async def _execute_tool_call(
             issue = github_service.get_issue(repo=args.get("repo"), issue_number=args.get("issue_number"))
             return f"Issue #{issue.number}: {getattr(issue, 'title', 'No Title')}\nStatus: {getattr(issue, 'state', 'Unknown')}\nAuthor: @{issue.author.get('login') if issue.author else 'unknown'}\nURL: {issue.url}\n\nBody:\n{getattr(issue, 'body', '')}"
         elif function_name == "search_github_issues":
-            issues = github_service.search_issues(repo=args.get("repo"), query=args.get("query"))
+            issues = github_service.search_issues(repo=args.get("repo"), query=args.get("query"), limit=args.get("limit", 30))
             return "\n".join([f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})" for i in issues]) if issues else "No issues found."
         elif function_name == "create_github_pr":
             return github_service.pr_create(repo=args.get("repo"), title=args.get("title"), body=args.get("body"), head=args.get("head"), base=args.get("base", "main"))

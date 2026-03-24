@@ -368,3 +368,22 @@ def test_get_repo_kanban_summary_falls_back_to_open_issues_when_project_discover
 
     assert summary["source"] == "open_issues"
     assert summary["issues"][0]["title"] == "Add kanban command"
+
+def test_search_issues_success_with_limit(github_service):
+    """Test search_issues with limit parameter."""
+    mock_output = '[{"number": 1, "title": "Test Issue", "state": "CLOSED", "url": "http://github.com/1"}]'
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0, 
+            stdout=mock_output, 
+            stderr=""
+        )
+        issues = github_service.search_issues("is:closed", "owner/repo", limit=3)
+        assert len(issues) == 1
+        assert issues[0].title == "Test Issue"
+        assert issues[0].number == 1
+        
+        # Verify that '--limit' '3' was passed to the gh command
+        args = mock_run.call_args[0][0]
+        assert "--limit" in args
+        assert "3" in args

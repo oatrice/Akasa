@@ -364,54 +364,61 @@ class GitHubService:
         return None
 
     def get_local_roadmap_content(self, project_path: str) -> tuple[str, str]:
-        """Read docs/ROADMAP.md from a bound local project path."""
-        roadmap_path = os.path.join(
-            os.path.abspath(os.path.expanduser(project_path)),
-            _ROADMAP_RELATIVE_PATH,
-        )
-        if not os.path.isfile(roadmap_path):
-            raise GitHubServiceError(
-                f"No docs/ROADMAP.md found in bound path: {project_path}"
-            )
-
-        try:
-            with open(roadmap_path, "r", encoding="utf-8") as f:
-                return roadmap_path, f.read()
-        except OSError as e:
-            raise GitHubServiceError(f"Failed to read local roadmap: {e}")
+        """Read planning docs from a bound local project path."""
+        planning_docs = ["docs/ROADMAP.md", "docs/7_ISSUE_NEXT_STEPS.md", "docs/8_NEXT_WEEK_THEME.md"]
+        base_path = os.path.abspath(os.path.expanduser(project_path))
+        
+        found_paths = []
+        combined_content = []
+        
+        for doc_path in planning_docs:
+            full_path = os.path.join(base_path, *doc_path.split("/"))
+            if os.path.isfile(full_path):
+                try:
+                    with open(full_path, "r", encoding="utf-8") as f:
+                        combined_content.append(f"=== {doc_path} ===\n{f.read()}")
+                        found_paths.append(doc_path)
+                except OSError as e:
+                    logger.warning(f"Failed to read local roadmap {doc_path}: {e}")
+                    
+        if not combined_content:
+            raise GitHubServiceError(f"No planning docs (ROADMAP.md etc) found in bound path: {project_path}")
+            
+        main_path = os.path.join(base_path, found_paths[0])
+        return main_path, "\n\n".join(combined_content)
 
     def get_remote_roadmap_content(self, repo: str) -> tuple[str, str]:
-        """Fetch docs/ROADMAP.md from GitHub repository contents API."""
-        try:
-            result = self._run_gh_command(
-                ["api", f"repos/{repo}/contents/{_ROADMAP_RELATIVE_PATH}"]
-            )
-        except GitHubServiceError as e:
-            message = str(e).lower()
-            if "404" in message or "not found" in message:
-                raise GitHubServiceError(f"No docs/ROADMAP.md found in {repo}.")
-            raise
-
-        data = self._parse_json_output(result.stdout)
-        if not isinstance(data, dict):
-            raise GitHubServiceError(f"Failed to parse remote roadmap for {repo}.")
-
-        encoded_content = data.get("content")
-        if not encoded_content:
-            raise GitHubServiceError(f"No docs/ROADMAP.md found in {repo}.")
-
-        try:
-            raw_bytes = base64.b64decode(str(encoded_content), validate=False)
-            content = raw_bytes.decode("utf-8")
-        except (ValueError, UnicodeDecodeError) as e:
-            raise GitHubServiceError(f"Failed to decode remote roadmap for {repo}: {e}")
-
-        url = (
-            data.get("html_url")
-            or data.get("download_url")
-            or f"https://github.com/{repo}/blob/HEAD/{_ROADMAP_RELATIVE_PATH}"
-        )
-        return str(url), content
+        """Fetch planning docs from GitHub repository contents API."""
+        planning_docs = ["docs/ROADMAP.md", "docs/7_ISSUE_NEXT_STEPS.md", "docs/8_NEXT_WEEK_THEME.md"]
+        
+        found_urls = []
+        combined_content = []
+        
+        for doc_path in planning_docs:
+            try:
+                result = self._run_gh_command(["api", f"repos/{repo}/contents/{doc_path}"])
+                data = self._parse_json_output(result.stdout)
+                
+                if isinstance(data, dict):
+                    encoded_content = data.get("content")
+                    if encoded_content:
+                        raw_bytes = base64.b64decode(str(encoded_content), validate=False)
+                        content = raw_bytes.decode("utf-8")
+                        combined_content.append(f"=== {doc_path} ===\n{content}")
+                        
+                        url = data.get("html_url") or data.get("download_url") or f"https://github.com/{repo}/blob/HEAD/{doc_path}"
+                        found_urls.append(str(url))
+            except GitHubServiceError as e:
+                message = str(e).lower()
+                if "404" not in message and "not found" not in message:
+                    logger.warning(f"Failed to fetch remote planning doc {doc_path} for {repo}: {e}")
+            except (ValueError, UnicodeDecodeError) as e:
+                logger.warning(f"Failed to decode remote planning doc {doc_path} for {repo}: {e}")
+                
+        if not combined_content:
+            raise GitHubServiceError(f"No planning docs (ROADMAP.md etc) found in {repo}.")
+            
+        return found_urls[0], "\n\n".join(combined_content)
 
     def _list_owner_projects(self, owner: str, limit: int = 30) -> list[dict]:
         result = self._run_gh_command(
@@ -698,10 +705,10 @@ class GitHubService:
         except (json.JSONDecodeError, AttributeError, KeyError):
             raise GitHubServiceError("Failed to parse GitHub issues list.")
 
-    def search_issues(self, query: str, repo: str) -> List[GitHubIssue]:
+    def search_issues(self, query: str, repo: str, limit: int = 30) -> List[GitHubIssue]:
         """Search for issues in a repository."""
         # gh issue list --search "query" --repo repo
-        args = ["issue", "list", "--repo", repo, "--search", query, "--json", "number,title,state,url,author"]
+        args = ["issue", "list", "--repo", repo, "--search", query, "--limit", str(limit), "--json", "number,title,state,url,author"]
         result = self._run_gh_command(args)
 
         try:
