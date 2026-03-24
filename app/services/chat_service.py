@@ -293,6 +293,14 @@ ROADMAP_SHORTCUT_PHRASES = (
     "milestone",
     "milestones",
 )
+
+CURRENT_WORK_SHORTCUT_PHRASES = (
+    "ตอนนี้โปรเจ็คทำ",
+    "ตอนนี้ทำอะไรอยู่",
+    "ทำ issue ไหนอยู่",
+    "current work",
+    "current status",
+)
 # ------------------------------------------
 
 # Cache build info at startup
@@ -1186,6 +1194,62 @@ async def _try_handle_project_insight_shortcut(
             )
         summary = github_service.get_repo_kanban_summary(repo_name)
         return _render_kanban_summary(summary)
+
+    if _matches_shortcut_phrase(prompt, CURRENT_WORK_SHORTCUT_PHRASES):
+        target = await _resolve_github_target(chat_id, current_project=current_project)
+        repo_name = target.get("repo")
+        project_path = target.get("project_path") or target.get("roadmap_project_path")
+
+        sections = []
+        project_display = target.get("project_name", current_project)
+        sections.append(f"📊 **Current Work Status: `{project_display}`**")
+
+        if project_path:
+            # Luma State
+            luma_state = github_service.get_local_luma_state(project_path)
+            if luma_state:
+                phase = luma_state.get("phase", "Unknown")
+                active_branch = luma_state.get("active_branch", "None")
+                sections.append(f"\n💡 **Luma State**\n• Phase: `{phase}`\n• Branch: `{active_branch}`")
+                
+                active_issues = luma_state.get("active_issues", [])
+                if active_issues:
+                    sections.append("• Active Issues:")
+                    for idx, issue in enumerate(active_issues[:3], 1):
+                        num = issue.get("number", "?")
+                        title = issue.get("title", "Unknown")
+                        sections.append(f"  {idx}. #{num} - {title}")
+            
+            # Git History
+            git_log = github_service.get_local_git_history(project_path, limit=5)
+            if git_log:
+                sections.append(f"\n🕰 **Recent Commits**\n```\n{git_log}\n```")
+
+        # Kanban (In Progress)
+        if repo_name and _looks_like_repo_name(repo_name):
+            try:
+                summary = github_service.get_repo_kanban_summary(repo_name)
+                in_progress_cols = [c for c in summary.get("columns", []) if "progress" in c["name"].lower() or "doing" in c["name"].lower() or "active" in c["name"].lower()]
+                if not in_progress_cols and summary.get("columns"):
+                    in_progress_cols = summary.get("columns")[:1]
+
+                sections.append(f"\n📋 **Kanban ({repo_name})**")
+                for col in in_progress_cols:
+                    sections.append(f"*{col['name']}* ({col['count']})")
+                    for item in col.get("items", []):
+                        title = item.get("title", "")
+                        num_text = f"[#{item['number']}]({item['url']})" if item.get("number") and item.get("url") else ""
+                        sections.append(f"• {num_text} {title}".strip())
+                    if col["count"] > len(col.get("items", [])):
+                        sections.append("  ... (more hidden)")
+            except Exception as e:
+                logger.error(f"Failed to load kanban for current work: {e}")
+                sections.append(f"\n📋 **Kanban**\n⚠️ Failed to load kanban: {e}")
+        else:
+            sections.append("\n📋 **Kanban**\n⚠️ Repository not bound. Cannot fetch GitHub board.")
+
+        final_response = "\n".join(sections)
+        return escape_markdown_v2(final_response)
 
     return None
 

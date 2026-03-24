@@ -291,6 +291,54 @@ async def test_github_kanban_command_uses_current_project_context(
 @patch("app.services.chat_service.github_service")
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
+async def test_current_work_shortcut(
+    mock_telegram,
+    mock_redis,
+    mock_github,
+):
+    mock_redis.get_current_project = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_project_path = AsyncMock(return_value="/mock/path/Akasa")
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+
+    mock_github.get_local_luma_state = MagicMock(return_value={
+        "phase": "Execution",
+        "active_branch": "feature/shortcut",
+        "active_issues": [{"number": 82, "title": "Add kanban"}]
+    })
+    mock_github.get_local_git_history = MagicMock(return_value="abcdef1 Commit")
+    mock_github.get_repo_kanban_summary = MagicMock(
+        return_value={
+            "repo": "oatrice/Akasa",
+            "columns": [{"name": "In Progress", "count": 1, "items": [{"number": 82, "title": "Add kanban"}]}]
+        }
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    update = Update(
+        update_id=106,
+        message=Message(
+            message_id=106,
+            date=1612345678,
+            chat=Chat(id=12345, type="private"),
+            text="ตอนนี้โปรเจ็คทำอะไรอยู่",
+        ),
+    )
+
+    await handle_chat_message(update)
+
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Current Work Status" in sent_message
+    assert "Luma State" in sent_message
+    assert "Execution" in sent_message
+    assert "abcdef1 Commit" in sent_message
+    assert "In Progress" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.github_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
 async def test_github_roadmap_command_uses_bound_path_and_derived_repo(
     mock_telegram,
     mock_redis,

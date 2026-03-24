@@ -856,3 +856,23 @@ class GitHubService:
     def git_push(self, branch: str = "main") -> str:
         """ส่งข้อมูลขึ้น GitHub"""
         return self._run_git_command(["push", "origin", branch])
+
+    def get_local_git_history(self, project_path: str, limit: int = 5) -> str:
+        """Get recent git history from a local project path."""
+        normalized_path = os.path.abspath(os.path.expanduser(project_path))
+        try:
+            return self._run_git_command(["-C", normalized_path, "log", f"-n{limit}", "--oneline"])
+        except Exception:
+            return ""
+
+    def get_local_luma_state(self, project_path: str) -> dict:
+        """Read .luma_state.json from a local project path."""
+        normalized_path = os.path.abspath(os.path.expanduser(project_path))
+        luma_path = os.path.join(normalized_path, ".luma_state.json")
+        if not os.path.isfile(luma_path):
+            return {}
+        try:
+            with open(luma_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
