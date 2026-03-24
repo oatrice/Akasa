@@ -62,7 +62,7 @@ async def test_daemon_success_flow(
         "tool": "gemini",
         "command": "run_task",
         "args": {"task": "test it"},
-        "cwd": "/tmp/project",
+        "cwd": str(daemon._PROJECT_ROOT),
         "user_id": 1,
     }
 
@@ -84,14 +84,14 @@ async def test_daemon_success_flow(
     assert cli_args[0] == "gemini"
     assert "-p" in cli_args
     assert "test it" in cli_args[-1]
-    assert cli_kwargs["cwd"] == "/tmp/project"
+    assert cli_kwargs["cwd"] == str(daemon._PROJECT_ROOT)
 
     mock_httpx_post.assert_called_once()
     payload = mock_httpx_post.call_args[1]["json"]
     assert payload["status"] == "success"
     assert "mock stdout" in payload["output"]
     assert "duration_seconds" in payload
-    assert payload["cwd"] == "/tmp/project"
+    assert payload["cwd"] == str(daemon._PROJECT_ROOT)
 
     status_updates = []
     for call in mock_update.call_args_list:
@@ -113,7 +113,7 @@ async def test_daemon_logs_dequeued_command(
         "tool": "gemini",
         "command": "check_status",
         "args": {},
-        "cwd": "/tmp/project",
+        "cwd": str(daemon._PROJECT_ROOT),
         "user_id": 1,
         "queued_at": "1970-01-01T00:01:39.500000Z",
     }
@@ -135,7 +135,7 @@ async def test_daemon_logs_dequeued_command(
     assert "tool=gemini" in caplog.text
     assert "command=check_status" in caplog.text
     assert "queue_wait_ms=" in caplog.text
-    assert "cwd=/tmp/project" in caplog.text
+    assert f"cwd={str(daemon._PROJECT_ROOT)}" in caplog.text
     assert "COMPLETED cmd_log_me" in caplog.text
     assert "run_duration_ms=" in caplog.text
     assert "total_latency_ms=" in caplog.text

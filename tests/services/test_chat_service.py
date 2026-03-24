@@ -122,6 +122,7 @@ async def test_queue_alias_dispatches_to_queue_handler(mock_handle_queue):
 
 
 @pytest.mark.asyncio
+@patch("app.models.command.os.path.isdir", return_value=True)
 @patch("app.services.chat_service.command_queue_service")
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
@@ -129,6 +130,7 @@ async def test_queue_gemini_command_uses_bound_project_path_as_cwd(
     mock_telegram,
     mock_redis,
     mock_command_queue,
+    mock_isdir,
 ):
     from app.models.command import CommandQueueResponse
 
@@ -172,6 +174,7 @@ async def test_queue_gemini_command_uses_bound_project_path_as_cwd(
 
 
 @pytest.mark.asyncio
+@patch("app.models.command.os.path.isdir", return_value=True)
 @patch("app.services.chat_service.command_queue_service")
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
@@ -179,6 +182,7 @@ async def test_gemini_command_enqueues_run_task_for_current_project(
     mock_telegram,
     mock_redis,
     mock_command_queue,
+    mock_isdir,
 ):
     from app.models.command import CommandQueueResponse
 
