@@ -26,7 +26,7 @@ import logging
 import os
 import subprocess
 import json
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime, timezone
 from app.config import settings
 
@@ -1171,7 +1171,7 @@ async def _try_handle_project_insight_shortcut(
     chat_id: int,
     prompt: str,
     current_project: str,
-) -> Optional[str]:
+) -> Optional[Any]:
     if _matches_shortcut_phrase(prompt, ROADMAP_SHORTCUT_PHRASES):
         target = await _resolve_github_target(chat_id, current_project=current_project)
         try:
@@ -1249,7 +1249,16 @@ async def _try_handle_project_insight_shortcut(
             sections.append("\n📋 **Kanban**\n⚠️ Repository not bound. Cannot fetch GitHub board.")
 
         final_response = "\n".join(sections)
-        return escape_markdown_v2(final_response)
+
+        # Store raw data in Redis for the LLM summary button (TTL 10 min)
+        raw_ctx_key = f"current_work_ctx:{chat_id}"
+        try:
+            raw_snapshot = "\n".join(sections)
+            await redis_service.redis_pool.set(raw_ctx_key, raw_snapshot, ex=600)
+        except Exception as e:
+            logger.warning(f"Failed to store current_work_ctx in Redis: {e}")
+
+        return (escape_markdown_v2(final_response), chat_id)
 
     return None
 
@@ -2008,13 +2017,27 @@ async def _handle_standard_message(message: "Message") -> None:
                 pass
             return
 
-    shortcut_reply = await _try_handle_project_insight_shortcut(
+    shortcut_result = await _try_handle_project_insight_shortcut(
         chat_id,
         prompt,
         current_project,
     )
-    if shortcut_reply:
-        await _send_response(chat_id, shortcut_reply)
+    if shortcut_result:
+        # shortcut may return a plain string or a (message, chat_id) tuple (for current work)
+        if isinstance(shortcut_result, tuple):
+            shortcut_reply, _cid = shortcut_result
+            reply_markup = {
+                "inline_keyboard": [[
+                    {
+                        "text": "\U0001f916 สรุปให้ฟังหน่อย",
+                        "callback_data": f"current_work_summary:{chat_id}:{current_project}",
+                    }
+                ]]
+            }
+            await tg_service.send_message(chat_id, shortcut_reply, reply_markup=reply_markup)
+        else:
+            shortcut_reply = shortcut_result
+            await _send_response(chat_id, shortcut_reply)
         try:
             await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
             await redis_service.add_message_to_history(chat_id, "assistant", shortcut_reply, project_name=current_project)
@@ -2116,9 +2139,81 @@ async def _handle_standard_message(message: "Message") -> None:
             await _send_response(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
 
 
+async def _handle_current_work_summary_callback(callback: CallbackQuery) -> None:
+    """Handle the 'สรุปให้ฟังหน่อย' inline button by sending raw data to LLM."""
+    data = callback.data or ""
+    # format: current_work_summary:<chat_id>:<project>
+    parts = data.split(":", 2)
+    if len(parts) < 3:
+        return
+
+    try:
+        cid = int(parts[1])
+    except ValueError:
+        return
+
+    current_project = parts[2]
+
+    # Acknowledge the button press
+    if callback.message:
+        try:
+            await tg_service.edit_message_text(
+                chat_id=cid,
+                message_id=callback.message.message_id,
+                text=callback.message.text + "\n\n_\u23F3 กำลังสรุป\.\.\._",
+                reply_markup=None,
+            )
+        except Exception:
+            pass
+
+    # Fetch raw context from Redis
+    raw_ctx_key = f"current_work_ctx:{cid}"
+    raw_data: Optional[str] = None
+    try:
+        raw_data = await redis_service.redis_pool.get(raw_ctx_key)
+    except Exception as e:
+        logger.warning(f"Failed to fetch current_work_ctx: {e}")
+
+    if not raw_data:
+        await _send_response(cid, "⚠️ ไม่พบข้อมูล Current Work ใน Cache แล้ว ลองพิมพ์ใหม่อีกครั้งนะครับ")
+        return
+
+    # Ask LLM to summarize in plain language
+    system_msg = (
+        f"คุณคือ project assistant ของโปรเจ็กต์ '{current_project}'. "
+        "ผู้ใช้ขอให้อธิบายสถานะโปรเจ็กต์ปัจจุบันเป็นภาษาคนทั่วไปแบบเข้าใจง่าย "
+        "ใช้ภาษาไทย และสื่อสารแบบกันเองสั้นๆ ไม่ต้องใช้ technical jargon มาก"
+    )
+    user_msg = (
+        f"นี่คือข้อมูลสถานะโปรเจ็กต์ปัจจุบัน:\n\n{raw_data}\n\n"
+        "ขอสรุปให้ฟังเป็นภาษาคนทั่วไป ว่าตอนนี้กำลังทำอะไร มีความคืบหน้าแค่ไหน และ commit ล่าสุดพยายามทำอะไรอยู่ "
+        "ตอบสั้นๆ กระชับ ไม่เกิน 5-6 ประโยค"
+    )
+
+    try:
+        messages = [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_msg},
+        ]
+        model_pref = await redis_service.get_user_model_preference(cid)
+        reply = await llm_service.get_llm_reply(messages, model=model_pref)
+        if isinstance(reply, str) and reply:
+            await _send_response(cid, reply)
+        else:
+            await _send_response(cid, "ขอโทษครับ ไม่สามารถสรุปได้ในขณะนี้")
+    except Exception as e:
+        logger.error(f"LLM summary callback failed: {e}")
+        await _send_response(cid, f"⚠️ เกิดข้อผิดพลาด: {e}")
+
+
 async def _handle_callback_query(callback: CallbackQuery) -> None:
     """จัดการการกดปุ่ม Inline Keyboard สำหรับการยืนยัน Action"""
     data = callback.data or ""
+
+    if data.startswith("current_work_summary:"):
+        await _handle_current_work_summary_callback(callback)
+        return
+
     if not data.startswith("confirm:"):
         return
 

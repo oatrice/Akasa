@@ -313,6 +313,11 @@ async def test_current_work_shortcut(
             "columns": [{"name": "In Progress", "count": 1, "items": [{"number": 82, "title": "Add kanban"}]}]
         }
     )
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.redis_pool = AsyncMock()
+    mock_redis.redis_pool.set = AsyncMock()
     mock_telegram.send_message = AsyncMock()
 
     update = Update(
@@ -327,12 +332,70 @@ async def test_current_work_shortcut(
 
     await handle_chat_message(update)
 
-    sent_message = mock_telegram.send_message.call_args[0][1]
+    sent_message = (
+        mock_telegram.send_message.call_args.kwargs.get("text")
+        or mock_telegram.send_message.call_args.args[1]
+        if mock_telegram.send_message.call_args.args else None
+    )
+    if not sent_message:
+        sent_message = mock_telegram.send_message.call_args.args[1]
     assert "Current Work Status" in sent_message
     assert "Luma State" in sent_message
     assert "Execution" in sent_message
     assert "abcdef1 Commit" in sent_message
     assert "In Progress" in sent_message
+    # Should also send with inline keyboard containing summary button
+    call_kwargs = mock_telegram.send_message.call_args.kwargs
+    assert "reply_markup" in call_kwargs
+    assert call_kwargs["reply_markup"]["inline_keyboard"][0][0]["text"] == "\U0001f916 \u0e2a\u0e23\u0e38\u0e1b\u0e43\u0e2b\u0e49\u0e1f\u0e31\u0e07\u0e2b\u0e19\u0e48\u0e2d\u0e22"
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+async def test_current_work_summary_callback(
+    mock_telegram,
+    mock_redis,
+    mock_llm,
+):
+    """When user taps the \U0001f916 summary button, bot fetches cached data and asks LLM to summarize."""
+    from app.services.chat_service import _handle_current_work_summary_callback
+    from app.models.telegram import CallbackQuery, TelegramUser, Chat, Message
+
+    # --- RED: define expected behaviour ---
+    # Setup mocks
+    mock_redis.redis_pool = AsyncMock()
+    mock_redis.redis_pool.get = AsyncMock(return_value="Luma State\nPhase: coding\nGit: abc1234")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_telegram.edit_message_text = AsyncMock()
+    mock_telegram.send_message = AsyncMock()
+    mock_llm.get_llm_reply = AsyncMock(return_value="ตอนนี้โปรเจ็คกำลัง coding อยู่ครับ")
+
+    callback = CallbackQuery.model_validate({
+        "id": "cb1",
+        "data": "current_work_summary:12345:myproject",
+        "from": {"id": 9, "first_name": "Test"},
+        "message": {
+            "message_id": 200,
+            "date": 1612345678,
+            "chat": {"id": 12345, "type": "private"},
+            "text": "\U0001f4ca Current Work Status",
+        },
+    })
+
+    # --- GREEN: call the handler and verify ---
+    await _handle_current_work_summary_callback(callback)
+
+    # LLM should have been called with the raw cached data in the user message
+    assert mock_llm.get_llm_reply.called
+    call_args = mock_llm.get_llm_reply.call_args
+    messages = call_args[0][0]
+    user_msg = next(m for m in messages if m["role"] == "user")
+    assert "Luma State" in user_msg["content"]
+    # A final reply should have been sent to the chat
+    assert mock_telegram.send_message.called
+
 
 
 @pytest.mark.asyncio
