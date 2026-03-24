@@ -74,6 +74,46 @@ async def test_handle_chat_message_with_create_issue_tool_call(mock_github, mock
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
+async def test_handle_chat_message_with_create_issue_duration_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+    """Test creating a GitHub issue with a duration synced to the project card."""
+    mock_update = mock_update_base
+    mock_update.message.text = "สร้าง issue พร้อม duration 90m ใน oatrice/Akasa"
+
+    mock_redis.get_current_project = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+
+    tool_call = {
+        "id": "call_1b",
+        "type": "function",
+        "function": {
+            "name": "create_github_issue",
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Timed Issue", "body": "Body", "duration": "90m"}'
+        }
+    }
+
+    mock_llm.get_llm_reply = AsyncMock(side_effect=[
+        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+        "สร้าง Issue พร้อม Duration ให้เรียบร้อยแล้วค่ะ"
+    ])
+
+    mock_github.create_issue = MagicMock(return_value="https://github.com/oatrice/Akasa/issues/2")
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    mock_github.create_issue.assert_called_once_with(
+        repo="oatrice/Akasa", title="Timed Issue", body="Body", duration="90m"
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.github_service")
 async def test_handle_chat_message_with_list_prs_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
     """Test listing PRs via tool call, ensuring author is displayed."""
     mock_update = mock_update_base
@@ -420,3 +460,96 @@ async def test_handle_chat_message_saves_full_tool_context_to_history(mock_githu
     assert "user" in roles_saved
     assert "assistant" in roles_saved
     assert "tool" in roles_saved
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.github_service")
+async def test_handle_chat_message_shortcut_kanban_uses_bound_project_context_without_llm(
+    mock_github,
+    mock_llm,
+    mock_telegram,
+    mock_redis,
+    mock_update_base,
+):
+    mock_update = mock_update_base
+    mock_update.message.text = "งานถึงไหนแล้ว"
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(return_value=None)
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+
+    mock_llm.get_llm_reply = AsyncMock()
+    mock_github.get_repo_kanban_summary = MagicMock(
+        return_value={
+            "repo": "oatrice/Akasa",
+            "source": "open_issues",
+            "issues": [
+                {
+                    "number": 82,
+                    "title": "Add kanban command",
+                    "url": "https://github.com/oatrice/Akasa/issues/82",
+                }
+            ],
+        }
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    mock_llm.get_llm_reply.assert_not_awaited()
+    mock_github.get_repo_kanban_summary.assert_called_once_with("oatrice/Akasa")
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Kanban for oatrice/Akasa" in sent_message
+
+
+@pytest.mark.asyncio
+@patch("app.services.chat_service.redis_service")
+@patch("app.services.chat_service.tg_service")
+@patch("app.services.chat_service.llm_service")
+@patch("app.services.chat_service.github_service")
+async def test_handle_chat_message_shortcut_roadmap_reads_local_bound_path_without_llm(
+    mock_github,
+    mock_llm,
+    mock_telegram,
+    mock_redis,
+    mock_update_base,
+):
+    mock_update = mock_update_base
+    mock_update.message.text = "โปรเจกต์นี้จะทำอะไรต่อ"
+
+    mock_redis.get_current_project = AsyncMock(return_value="akasa")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
+    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
+    mock_redis.get_user_model_preference = AsyncMock(return_value=None)
+    mock_redis.get_chat_history = AsyncMock(return_value=[])
+    mock_redis.add_message_to_history = AsyncMock()
+    mock_redis.set_user_chat_id_mapping = AsyncMock()
+
+    mock_llm.get_llm_reply = AsyncMock()
+    # get_repo_from_local_path must match project_repo so roadmap_project_path is set to local path
+    mock_github.get_repo_from_local_path = MagicMock(return_value="oatrice/Akasa")
+    mock_github.get_local_roadmap_content = MagicMock(
+        return_value=(
+            "/Users/oatrice/Software-projects/Akasa/docs/ROADMAP.md",
+            "# Roadmap\n\n## Phase 1\n| # | Issue | Status |\n|---|---|---|\n| 1 | Bot | ✅ Complete |\n",
+        )
+    )
+    mock_telegram.send_message = AsyncMock()
+
+    await handle_chat_message(mock_update)
+
+    mock_llm.get_llm_reply.assert_not_awaited()
+    mock_github.get_local_roadmap_content.assert_called_once_with(
+        "/Users/oatrice/Software-projects/Akasa"
+    )
+    sent_message = mock_telegram.send_message.call_args[0][1]
+    assert "Roadmap for oatrice/Akasa" in sent_message

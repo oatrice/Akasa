@@ -4,6 +4,7 @@ Command Queue Models — Feature #66
 Pydantic models สำหรับ Telegram → Local Tools Command Queue system
 """
 
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
@@ -23,6 +24,10 @@ class CommandQueueRequest(BaseModel):
     command: str = Field(..., description="Whitelisted command to execute")
     args: Dict[str, Any] = Field(
         default_factory=dict, description="Structured arguments for the command"
+    )
+    cwd: Optional[str] = Field(
+        default=None,
+        description="Optional absolute working directory for command execution",
     )
     ttl_seconds: int = Field(
         default=300, ge=30, le=3600, description="Command TTL in seconds (30–3600)"
@@ -44,6 +49,24 @@ class CommandQueueRequest(BaseModel):
             raise ValueError("command must not be empty")
         return v
 
+    @field_validator("cwd")
+    @classmethod
+    def normalize_cwd(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("cwd must not be empty")
+
+        expanded = os.path.expanduser(normalized)
+        if not os.path.isabs(expanded):
+            raise ValueError("cwd must be an absolute path")
+        expanded = os.path.abspath(expanded)
+        if not os.path.isdir(expanded):
+            raise ValueError("cwd must point to an existing directory")
+        return expanded
+
 
 class CommandQueueResponse(BaseModel):
     """Response returned after successfully enqueueing a command."""
@@ -52,6 +75,7 @@ class CommandQueueResponse(BaseModel):
     status: str = "queued"
     tool: str
     command: str
+    cwd: Optional[str] = None
     queued_at: str  # ISO 8601
     expires_at: str  # ISO 8601
 
@@ -77,6 +101,7 @@ class CommandStatusResponse(BaseModel):
     status: CommandStatusLiteral
     tool: str
     command: str
+    cwd: Optional[str] = None
     queued_at: str  # ISO 8601
     picked_up_at: Optional[str] = None  # ISO 8601
     completed_at: Optional[str] = None  # ISO 8601
@@ -100,6 +125,7 @@ class CommandPayload(BaseModel):
     tool: str
     command: str
     args: Dict[str, Any] = Field(default_factory=dict)
+    cwd: Optional[str] = None
     user_id: int
     chat_id: int
     queued_at: str  # ISO 8601
@@ -125,16 +151,36 @@ class CommandResultRequest(BaseModel):
 
     status: Literal["success", "failed"]
     output: Optional[str] = Field(default=None, description="stdout / combined output")
+    cwd: Optional[str] = Field(
+        default=None,
+        description="Working directory actually used during execution",
+    )
     exit_code: Optional[int] = None
     duration_seconds: Optional[float] = Field(default=None, ge=0)
 
     @field_validator("output")
     @classmethod
     def truncate_output(cls, v: Optional[str]) -> Optional[str]:
-        """Prevent oversized payloads — cap at 3,000 characters."""
-        if v and len(v) > 3000:
-            return v[:2997] + "..."
+        """Prevent oversized payloads — cap at 20,000 characters."""
+        if v and len(v) > 20000:
+            return v[:19997] + "..."
         return v
+
+    @field_validator("cwd")
+    @classmethod
+    def normalize_result_cwd(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("cwd must not be empty")
+
+        expanded = os.path.expanduser(normalized)
+        if not os.path.isabs(expanded):
+            raise ValueError("cwd must be an absolute path")
+        expanded = os.path.abspath(expanded)
+        return expanded
 
 
 class CommandResultResponse(BaseModel):

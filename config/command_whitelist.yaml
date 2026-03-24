@@ -14,6 +14,8 @@ tools:
           model: "-m"
         include_command_name: true
         argument_style: flags
+        allowed_paths:
+          - "/Users/oatrice/Software-projects"
         timeout_seconds: 120
         retries: 0
     allowed_commands:

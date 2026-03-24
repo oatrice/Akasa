@@ -201,6 +201,7 @@ async def report_command_result(
         status=result.status,
         result=result.output,
         error=result.output if result.status == "failed" else None,
+        cwd=result.cwd,
     )
 
     # Send Telegram notification
@@ -226,6 +227,10 @@ async def report_command_result(
         if result.duration_seconds is not None:
             safe_duration = escape_markdown_v2_content(f"{result.duration_seconds:.1f}s")
             msg += f"*Duration:* {safe_duration}\n"
+        effective_cwd = result.cwd or status.cwd
+        if effective_cwd:
+            safe_cwd = escape_markdown_v2_content(effective_cwd)
+            msg += f"*CWD:* `{safe_cwd}`\n"
         summary = _summarize_command_output(
             status.tool,
             result.status,
@@ -238,10 +243,8 @@ async def report_command_result(
             # We don't escape output with _content because it goes in a code block
             # where escape_markdown_v2 will preserve it, though if it contains ``` 
             # we should replace it to avoid breaking the block.
-            output_preview = result.output[:500].replace("```", "'''")
-            msg += f"\n*Output:*\n```\n{output_preview}\n```"
-
-        escaped_msg = escape_markdown_v2(msg)
+            output_safe = result.output.replace("```", "'''")
+            msg += f"\n*Output:*\n```\n{output_safe}\n```"
 
         # Use the chat_id from the original command payload for notification
         # Fallback to AKASA_CHAT_ID if original chat_id is somehow missing
@@ -252,10 +255,15 @@ async def report_command_result(
         else:
             raise ValueError("No chat_id available for notification (both status.chat_id and AKASA_CHAT_ID are empty)")
 
-        await tg_service.send_message(
-            chat_id=target_chat_id,
-            text=escaped_msg,
-        )
+        from app.utils.markdown_utils import split_markdown_message
+        chunks = split_markdown_message(msg, max_length=4000)
+        
+        for chunk in chunks:
+            escaped_chunk = escape_markdown_v2(chunk)
+            await tg_service.send_message(
+                chat_id=target_chat_id,
+                text=escaped_chunk,
+            )
         notification_sent = True
     except Exception as exc:
         logger.error(f"Failed to send result notification: {exc}")

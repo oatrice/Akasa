@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.22.0] - 2026-03-25
+
+### Added
+- **GitHub & Roadmap Enhancement**: เพิ่มความสามารถในการค้นหา Issue และดึงข้อมูล Roadmap/Kanban จาก GitHub มาแสดงผลผ่าน Telegram ด้วยคำสั่งแบบ Natural Language (NLP).
+- **LLM Work Summary**: ระบบสรุปสถานะงานปัจจุบัน (Current Work) ด้วย AI พร้อมคีย์ลัดสำหรับตรวจสอบสถานะงานที่กำลังดำเนินการอยู่ได้อย่างรวดเร็ว.
+- **Planning Documents Integration**: เพิ่มคำสั่งสำหรับเข้าถึง สรุป และจัดการเอกสารการวางแผน (Planning docs) ภายในบทสนทนา.
+- **GitHub Context Binding**: รองรับการผูก GitHub Repository เข้ากับบริบทของแต่ละโปรเจกต์ (Context Binding) เพื่อให้ AI ทำงานกับ Repository ที่ถูกต้องโดยอัตโนมัติ.
+- **Gemini CLI Local Inspection**: เพิ่มความสามารถให้ Gemini CLI สามารถตรวจสอบโครงสร้างและข้อมูลของโปรเจกต์ในเครื่อง (Local Project) เพื่อนำมาใช้เป็นบริบทในการตอบคำถาม.
+- **Tool Execution Improvements**: เพิ่มการรองรับการระบุ Working Directory และการสร้าง Command Aliases (ชื่อย่อคำสั่ง) เพื่อความสะดวกในการรันเครื่องมือต่างๆ.
+- **Project Management Sync**: เพิ่มระบบซิงค์ระยะเวลาการทำงาน (Duration) กลับไปยัง GitHub Project Cards โดยอัตโนมัติเมื่อมีการอัปเดตงาน.
+- **External Repo Sync**: เพิ่มฟังก์ชันการซิงค์ข้อมูล Repository ภายนอกเข้ากับระบบจัดการข้อมูลของ Akasa (Redis Service).
+
+### Changed
+- **Source Display Normalization**: ปรับปรุงการแสดงผลที่มาของข้อความ (Source Display) ให้ชัดเจนขึ้น และลบนามสกุลโปรเจกต์ที่ไม่จำเป็นออกเพื่อความสะอาดตา.
+- **MCP Client Identification**: ปรับเปลี่ยนการระบุชื่อ Client ในระบบ MCP ให้แสดงตามแหล่งที่มาจริง (เช่น 'Antigravity') แทนชื่อกลาง เพื่อให้ง่ายต่อการติดตามที่มาของคำสั่ง.
+- **Roadmap Summarization**: ปรับปรุงอัลกอริทึมการสรุป Roadmap ให้กระชับและแสดงเฉพาะประเด็นสำคัญที่ผู้ใช้ต้องการทราบ.
+- **Telegram Output Handling**: ปรับปรุงการจัดการและแสดงผลลัพธ์ของคำสั่งยาวๆ ใน Telegram ให้มีความเป็นระเบียบมากขึ้น.
+
+### Fixed
+- **Source Display Normalization**: แก้ไขการแสดงชื่อโปรเจกต์ที่ซ้ำซ้อนในส่วนแสดงที่มาของข้อมูล.
+
 ## [0.20.0](https://github.com/oatrice/Akasa/compare/v0.19.0...v0.20.0) (2026-03-19)
 
 

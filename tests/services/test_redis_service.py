@@ -214,3 +214,43 @@ async def test_set_and_get_user_chat_id_mapping(patch_redis):
     # 4. Key ต้องมี TTL
     ttl = await patch_redis.ttl(f"user_chat_id:{user_id}")
     assert ttl > 0
+
+
+# --- External Repo Sync ---
+
+def test_normalize_github_repo():
+    from app.services.redis_service import _normalize_github_repo
+    
+    assert _normalize_github_repo("owner/repo") == "owner/repo"
+    assert _normalize_github_repo("  user/project_name  ") == "user/project_name"
+    
+    with pytest.raises(ValueError, match="must not be empty"):
+        _normalize_github_repo("")
+        
+    with pytest.raises(ValueError, match="must use owner/repo format"):
+        _normalize_github_repo("invalid_format_no_slash")
+
+
+@pytest.mark.asyncio
+async def test_set_and_get_project_repo(patch_redis):
+    """ทดสอบการผูกโปรเจ็กต์กับ GitHub Repository ใน Redis"""
+    from app.services.redis_service import set_project_repo, get_project_repo
+
+    chat_id = 111222
+    project_name = "Akasa"
+    github_repo = "oatrice/Akasa"
+
+    # Set GitHub repo
+    normalized_repo = await set_project_repo(chat_id, project_name, github_repo)
+    assert normalized_repo == "oatrice/Akasa"
+
+    # Get GitHub repo
+    retrieved_repo = await get_project_repo(chat_id, project_name)
+    assert retrieved_repo == "oatrice/Akasa"
+
+    # Assert TTL is applied
+    from app.services.redis_service import _get_project_repo_key
+    key = _get_project_repo_key(chat_id, project_name)
+    ttl = await patch_redis.ttl(key)
+    assert ttl > 0
+

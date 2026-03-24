@@ -70,6 +70,7 @@ async def test_project_usage_message(patch_redis):
     assert "status" in sent_msg
     assert "new" in sent_msg
     assert "rename" in sent_msg
+    assert "/pj" in sent_msg
 
 
 # --- Test Error Handling (Part 4 of Test Suggestion) ---

@@ -36,6 +36,8 @@ POLL_INTERVAL = 1.0  # Wait between poll attempts (seconds)
 
 # Session config
 MCP_SESSION_ID = str(uuid.uuid4())
+MCP_CLIENT_NAME = "Antigravity"
+
 
 
 async def request_remote_approval(
@@ -75,7 +77,7 @@ async def request_remote_approval(
             "request_id": request_id,
             "command": command,
             "cwd": cwd,
-            "source": "antigravity",
+            "source": MCP_CLIENT_NAME,
             "description": description,
             "session_id": MCP_SESSION_ID,
         },
@@ -199,7 +201,7 @@ async def notify_task_complete(
         "task": task,
         "status": status,
         "chat_id": AKASA_CHAT_ID,
-        "source": "AI Assistant",
+        "source": MCP_CLIENT_NAME,
     }
     if duration:
         payload["duration"] = duration
@@ -356,11 +358,18 @@ def make_error(req_id, code, message):
 
 async def handle_rpc(request: dict) -> str:
     """Handle a single JSON-RPC request"""
+    global MCP_CLIENT_NAME
     req_id = request.get("id")
     method = request.get("method", "")
     params = request.get("params", {})
 
     if method == "initialize":
+        client_info = params.get("clientInfo", {})
+        if client_info and isinstance(client_info, dict):
+            client_name = client_info.get("name")
+            if client_name:
+                MCP_CLIENT_NAME = client_name
+
         return make_response(
             req_id,
             {

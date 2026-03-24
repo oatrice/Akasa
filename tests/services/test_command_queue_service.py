@@ -374,6 +374,34 @@ class TestEnqueueCommand:
         call_kwargs = mock_redis.set.call_args
         assert call_kwargs.kwargs.get("ex") == 60 or call_kwargs[1].get("ex") == 60
 
+    @pytest.mark.asyncio
+    async def test_enqueue_persists_cwd_in_payload_and_status(self, mock_redis, tmp_path):
+        """Explicit cwd should be stored in both queue payload and status tracking."""
+        import app.services.command_queue_service as svc
+
+        project_dir = tmp_path / "repo"
+        project_dir.mkdir()
+
+        with patch("builtins.open", mock_open(read_data=SAMPLE_WHITELIST_YAML)):
+            with patch("os.path.exists", return_value=True):
+                svc._whitelist_cache = None
+
+                request = CommandQueueRequest(
+                    tool="gemini",
+                    command="run_task",
+                    args={"task": "inspect repo"},
+                    cwd=str(project_dir),
+                )
+                result = await svc.enqueue_command(request, user_id=123, chat_id=456)
+
+        payload_json = mock_redis.rpush.call_args.args[1]
+        payload = json.loads(payload_json)
+        assert payload["cwd"] == str(project_dir)
+
+        status_mapping = mock_redis.hset.call_args.kwargs["mapping"]
+        assert status_mapping["cwd"] == str(project_dir)
+        assert result.cwd == str(project_dir)
+
 
 # ---------------------------------------------------------------------------
 # Dequeue tests
@@ -511,6 +539,7 @@ class TestCommandStatus:
             "status": "queued",
             "tool": "gemini",
             "command": "run_task",
+            "cwd": "/tmp/project",
             "queued_at": "2026-01-01T00:00:00Z",
             "picked_up_at": "",
             "completed_at": "",
@@ -522,6 +551,7 @@ class TestCommandStatus:
         assert isinstance(result, CommandStatusResponse)
         assert result.status == "queued"
         assert result.tool == "gemini"
+        assert result.cwd == "/tmp/project"
 
     @pytest.mark.asyncio
     async def test_get_status_not_found(self, mock_redis):

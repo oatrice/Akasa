@@ -51,6 +51,28 @@ def mock_status_tracking():
             yield mock_update, mock_expire
 
 
+@pytest.fixture(autouse=True)
+def mock_whitelist_entry():
+    def _mock_get_whitelist(tool, command):
+        return {
+            "tool": tool,
+            "command": command,
+            "allowed_args": ["task", "path", "code"],
+            "execution": {
+                "type": "cli",
+                "executable": tool,
+                "allowed_paths": [str(daemon._PROJECT_ROOT), "/tmp"],
+                "prompt_arg_key": "task" if command == "run_task" else None,
+            },
+        }
+
+    with patch(
+        "scripts.local_tool_daemon.get_command_whitelist_entry",
+        side_effect=_mock_get_whitelist,
+    ) as mock_get:
+        yield mock_get
+
+
 @pytest.mark.asyncio
 async def test_daemon_success_flow(
     mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking
@@ -62,6 +84,7 @@ async def test_daemon_success_flow(
         "tool": "gemini",
         "command": "run_task",
         "args": {"task": "test it"},
+        "cwd": str(daemon._PROJECT_ROOT),
         "user_id": 1,
     }
 
@@ -79,15 +102,18 @@ async def test_daemon_success_flow(
 
     mock_subprocess.assert_called_once()
     cli_args = mock_subprocess.call_args[0]
+    cli_kwargs = mock_subprocess.call_args.kwargs
     assert cli_args[0] == "gemini"
     assert "-p" in cli_args
     assert "test it" in cli_args[-1]
+    assert cli_kwargs["cwd"] == str(daemon._PROJECT_ROOT)
 
     mock_httpx_post.assert_called_once()
     payload = mock_httpx_post.call_args[1]["json"]
     assert payload["status"] == "success"
     assert "mock stdout" in payload["output"]
     assert "duration_seconds" in payload
+    assert payload["cwd"] == str(daemon._PROJECT_ROOT)
 
     status_updates = []
     for call in mock_update.call_args_list:
@@ -109,6 +135,7 @@ async def test_daemon_logs_dequeued_command(
         "tool": "gemini",
         "command": "check_status",
         "args": {},
+        "cwd": str(daemon._PROJECT_ROOT),
         "user_id": 1,
         "queued_at": "1970-01-01T00:01:39.500000Z",
     }
@@ -130,6 +157,7 @@ async def test_daemon_logs_dequeued_command(
     assert "tool=gemini" in caplog.text
     assert "command=check_status" in caplog.text
     assert "queue_wait_ms=" in caplog.text
+    assert f"cwd={str(daemon._PROJECT_ROOT)}" in caplog.text
     assert "COMPLETED cmd_log_me" in caplog.text
     assert "run_duration_ms=" in caplog.text
     assert "total_latency_ms=" in caplog.text
@@ -213,6 +241,42 @@ async def test_open_file_accepts_line_col_path():
     }
     args = {"path": "docs/plan.md:10:5"}
     assert daemon._validate_args(entry, args) is None
+
+
+@pytest.mark.asyncio
+async def test_execute_command_rejects_cwd_outside_allowed_paths():
+    """Explicit cwd outside the whitelist root should be rejected before execution."""
+    whitelist_entry = {
+        "tool": "gemini",
+        "command": "run_task",
+        "allowed_args": ["task"],
+        "execution": {
+            "type": "cli",
+            "executable": "gemini",
+            "allowed_paths": ["/Users/oatrice/Software-projects"],
+            "prompt_arg_key": "task",
+        },
+    }
+
+    with patch(
+        "scripts.local_tool_daemon.get_command_whitelist_entry",
+        return_value=whitelist_entry,
+    ):
+        with patch(
+            "scripts.local_tool_daemon._execute_cli",
+            new_callable=AsyncMock,
+        ) as mock_exec:
+            exit_code, output = await daemon.execute_command(
+                command_id="cmd_cwd_blocked",
+                tool="gemini",
+                command="run_task",
+                args={"task": "inspect repo"},
+                cwd="/tmp/outside",
+            )
+
+    assert exit_code == -1
+    assert "outside allowed paths" in output
+    mock_exec.assert_not_called()
 
 
 def test_build_cli_command_places_global_flags_before_command():

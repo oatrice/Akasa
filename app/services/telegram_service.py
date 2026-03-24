@@ -8,6 +8,7 @@ from app.exceptions import BotBlockedException, UserChatIdNotFoundException
 from app.services import redis_service
 from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
 from app.utils.source_display import normalize_source_display
+from app.utils.format_utils import format_duration_str
 
 if TYPE_CHECKING:
     from app.models.deployment import DeploymentRecord
@@ -184,11 +185,28 @@ class TelegramService:
         lines.append(f"*Task:* {safe_task}")
 
         if request.duration:
-            safe_duration = escape_markdown_v2_content(request.duration)
+            formatted_duration = format_duration_str(request.duration)
+            safe_duration = escape_markdown_v2_content(formatted_duration)
             lines.append(f"*Duration:* {safe_duration}")
 
         if request.source:
+            logger.info(
+                f"[SOURCE DEBUG] raw source from payload: {request.source!r}"
+            )
             normalized_source = normalize_source_display(request.source)
+            logger.info(
+                f"[SOURCE DEBUG] after normalize_source_display: {normalized_source!r}"
+            )
+            
+            # Remove redundant project name from source. E.g., Project: "Akasa", Source: "Luma (Akasa)" -> "Luma"
+            if request.project and normalized_source:
+                suffix = f"({request.project})"
+                if normalized_source.endswith(suffix) or normalized_source.endswith(suffix + " "):
+                    # Might have a space before parentheses
+                    prefix_end = normalized_source.rfind("(")
+                    if prefix_end > 0:
+                        normalized_source = normalized_source[:prefix_end].strip()
+
             safe_source = escape_markdown_v2_content(normalized_source or request.source)
             lines.append(f"*Source:* {safe_source}")
 
@@ -259,9 +277,7 @@ class TelegramService:
                 start = datetime.fromisoformat(record.started_at)
                 end = datetime.fromisoformat(record.finished_at)
                 secs = int((end - start).total_seconds())
-                duration_str = (
-                    f"{secs // 60}m {secs % 60}s" if secs >= 60 else f"{secs}s"
-                )
+                duration_str = format_duration_str(f"{secs}s")
                 lines.append(f"*Duration:* {escape_markdown_v2_content(duration_str)}")
             except Exception:
                 pass

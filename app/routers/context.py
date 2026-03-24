@@ -25,13 +25,18 @@ async def get_active_project(_auth: bool = Depends(verify_api_key)):
     try:
         project = await redis_service.get_owner_current_project()
         project_path = await redis_service.get_owner_project_path(project)
+        project_repo = await redis_service.get_owner_project_repo(project)
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         logger.error(f"Failed to read owner project context: {exc}", exc_info=True)
         raise HTTPException(status_code=503, detail="Context sync unavailable.")
 
-    return ProjectContextResponse(active_project=project, project_path=project_path)
+    return ProjectContextResponse(
+        active_project=project,
+        project_path=project_path,
+        project_repo=project_repo,
+    )
 
 
 @router.put(
@@ -53,6 +58,14 @@ async def update_active_project(
             )
         else:
             project_path = await redis_service.get_owner_project_path(project)
+
+        if request.project_repo is not None:
+            project_repo = await redis_service.set_owner_project_repo(
+                project,
+                request.project_repo,
+            )
+        else:
+            project_repo = await redis_service.get_owner_project_repo(project)
     except ValueError as exc:
         detail = str(exc)
         status_code = 503 if "Owner chat" in detail else 400
@@ -64,4 +77,5 @@ async def update_active_project(
     return ProjectContextResponse(
         active_project=project,
         project_path=project_path,
+        project_repo=project_repo,
     )
