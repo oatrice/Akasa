@@ -96,6 +96,12 @@ Save the current task for the active project
 
 If the repo is omitted for `/gh issues`, `/gh pr`, `/gh kanban`, or `/gh roadmap`, Akasa first tries the bound GitHub repo for the current project, then the current project name. For kanban and roadmap, Akasa can also use the bound project path when available. For best results, bind the repo explicitly with `/project repo`.
 
+**Natural Language Shortcuts**
+Akasa also supports conversational prompts for viewing project milestones without using slash commands:
+- **Kanban**: `"ดู kanban หน่อย"`, `"ขอลิงก์ kanban"`, `"project board"`
+- **Roadmap**: `"ขอดู roadmap ล่าสุด"`, `"ดู roadmap หน่อย"`, `"โปรเจกต์นี้จะทำอะไรต่อ"`
+(Akasa will automatically resolve the target repository based on your current active project.)
+
 ### Local Tool Queue
 
 ```text
