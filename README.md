@@ -1,4 +1,3 @@
-```markdown
 # 🌌 Akasa — AI Coding Assistant Chatbot
 
 > ผู้ช่วยเขียนโค้ดผ่าน Messaging App — เขียนโค้ดได้ทุกที่ ไม่ต้องอยู่หน้าคอม
@@ -12,17 +11,17 @@
 ## ✨ Features
 
 - 🤖 **AI Coding Assistant** — ถามโค้ด, debug, ขอ snippet ผ่านแชท
-- 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR), สั่ง Build/Deploy **แบบ Asynchronous**, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
+- 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR, **สรุป Roadmap**), จัดการ **Planning Docs** (`spec`, `plan`, `sbe`, `analysis`), สั่ง Build/Deploy **แบบ Asynchronous**, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
 - 🔄 **Bidirectional Control** — สั่งงาน Local Tools (Command Queue) ผ่าน Multi-Protocol Daemon และรับผลลัพธ์กลับในแชท
 - 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
 - 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running, AI Agent Timeout, Review Ready, หรือสถานะ Deploy แบบ Asynchronous พร้อมแสดงแหล่งที่มา (Source) ที่ชัดเจน
 - 🛡️ **Topic Restriction** — ระบบตรวจสอบและจำกัดหัวข้อการสนทนาให้เน้นเรื่องการเขียนโค้ดและเทคนิคเท่านั้น
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
-- 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project`, `project overview` และ `project status` พร้อมประวัติแชทที่แยกจากกัน
+- 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project`, `project overview` และ `project status` **พร้อมระบบสรุปงานปัจจุบันด้วย AI (Current Work Summary)** พร้อมประวัติแชทที่แยกจากกัน
 - 🧠 **Context Memory** — จำบทสนทนาและสถานะการทำงานล่าสุดของแต่ละโปรเจ็กต์ (Agent State) เมื่อสลับกลับมาจะมีการสรุปงานค้างให้
 - 📝 **Task Notes** — บันทึก Task ที่กำลังทำอยู่สำหรับโปรเจ็กต์ปัจจุบันด้วยคำสั่ง `/note <your task description>` เพื่อให้บอทจำบริบทได้แม่นยำขึ้น
 - 🔌 **Multi-LLM** — สลับโมเดล AI ได้ผ่านคำสั่ง `/model` (GPT-4o, Claude 3, Gemini, etc.)
-- 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl และรองรับ MCP (Model Context Protocol)
+- 🛠️ **Tool Integration** — เชื่อม GitHub CLI, Vercel, Render, ADB/Simctl, **Gemini CLI** และรองรับ MCP (Model Context Protocol)
 - 📱 **Mobile-First UX** — ตอบสั้น กระชับ เหมาะกับหน้าจอมือถือ พร้อมระบบ Markdown-aware chunking สำหรับข้อความยาว (>4096 ตัวอักษร)
 
 ---
@@ -106,5 +105,4 @@ akasa/
 ├── requirements.txt
 ├── VERSION
 └── README.md
-```
 ```

@@ -125,3 +125,11 @@
 | #36 | Remote UI Control via ADB/Maestro CLI | 2026-03-21 | 🔲 Due Today |
 
 > ⏳ **Action needed:** ต้อง replan due date ใหม่สำหรับ 10 issues ข้างต้น
+
+## Synced From GitHub
+
+### Issue #82 - Feature: check kanban and ROADMAP.md via Telegram (/gh + NLP prompt)
+- **GitHub:** [#82](https://github.com/oatrice/Akasa/issues/82)
+- **State:** OPEN
+- ✅ **Done**
+
