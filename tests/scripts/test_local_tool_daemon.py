@@ -51,6 +51,28 @@ def mock_status_tracking():
             yield mock_update, mock_expire
 
 
+@pytest.fixture(autouse=True)
+def mock_whitelist_entry():
+    def _mock_get_whitelist(tool, command):
+        return {
+            "tool": tool,
+            "command": command,
+            "allowed_args": ["task", "path", "code"],
+            "execution": {
+                "type": "cli",
+                "executable": tool,
+                "allowed_paths": [str(daemon._PROJECT_ROOT), "/tmp"],
+                "prompt_arg_key": "task" if command == "run_task" else None,
+            },
+        }
+
+    with patch(
+        "scripts.local_tool_daemon.get_command_whitelist_entry",
+        side_effect=_mock_get_whitelist,
+    ) as mock_get:
+        yield mock_get
+
+
 @pytest.mark.asyncio
 async def test_daemon_success_flow(
     mock_redis, mock_subprocess, mock_httpx_post, mock_status_tracking
