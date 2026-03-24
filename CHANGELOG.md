@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/oatrice/Akasa/compare/v0.20.0...v0.21.0) (2026-03-24)
+
+
+### Features
+
+* Feature: check kanban and ROADMAP.md via Telegram ... ([#84](https://github.com/oatrice/Akasa/issues/84)) ([dbb62b6](https://github.com/oatrice/Akasa/commit/dbb62b6efb41e4945d2c738a78d5b9491a49c55d))
+
 ## [0.22.0] - 2026-03-25
 
 ### Added
