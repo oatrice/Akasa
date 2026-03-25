@@ -128,6 +128,23 @@
 
 ## Synced From GitHub
 
+## Synced From GitHub
+### Issue #76 - [Service] Web Screenshot Service (Playwright Browser Capture)
+- **GitHub:** [#76](https://github.com/oatrice/Akasa/issues/76)
+- **Status:** 🔵 **Todo**
+
+### Issue #77 - [Service] Web Screenshot Service (Playwright Browser Capture)
+- **GitHub:** [#77](https://github.com/oatrice/Akasa/issues/77)
+- **Status:** 🔵 **Todo**
+
+### Issue #78 - Honor bound project path as cwd for queued Gemini commands
+- **GitHub:** [#78](https://github.com/oatrice/Akasa/issues/78)
+- **Status:** 🔵 **Todo**
+
+### Issue #79 - Expose execution cwd in queued command logs and Telegram results
+- **GitHub:** [#79](https://github.com/oatrice/Akasa/issues/79)
+- **Status:** 🔵 **Todo**
+
 ### Issue #82 - Feature: check kanban and ROADMAP.md via Telegram (/gh + NLP prompt)
 - **GitHub:** [#82](https://github.com/oatrice/Akasa/issues/82)
 - **State:** OPEN
