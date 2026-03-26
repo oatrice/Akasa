@@ -16,7 +16,21 @@ fi
 
 echo "✅ Environment variables loaded."
 
-# 2. Check if ngrok is running, if not start it in the background
+# 2. Start uvicorn (FastAPI backend)
+echo "🚀 Starting uvicorn on port 8000..."
+venv/bin/uvicorn app.main:app --port 8000 --reload > /tmp/uvicorn.log 2>&1 &
+UVICORN_PID=$!
+echo "✅ uvicorn started (PID: $UVICORN_PID), logs: /tmp/uvicorn.log"
+
+# 3. Start local tool daemon
+echo "🤖 Starting local_tool_daemon..."
+source venv/bin/activate && python3 scripts/local_tool_daemon.py > /tmp/tool_daemon.log 2>&1 &
+DAEMON_PID=$!
+echo "✅ local_tool_daemon started (PID: $DAEMON_PID), logs: /tmp/tool_daemon.log"
+
+sleep 2 # Wait for services to initialize
+
+# 4. Check if ngrok is running, if not start it in the background
 if ! pgrep -x "ngrok" > /dev/null
 then
     echo "🚀 Starting ngrok on port 8000..."
@@ -26,7 +40,7 @@ else
     echo "✅ ngrok is already running."
 fi
 
-# 3. Retrieve the dynamic ngrok URL
+# 5. Retrieve the dynamic ngrok URL
 NGROK_URL=$(curl -s localhost:4040/api/tunnels | python3 -c "import sys, json; print(json.load(sys.stdin)['tunnels'][0]['public_url'])")
 
 if [[ -z "$NGROK_URL" ]]; then
@@ -36,7 +50,7 @@ fi
 
 echo "🔗 ngrok Public URL: $NGROK_URL"
 
-# 4. Set the webhook on Telegram
+# 6. Set the webhook on Telegram
 WEBHOOK_URL="${NGROK_URL}/api/v1/telegram/webhook"
 echo "🛠️ Setting Telegram Webhook to: $WEBHOOK_URL"
 
