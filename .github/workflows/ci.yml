@@ -38,10 +38,14 @@ jobs:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
+        COMMIT_HASH=$(git rev-parse --short HEAD)
+        COMMIT_TIME=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
         MESSAGE="❌ *Akasa CI Failed*%0A"
         MESSAGE+="📦 Repo: \`${{ github.repository }}\`%0A"
         MESSAGE+="🌿 Branch: \`${{ github.ref_name }}\`%0A"
         MESSAGE+="👤 Author: ${{ github.actor }}%0A"
+        MESSAGE+="🔑 Hash: \`${COMMIT_HASH}\`%0A"
+        MESSAGE+="⏰ Time: \`${COMMIT_TIME}\`%0A"
         MESSAGE+="📝 Commit: \`${{ github.event.head_commit.message || github.event.pull_request.title }}\`%0A"
         MESSAGE+="🔗 [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
