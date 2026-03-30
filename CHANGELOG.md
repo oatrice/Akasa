@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/oatrice/Akasa/compare/v0.21.0...v0.22.0) (2026-03-27)
+
+
+### Features
+
+* add agent watchdog script for Antigravity and Zed IDE error monitoring ([8b5cb45](https://github.com/oatrice/Akasa/commit/8b5cb4573142a431a68afb227b52d15daecaa96e))
+
 ## [0.21.0](https://github.com/oatrice/Akasa/compare/v0.20.0...v0.21.0) (2026-03-24)
 
 
