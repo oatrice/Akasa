@@ -127,6 +127,10 @@
 > ⏳ **Action needed:** ต้อง replan due date ใหม่สำหรับ 10 issues ข้างต้น
 
 ## Synced From GitHub
+### Issue #87 - Feature: WhatsApp Integration for Akasa Bot
+- **GitHub:** [#87](https://github.com/oatrice/Akasa/issues/87)
+- **Status:** 🔵 **Todo**
+
 
 ## Synced From GitHub
 ### Issue #76 - [Service] Web Screenshot Service (Playwright Browser Capture)
