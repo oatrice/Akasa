@@ -56,7 +56,46 @@
 
 ---
 
-## 📁 Project Structure
+## � Local Development
+
+### Running the Bot Locally
+
+To run the bot locally for development:
+
+```bash
+./setup_local_bot.sh
+```
+
+This script will:
+1. Load environment variables from `.env`
+2. Start uvicorn (FastAPI backend) on port 8000
+3. Start the local tool daemon
+4. Start ngrok tunnel (if not already running)
+5. Set up Telegram webhook automatically
+
+### 📝 Logging
+
+When running locally, all logs are stored in the `/tmp/` directory:
+
+- **Uvicorn Logs** (FastAPI Backend): `/tmp/uvicorn.log`
+- **Tool Daemon Logs**: `/tmp/tool_daemon.log`
+
+Both log files include timestamps for easier debugging and monitoring. You can view the logs in real-time using:
+
+```bash
+# View uvicorn logs
+tail -f /tmp/uvicorn.log
+
+# View tool daemon logs  
+tail -f /tmp/tool_daemon.log
+
+# View both logs simultaneously
+tail -f /tmp/uvicorn.log /tmp/tool_daemon.log
+```
+
+---
+
+## �📁 Project Structure
 
 ```
 akasa/

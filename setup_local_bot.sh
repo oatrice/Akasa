@@ -18,15 +18,33 @@ echo "✅ Environment variables loaded."
 
 # 2. Start uvicorn (FastAPI backend)
 echo "🚀 Starting uvicorn on port 8000..."
-venv/bin/uvicorn app.main:app --port 8000 --reload > /tmp/uvicorn.log 2>&1 &
+# Create a wrapper script to add timestamps to uvicorn logs
+cat > /tmp/uvicorn_logger.sh << 'EOF'
+#!/bin/bash
+while IFS= read -r line; do
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $line"
+done
+EOF
+chmod +x /tmp/uvicorn_logger.sh
+
+venv/bin/uvicorn app.main:app --port 8000 --reload 2>&1 | /tmp/uvicorn_logger.sh > /tmp/uvicorn.log &
 UVICORN_PID=$!
-echo "✅ uvicorn started (PID: $UVICORN_PID), logs: /tmp/uvicorn.log"
+echo "✅ uvicorn started (PID: $UVICORN_PID), logs: /tmp/uvicorn.log (with timestamps)"
 
 # 3. Start local tool daemon
 echo "🤖 Starting local_tool_daemon..."
-source venv/bin/activate && python3 scripts/local_tool_daemon.py > /tmp/tool_daemon.log 2>&1 &
+# Create a wrapper script to add timestamps to tool daemon logs
+cat > /tmp/tool_daemon_logger.sh << 'EOF'
+#!/bin/bash
+while IFS= read -r line; do
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $line"
+done
+EOF
+chmod +x /tmp/tool_daemon_logger.sh
+
+source venv/bin/activate && python3 scripts/local_tool_daemon.py 2>&1 | /tmp/tool_daemon_logger.sh > /tmp/tool_daemon.log &
 DAEMON_PID=$!
-echo "✅ local_tool_daemon started (PID: $DAEMON_PID), logs: /tmp/tool_daemon.log"
+echo "✅ local_tool_daemon started (PID: $DAEMON_PID), logs: /tmp/tool_daemon.log (with timestamps)"
 
 sleep 2 # Wait for services to initialize
 
