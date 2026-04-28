@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.0](https://github.com/oatrice/Akasa/compare/v0.22.0...v0.23.0) (2026-04-28)
+
+
+### Features
+
+* **dev:** add local development documentation and timestamped logging ([c32d264](https://github.com/oatrice/Akasa/commit/c32d2643adc4fc38c7556e95503981d76125d49e))
+* **workflows:** add workflows for Cerebro issue management and sync ([770c567](https://github.com/oatrice/Akasa/commit/770c567d61d02bb0f499c96c3adc81c60fe4d3b7))
+
 ## [0.22.0](https://github.com/oatrice/Akasa/compare/v0.21.0...v0.22.0) (2026-03-27)
 
 
