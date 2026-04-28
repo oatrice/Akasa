@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "akasa-remote-approval": {
+      "command": "python3",
+      "args": [
+        "/Users/oatrice/Software-projects/Akasa/scripts/akasa_mcp_server.py"
+      ],
+      "env": {
+        "AKASA_API_URL": "http://localhost:8000",
+        "AKASA_API_KEY": "default-dev-key",
+        "AKASA_CHAT_ID": "6346467495"
+      }
+    }
+  }
+}
