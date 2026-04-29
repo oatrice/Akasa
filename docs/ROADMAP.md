@@ -129,7 +129,7 @@
 ## Synced From GitHub
 ### Issue #90 - Add model field to TaskNotificationRequest and display in notifications
 - **GitHub:** [#90](https://github.com/oatrice/Akasa/issues/90)
-- **Status:** 🟢 **Ready**
+    - ✅ **Done**
 
 ### Issue #87 - Feature: WhatsApp Integration for Akasa Bot
 - **GitHub:** [#87](https://github.com/oatrice/Akasa/issues/87)

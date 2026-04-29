@@ -367,7 +367,7 @@ def make_error(req_id, code, message):
     )
 
 
-async def handle_rpc(request: dict) -> str:
+async def handle_rpc(request: dict) -> Optional[str]:
     """Handle a single JSON-RPC request"""
     global MCP_CLIENT_NAME
     req_id = request.get("id")
