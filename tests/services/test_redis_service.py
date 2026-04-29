@@ -18,16 +18,19 @@ async def fake_redis():
 def patch_redis(fake_redis, monkeypatch):
     """Patch redis_service to use fakeredis."""
     import app.services.redis_service as rs
+
     monkeypatch.setattr(rs, "redis_pool", fake_redis)
     return fake_redis
 
 
 # --- get_chat_history ---
 
+
 @pytest.mark.asyncio
 async def test_get_chat_history_empty(patch_redis):
     """ถ้าไม่มี history ต้อง return list ว่าง"""
     from app.services.redis_service import get_chat_history
+
     history = await get_chat_history(chat_id=99999)
     assert history == []
 
@@ -48,6 +51,7 @@ async def test_get_chat_history_returns_chronological_order(patch_redis):
     assert history[1] == {"role": "assistant", "content": "Hi there!"}
     assert history[2] == {"role": "user", "content": "How are you?"}
 
+
 @pytest.mark.asyncio
 async def test_get_chat_history_with_corrupted_json(patch_redis):
     """ถ้ามีข้อมูลบางตัวใน Redis ไม่ใช่ JSON ที่อ่านได้ (corrupted) → ต้องข้ามตัวนั้นและคืนค่าเฉพาะตัวที่อ่านได้"""
@@ -55,9 +59,14 @@ async def test_get_chat_history_with_corrupted_json(patch_redis):
     import json
 
     # Push corrupted data directly to Redis
-    await patch_redis.lpush("chat_history:150:default", json.dumps({"role": "user", "content": "Good"}))
+    await patch_redis.lpush(
+        "chat_history:150:default", json.dumps({"role": "user", "content": "Good"})
+    )
     await patch_redis.lpush("chat_history:150:default", "NOT A JSON!!")
-    await patch_redis.lpush("chat_history:150:default", json.dumps({"role": "assistant", "content": "Also Good"}))
+    await patch_redis.lpush(
+        "chat_history:150:default",
+        json.dumps({"role": "assistant", "content": "Also Good"}),
+    )
 
     history = await get_chat_history(150)
 
@@ -68,7 +77,9 @@ async def test_get_chat_history_with_corrupted_json(patch_redis):
     assert history[0]["content"] == "Good"
     assert history[1]["content"] == "Also Good"
 
+
 # --- add_message_to_history ---
+
 
 @pytest.mark.asyncio
 async def test_add_message_stores_correct_json(patch_redis):
@@ -85,11 +96,13 @@ async def test_add_message_stores_correct_json(patch_redis):
 
 # --- LTRIM (History Limit) ---
 
+
 @pytest.mark.asyncio
 async def test_history_is_trimmed_at_limit(patch_redis, monkeypatch):
     """ประวัติต้องถูกตัดไม่เกิน HISTORY_LIMIT"""
     from app.services import redis_service
     from app.services.redis_service import add_message_to_history, get_chat_history
+
     monkeypatch.setattr(redis_service.settings, "REDIS_HISTORY_LIMIT", 4)
 
     # เพิ่ม 6 ข้อความ (เกิน limit 4)
@@ -109,6 +122,7 @@ async def test_redis_limit_zero(patch_redis, monkeypatch):
     """ถ้า REDIS_HISTORY_LIMIT = 0 ต้องไม่เก็บข้อมูลและ get_chat_history คืนค่าว่าง"""
     from app.services import redis_service
     from app.services.redis_service import add_message_to_history, get_chat_history
+
     monkeypatch.setattr(redis_service.settings, "REDIS_HISTORY_LIMIT", 0)
 
     chat_id = 350
@@ -121,7 +135,9 @@ async def test_redis_limit_zero(patch_redis, monkeypatch):
     raw = await patch_redis.lrange(f"chat_history:{chat_id}", 0, -1)
     assert len(raw) == 0
 
+
 # --- TTL ---
+
 
 @pytest.mark.asyncio
 async def test_ttl_is_set_on_history_key(patch_redis):
@@ -136,6 +152,7 @@ async def test_ttl_is_set_on_history_key(patch_redis):
 
 
 # --- Chat Isolation ---
+
 
 @pytest.mark.asyncio
 async def test_chat_isolation(patch_redis):
@@ -156,10 +173,12 @@ async def test_chat_isolation(patch_redis):
 
 # --- User Model Preference ---
 
+
 @pytest.mark.asyncio
 async def test_get_user_model_preference_none(patch_redis):
     """ถ้าผู้ใช้ยังไม่เคยตั้งค่า ต้องคืนค่า None"""
     from app.services.redis_service import get_user_model_preference
+
     pref = await get_user_model_preference(chat_id=777)
     assert pref is None
 
@@ -167,13 +186,16 @@ async def test_get_user_model_preference_none(patch_redis):
 @pytest.mark.asyncio
 async def test_set_and_get_user_model_preference(patch_redis):
     """ตั้งค่าแล้วต้องดึงกลับมาได้ถูกต้อง"""
-    from app.services.redis_service import set_user_model_preference, get_user_model_preference
-    
+    from app.services.redis_service import (
+        set_user_model_preference,
+        get_user_model_preference,
+    )
+
     chat_id = 888
     model_id = "anthropic/claude-3.5-sonnet"
-    
+
     await set_user_model_preference(chat_id, model_id)
-    
+
     pref = await get_user_model_preference(chat_id)
     assert pref == model_id
 
@@ -182,20 +204,24 @@ async def test_set_and_get_user_model_preference(patch_redis):
 async def test_model_preference_has_ttl(patch_redis):
     """การตั้งค่าโมเดลต้องมี TTL"""
     from app.services.redis_service import set_user_model_preference
-    
+
     chat_id = 999
     await set_user_model_preference(chat_id, "some-model")
-    
+
     ttl = await patch_redis.ttl(f"user_model_pref:{chat_id}")
     assert ttl > 0
 
 
 # --- User ID to Chat ID Mapping (for Proactive Messaging - Issue #30) ---
 
+
 @pytest.mark.asyncio
 async def test_set_and_get_user_chat_id_mapping(patch_redis):
     """ทดสอบการเก็บและดึง mapping ระหว่าง user_id และ chat_id"""
-    from app.services.redis_service import set_user_chat_id_mapping, get_chat_id_for_user
+    from app.services.redis_service import (
+        set_user_chat_id_mapping,
+        get_chat_id_for_user,
+    )
 
     user_id = 12345
     chat_id = 67890
@@ -218,15 +244,16 @@ async def test_set_and_get_user_chat_id_mapping(patch_redis):
 
 # --- External Repo Sync ---
 
+
 def test_normalize_github_repo():
     from app.services.redis_service import _normalize_github_repo
-    
+
     assert _normalize_github_repo("owner/repo") == "owner/repo"
     assert _normalize_github_repo("  user/project_name  ") == "user/project_name"
-    
+
     with pytest.raises(ValueError, match="must not be empty"):
         _normalize_github_repo("")
-        
+
     with pytest.raises(ValueError, match="must use owner/repo format"):
         _normalize_github_repo("invalid_format_no_slash")
 
@@ -250,7 +277,7 @@ async def test_set_and_get_project_repo(patch_redis):
 
     # Assert TTL is applied
     from app.services.redis_service import _get_project_repo_key
+
     key = _get_project_repo_key(chat_id, project_name)
     ttl = await patch_redis.ttl(key)
     assert ttl > 0
-

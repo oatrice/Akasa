@@ -197,7 +197,9 @@ class TestEnqueueEndpoint:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_enqueue_uses_default_user_id_and_chat_id(self, auth_override, monkeypatch):
+    async def test_enqueue_uses_default_user_id_and_chat_id(
+        self, auth_override, monkeypatch
+    ):
         """user_id/chat_id ไม่ส่ง → ใช้ default จาก settings."""
         monkeypatch.setattr(settings, "AKASA_CHAT_ID", "456")
         monkeypatch.setattr(settings, "ALLOWED_TELEGRAM_USER_IDS", "123")
@@ -214,7 +216,7 @@ class TestEnqueueEndpoint:
             "app.routers.commands.command_queue_service.enqueue_command",
             new_callable=AsyncMock,
             return_value=mock_response,
-        ) as mock_enqueue:
+        ):
             with patch(
                 "app.routers.commands.command_queue_service.check_rate_limit",
                 new_callable=AsyncMock,
@@ -325,7 +327,9 @@ class TestResultEndpoint:
         assert body["notification_sent"] is True
 
     @pytest.mark.asyncio
-    async def test_report_result_includes_cwd_in_notification(self, auth_override, mock_tg_service):
+    async def test_report_result_includes_cwd_in_notification(
+        self, auth_override, mock_tg_service
+    ):
         """Telegram result notification should show the execution cwd when provided."""
         mock_status = CommandStatusResponse(
             command_id="cmd_cwd",
@@ -397,7 +401,9 @@ class TestResultEndpoint:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_report_result_failure_sends_notification(self, auth_override, mock_tg_service):
+    async def test_report_result_failure_sends_notification(
+        self, auth_override, mock_tg_service
+    ):
         """Daemon reports failure → notification includes error."""
         mock_status = CommandStatusResponse(
             command_id="cmd_abc",
@@ -516,10 +522,15 @@ class TestResultEndpoint:
 
         assert response.status_code == 200
         sent_text = mock_tg_service.send_message.await_args.kwargs["text"]
-        assert "Gemini quota บนโมเดลหลัก จึงสลับไปใช้ gemini\\-2\\.5\\-flash และรันต่อสำเร็จ" in sent_text
+        assert (
+            "Gemini quota บนโมเดลหลัก จึงสลับไปใช้ gemini\\-2\\.5\\-flash และรันต่อสำเร็จ"
+            in sent_text
+        )
 
     @pytest.mark.asyncio
-    async def test_report_result_chunks_long_output(self, auth_override, mock_tg_service):
+    async def test_report_result_chunks_long_output(
+        self, auth_override, mock_tg_service
+    ):
         """Long output (>4000 chars) should be chunked and sent in multiple messages."""
         mock_status = CommandStatusResponse(
             command_id="cmd_long",
@@ -552,4 +563,3 @@ class TestResultEndpoint:
 
         assert response.status_code == 200
         assert mock_tg_service.send_message.call_count >= 2
-

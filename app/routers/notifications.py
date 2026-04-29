@@ -15,7 +15,7 @@ from app.models.notification import (
     TaskNotificationResponse,
 )
 from app.services.agent_task_service import create_task, update_task
-from app.services.redis_service import redis_pool
+from app.services.redis_service import redis_pool, get_user_model_preference
 from app.services.telegram_service import tg_service
 
 logger = logging.getLogger(__name__)
@@ -121,9 +121,18 @@ async def task_complete_notification(
             detail="Invalid chat_id format. Must be numeric.",
         )
 
+    # Model resolution logic:
+    # - Use case 1 (External AI): If payload includes model (e.g., "SWE-1.6" from Windsurf),
+    #   use it directly to show which external AI performed the task
+    # - Use case 2 (Local AI): If payload has no model, retrieve user's preference
+    #   from Redis (set via /model command in Telegram) to show which model local AI used
+    if not payload.model:
+        model_pref = await get_user_model_preference(chat_id)
+        payload.model = model_pref
+
     logger.info(
         f"Task notification received — project: {payload.project!r}, "
-        f"task: {payload.task!r}, status: {payload.status}, source: {payload.source!r}"
+        f"task: {payload.task!r}, status: {payload.status}, source: {payload.source!r}, model: {payload.model!r}"
     )
 
     # Handle 'starting' status - create task log for timeout tracking
@@ -150,7 +159,12 @@ async def task_complete_notification(
             )
 
     # Update task log for completion statuses
-    if payload.task_id and payload.status in ("success", "failure", "partial", "timeout"):
+    if payload.task_id and payload.status in (
+        "success",
+        "failure",
+        "partial",
+        "timeout",
+    ):
         try:
             await update_task(
                 task_id=payload.task_id,

@@ -100,9 +100,12 @@ async def test_send_proactive_message_success(mock_redis):
         await tg_service.send_proactive_message(user_id, text)
 
         mock_redis.get_chat_id_for_user.assert_called_once_with(user_id)
-        
+
         from app.utils.markdown_utils import escape_markdown_v2
-        mock_send_message.assert_called_once_with(chat_id=chat_id, text=escape_markdown_v2(text))
+
+        mock_send_message.assert_called_once_with(
+            chat_id=chat_id, text=escape_markdown_v2(text)
+        )
 
 
 @pytest.mark.asyncio
@@ -364,6 +367,34 @@ async def test_send_task_notification_optional_fields_omitted(monkeypatch):
         assert "*Source:*" not in text
         assert "*Details:*" not in text
         assert "*Link:*" not in text
+        assert "*Model:*" not in text
+
+
+@pytest.mark.asyncio
+async def test_send_task_notification_with_model(monkeypatch):
+    """Model field appears as *Model:* line when provided."""
+    from app.models.notification import TaskNotificationRequest
+
+    monkeypatch.setattr(
+        tg_service, "api_url", "https://api.telegram.org/bot_test_token"
+    )
+
+    request = TaskNotificationRequest(
+        project="Akasa",
+        task="Test task",
+        status="success",
+        model="gpt-4o",
+    )
+
+    with patch.object(tg_service.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        await tg_service.send_task_notification(chat_id=12345, request=request)
+
+        text = mock_post.call_args.kwargs["json"]["text"]
+        assert "*Model:* gpt\\-4o" in text
 
 
 @pytest.mark.asyncio

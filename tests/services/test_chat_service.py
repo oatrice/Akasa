@@ -6,6 +6,7 @@ from app.config import settings
 from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 import httpx
 
+
 @pytest.fixture(autouse=True)
 def set_production_env():
     """บังคับให้ทุก test รันใน environment = production ยกเว้น test ที่ระบุเป็นอย่างอื่นชัดเจน"""
@@ -24,6 +25,7 @@ def allow_telegram_rate_limit():
     ) as mock_rate_limit:
         yield mock_rate_limit
 
+
 @pytest.fixture
 def mock_update():
     return Update(
@@ -32,9 +34,10 @@ def mock_update():
             message_id=1,
             date=1612345678,
             chat=Chat(id=12345, type="private"),
-            text="Hello Bot"
-        )
+            text="Hello Bot",
+        ),
     )
+
 
 @pytest.fixture
 def mock_update_no_text():
@@ -44,9 +47,10 @@ def mock_update_no_text():
             message_id=2,
             date=1612345678,
             chat=Chat(id=12345, type="private"),
-            text=None # e.g., a sticker
-        )
+            text=None,  # e.g., a sticker
+        ),
     )
+
 
 @pytest.fixture
 def setup_mock_redis(mock_redis):
@@ -63,6 +67,7 @@ def setup_mock_redis(mock_redis):
 
 
 # === Slash Command Aliases ===
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service._handle_project_command", new_callable=AsyncMock)
@@ -109,7 +114,7 @@ async def test_queue_alias_dispatches_to_queue_handler(mock_handle_queue):
             message_id=103,
             date=1612345678,
             chat=Chat(id=12345, type="private"),
-            text='/q gemini check_status {}',
+            text="/q gemini check_status {}",
         ),
     )
 
@@ -267,7 +272,11 @@ async def test_github_kanban_command_uses_current_project_context(
             "repo": "oatrice/Akasa",
             "source": "open_issues",
             "issues": [
-                {"number": 82, "title": "Add kanban command", "url": "https://github.com/oatrice/Akasa/issues/82"}
+                {
+                    "number": 82,
+                    "title": "Add kanban command",
+                    "url": "https://github.com/oatrice/Akasa/issues/82",
+                }
             ],
         }
     )
@@ -305,16 +314,24 @@ async def test_current_work_shortcut(
     mock_redis.get_project_repo = AsyncMock(return_value="oatrice/Akasa")
     mock_redis.set_user_chat_id_mapping = AsyncMock()
 
-    mock_github.get_local_luma_state = MagicMock(return_value={
-        "phase": "Execution",
-        "active_branch": "feature/shortcut",
-        "active_issues": [{"number": 82, "title": "Add kanban"}]
-    })
+    mock_github.get_local_luma_state = MagicMock(
+        return_value={
+            "phase": "Execution",
+            "active_branch": "feature/shortcut",
+            "active_issues": [{"number": 82, "title": "Add kanban"}],
+        }
+    )
     mock_github.get_local_git_history = MagicMock(return_value="abcdef1 Commit")
     mock_github.get_repo_kanban_summary = MagicMock(
         return_value={
             "repo": "oatrice/Akasa",
-            "columns": [{"name": "In Progress", "count": 1, "items": [{"number": 82, "title": "Add kanban"}]}]
+            "columns": [
+                {
+                    "name": "In Progress",
+                    "count": 1,
+                    "items": [{"number": 82, "title": "Add kanban"}],
+                }
+            ],
         }
     )
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -339,7 +356,8 @@ async def test_current_work_shortcut(
     sent_message = (
         mock_telegram.send_message.call_args.kwargs.get("text")
         or mock_telegram.send_message.call_args.args[1]
-        if mock_telegram.send_message.call_args.args else None
+        if mock_telegram.send_message.call_args.args
+        else None
     )
     if not sent_message:
         sent_message = mock_telegram.send_message.call_args.args[1]
@@ -351,7 +369,10 @@ async def test_current_work_shortcut(
     # Should also send with inline keyboard containing summary button
     call_kwargs = mock_telegram.send_message.call_args.kwargs
     assert "reply_markup" in call_kwargs
-    assert call_kwargs["reply_markup"]["inline_keyboard"][0][0]["text"] == "\U0001f916 \u0e2a\u0e23\u0e38\u0e1b\u0e43\u0e2b\u0e49\u0e1f\u0e31\u0e07\u0e2b\u0e19\u0e48\u0e2d\u0e22"
+    assert (
+        call_kwargs["reply_markup"]["inline_keyboard"][0][0]["text"]
+        == "\U0001f916 \u0e2a\u0e23\u0e38\u0e1b\u0e43\u0e2b\u0e49\u0e1f\u0e31\u0e07\u0e2b\u0e19\u0e48\u0e2d\u0e22"
+    )
 
 
 @pytest.mark.asyncio
@@ -370,23 +391,27 @@ async def test_current_work_summary_callback(
     # --- RED: define expected behaviour ---
     # Setup mocks
     mock_redis.redis_pool = AsyncMock()
-    mock_redis.redis_pool.get = AsyncMock(return_value="Luma State\nPhase: coding\nGit: abc1234")
+    mock_redis.redis_pool.get = AsyncMock(
+        return_value="Luma State\nPhase: coding\nGit: abc1234"
+    )
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_telegram.edit_message_text = AsyncMock()
     mock_telegram.send_message = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="ตอนนี้โปรเจ็คกำลัง coding อยู่ครับ")
 
-    callback = CallbackQuery.model_validate({
-        "id": "cb1",
-        "data": "current_work_summary:12345:myproject",
-        "from": {"id": 9, "first_name": "Test"},
-        "message": {
-            "message_id": 200,
-            "date": 1612345678,
-            "chat": {"id": 12345, "type": "private"},
-            "text": "\U0001f4ca Current Work Status",
-        },
-    })
+    callback = CallbackQuery.model_validate(
+        {
+            "id": "cb1",
+            "data": "current_work_summary:12345:myproject",
+            "from": {"id": 9, "first_name": "Test"},
+            "message": {
+                "message_id": 200,
+                "date": 1612345678,
+                "chat": {"id": 12345, "type": "private"},
+                "text": "\U0001f4ca Current Work Status",
+            },
+        }
+    )
 
     # --- GREEN: call the handler and verify ---
     await _handle_current_work_summary_callback(callback)
@@ -401,7 +426,6 @@ async def test_current_work_summary_callback(
     assert mock_telegram.send_message.called
 
 
-
 @pytest.mark.asyncio
 @patch("app.services.chat_service.github_service")
 @patch("app.services.chat_service.redis_service")
@@ -414,12 +438,17 @@ async def test_github_roadmap_command_uses_bound_path_and_derived_repo(
     roadmap_content = "# Roadmap\n\n## Phase 1\n| # | Issue | Status |\n|---|---|---|\n| 1 | Bot | ✅ Complete |\n"
 
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
-    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Software-projects/Akasa")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/Akasa"
+    )
     mock_redis.get_project_repo = AsyncMock(return_value=None)
     mock_redis.set_user_chat_id_mapping = AsyncMock()
     mock_github.get_repo_from_local_path = MagicMock(return_value="oatrice/Akasa")
     mock_github.get_local_roadmap_content = MagicMock(
-        return_value=("/Users/oatrice/Software-projects/Akasa/docs/ROADMAP.md", roadmap_content)
+        return_value=(
+            "/Users/oatrice/Software-projects/Akasa/docs/ROADMAP.md",
+            roadmap_content,
+        )
     )
     mock_telegram.send_message = AsyncMock()
 
@@ -458,8 +487,12 @@ async def test_github_roadmap_command_prefers_bound_repo_when_path_points_elsewh
     remote_roadmap_content = "# Roadmap\n\n## Metadata\n- Keep schema aligned\n"
 
     mock_redis.get_current_project = AsyncMock(return_value="the-middle-way")
-    mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Software-projects/TheMiddleWay")
-    mock_redis.get_project_repo = AsyncMock(return_value="oatrice/TheMiddleWay-Metadata")
+    mock_redis.get_project_path = AsyncMock(
+        return_value="/Users/oatrice/Software-projects/TheMiddleWay"
+    )
+    mock_redis.get_project_repo = AsyncMock(
+        return_value="oatrice/TheMiddleWay-Metadata"
+    )
     mock_redis.set_user_chat_id_mapping = AsyncMock()
     mock_github.get_repo_from_local_path = MagicMock(
         return_value="mdwmediaworld072/TheMiddleWay"
@@ -500,11 +533,15 @@ async def test_github_roadmap_command_prefers_bound_repo_when_path_points_elsewh
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
-async def test_project_list_command_lists_projects_with_bound_repo(mock_telegram, mock_redis):
+async def test_project_list_command_lists_projects_with_bound_repo(
+    mock_telegram, mock_redis
+):
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
     mock_redis.get_project_list = AsyncMock(return_value=["akasa", "luma"])
     mock_redis.get_project_repo = AsyncMock(
-        side_effect=lambda _chat_id, project_name: "oatrice/Akasa" if project_name == "akasa" else None
+        side_effect=lambda _chat_id, project_name: (
+            "oatrice/Akasa" if project_name == "akasa" else None
+        )
     )
     mock_telegram.send_message = AsyncMock()
 
@@ -529,7 +566,9 @@ async def test_project_list_command_lists_projects_with_bound_repo(mock_telegram
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
-async def test_project_repo_command_binds_current_project_repo(mock_telegram, mock_redis):
+async def test_project_repo_command_binds_current_project_repo(
+    mock_telegram, mock_redis
+):
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
     mock_redis.set_project_repo = AsyncMock(return_value="oatrice/Akasa")
     mock_telegram.send_message = AsyncMock()
@@ -546,7 +585,9 @@ async def test_project_repo_command_binds_current_project_repo(mock_telegram, mo
 
     await handle_chat_message(update)
 
-    mock_redis.set_project_repo.assert_awaited_once_with(12345, "akasa", "oatrice/Akasa")
+    mock_redis.set_project_repo.assert_awaited_once_with(
+        12345, "akasa", "oatrice/Akasa"
+    )
     sent_message = mock_telegram.send_message.call_args[0][1]
     assert "Bound GitHub repo" in sent_message
     assert "`oatrice/Akasa`" in sent_message
@@ -554,19 +595,24 @@ async def test_project_repo_command_binds_current_project_repo(mock_telegram, mo
 
 # === Success path (with Redis history) ===
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_success_with_history(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ส่ง prompt พร้อม history ที่ดึงจาก Redis ไปให้ LLM โดยแยกตามโปรเจ็กต์"""
     # Setup
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
-    mock_redis.get_chat_history = AsyncMock(return_value=[
-        {"role": "user", "content": "What is Python?"},
-        {"role": "assistant", "content": "Python is a programming language."},
-    ])
+    mock_redis.get_chat_history = AsyncMock(
+        return_value=[
+            {"role": "user", "content": "What is Python?"},
+            {"role": "assistant", "content": "Python is a programming language."},
+        ]
+    )
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
     mock_telegram.send_message = AsyncMock()
@@ -578,21 +624,31 @@ async def test_handle_chat_message_success_with_history(mock_llm, mock_telegram,
     assert call_args[0]["role"] == "system"
     assert "default" in call_args[0]["content"]
     assert call_args[1] == {"role": "user", "content": "What is Python?"}
-    assert call_args[2] == {"role": "assistant", "content": "Python is a programming language."}
+    assert call_args[2] == {
+        "role": "assistant",
+        "content": "Python is a programming language.",
+    }
     assert call_args[3] == {"role": "user", "content": "Hello Bot"}
 
     mock_telegram.send_message.assert_called_once_with(12345, "Reply from AI")
 
     # ต้องบันทึก user message + assistant reply กลับ Redis (ต้องระบุ project_name)
     assert mock_redis.add_message_to_history.call_count == 2
-    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot", project_name="default")
-    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI", project_name="default")
+    mock_redis.add_message_to_history.assert_any_call(
+        12345, "user", "Hello Bot", project_name="default"
+    )
+    mock_redis.add_message_to_history.assert_any_call(
+        12345, "assistant", "Reply from AI", project_name="default"
+    )
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_no_history(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้าไม่มี history ต้องส่งแค่ message เดียว"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -611,15 +667,20 @@ async def test_handle_chat_message_no_history(mock_llm, mock_telegram, mock_redi
 
 # === Redis failure (Graceful Degradation) ===
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_redis_get_failure(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้า Redis ล่ม ตอนดึง history → ยังทำงานได้ (ส่งแค่ prompt เดียว)"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
-    mock_redis.get_chat_history = AsyncMock(side_effect=Exception("Redis connection failed"))
+    mock_redis.get_chat_history = AsyncMock(
+        side_effect=Exception("Redis connection failed")
+    )
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply without context")
     mock_telegram.send_message = AsyncMock()
@@ -637,12 +698,16 @@ async def test_handle_chat_message_redis_get_failure(mock_llm, mock_telegram, mo
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_redis_save_failure(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_redis_save_failure(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้า Redis ล่ม ตอนบันทึก history → ยังส่ง response ไป Telegram ได้ปกติ"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
-    mock_redis.add_message_to_history = AsyncMock(side_effect=Exception("Redis write failed"))
+    mock_redis.add_message_to_history = AsyncMock(
+        side_effect=Exception("Redis write failed")
+    )
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
     mock_telegram.send_message = AsyncMock()
 
@@ -654,11 +719,14 @@ async def test_handle_chat_message_redis_save_failure(mock_llm, mock_telegram, m
 
 # === Edge cases (keep existing behavior) ===
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, mock_update_no_text):
+async def test_handle_chat_message_no_text(
+    mock_llm, mock_telegram, mock_redis, mock_update_no_text
+):
     """Ignore updates ที่ไม่มี text"""
     await handle_chat_message(mock_update_no_text)
     mock_llm.get_llm_reply.assert_not_called()
@@ -669,18 +737,24 @@ async def test_handle_chat_message_no_text(mock_llm, mock_telegram, mock_redis, 
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_llm_error(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้า LLM error → จะส่งข้อความแจ้งเตือนกลับไปให้ user แทนการตอบปกติ"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
-    mock_llm.get_llm_reply = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None)
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
     # ควรส่งข้อความบอกว่าระบบขัดข้อง
-    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+    mock_telegram.send_message.assert_called_once_with(
+        12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️"
+    )
     # ไม่ควรบันทึก history ถ้า LLM fail (ยกเว้นเราจะเก็บ error log แต่ปัจจุบันคือไม่เก็บ)
     mock_redis.add_message_to_history.assert_not_called()
 
@@ -689,7 +763,9 @@ async def test_handle_chat_message_llm_error(mock_llm, mock_telegram, mock_redis
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_telegram_error(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้า Telegram error (non-400) → ไม่ crash, log error แทน"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -697,7 +773,9 @@ async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
     # Generic HTTP error with response=None (edge case from mock)
-    mock_telegram.send_message = AsyncMock(side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None))
+    mock_telegram.send_message = AsyncMock(
+        side_effect=httpx.HTTPStatusError("500 Error", request=None, response=None)
+    )
 
     await handle_chat_message(mock_update)
     mock_llm.get_llm_reply.assert_called_once()
@@ -707,46 +785,57 @@ async def test_handle_chat_message_telegram_error(mock_llm, mock_telegram, mock_
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_send_response_fallback_to_plain_text_on_400(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_send_response_fallback_to_plain_text_on_400(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """🟥 RED → 🟢 GREEN: เมื่อ MarkdownV2 ส่ง 400 → ต้อง fallback ส่ง plain text แทน"""
     from unittest.mock import MagicMock
-    
+
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
-    mock_llm.get_llm_reply = AsyncMock(return_value="Reply with special chars: (1+2) = 3.")
-    
+    mock_llm.get_llm_reply = AsyncMock(
+        return_value="Reply with special chars: (1+2) = 3."
+    )
+
     # สร้าง mock response ที่มี status_code = 400 จริงๆ
     mock_response = MagicMock()
     mock_response.status_code = 400
-    
+
     call_count = 0
+
     async def side_effect_fn(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
             # ครั้งแรก (MarkdownV2) → fail
-            raise httpx.HTTPStatusError("400 Bad Request", request=MagicMock(), response=mock_response)
+            raise httpx.HTTPStatusError(
+                "400 Bad Request", request=MagicMock(), response=mock_response
+            )
         # ครั้งที่สอง (plain text) → success
         return None
-    
+
     mock_telegram.send_message = AsyncMock(side_effect=side_effect_fn)
 
     await handle_chat_message(mock_update)
-    
+
     # send_message ต้องถูกเรียก 2 ครั้ง (MarkdownV2 fail → plain text success)
     assert mock_telegram.send_message.call_count == 2
     # ครั้งที่สอง ต้องส่งด้วย parse_mode=None (plain text)
     second_call = mock_telegram.send_message.call_args_list[1]
-    assert second_call.kwargs.get("parse_mode") is None or (len(second_call.args) >= 3 and second_call.args[2] is None)
+    assert second_call.kwargs.get("parse_mode") is None or (
+        len(second_call.args) >= 3 and second_call.args[2] is None
+    )
 
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_timeout(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้า LLM timeout → จะส่งข้อความ timeout-friendly กลับไป"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -767,7 +856,9 @@ async def test_handle_chat_message_timeout(mock_llm, mock_telegram, mock_redis, 
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_upstream_error(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_upstream_error(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
@@ -787,12 +878,16 @@ async def test_handle_chat_message_upstream_error(mock_llm, mock_telegram, mock_
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_malformed_response_error(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_malformed_response_error(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
-    mock_llm.get_llm_reply = AsyncMock(side_effect=LLMMalformedResponseError("Bad payload"))
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=LLMMalformedResponseError("Bad payload")
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
@@ -807,7 +902,9 @@ async def test_handle_chat_message_malformed_response_error(mock_llm, mock_teleg
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_rate_limited(mock_llm, mock_telegram, mock_redis, mock_update, allow_telegram_rate_limit):
+async def test_handle_chat_message_rate_limited(
+    mock_llm, mock_telegram, mock_redis, mock_update, allow_telegram_rate_limit
+):
     mock_redis.set_user_chat_id_mapping = AsyncMock()
     mock_telegram.send_message = AsyncMock()
     allow_telegram_rate_limit.return_value = (False, 42)
@@ -820,24 +917,27 @@ async def test_handle_chat_message_rate_limited(mock_llm, mock_telegram, mock_re
     assert "ถี่เกินไป" in sent_message
     assert "42" in sent_message
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_send_response_chunks_long_messages(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_send_response_chunks_long_messages(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """🟥 RED → 🟢 GREEN: ข้อความที่ยาวเกิน 4000 ตัวอักษร ต้องถูกแบ่งออกเป็นหลายๆ ข้อความ"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
-    
+
     # สร้างข้อความยาว 9000 ตัวอักษร
     long_reply = "A" * 9000
     mock_llm.get_llm_reply = AsyncMock(return_value=long_reply)
     mock_telegram.send_message = AsyncMock(return_value=None)
 
     await handle_chat_message(mock_update)
-    
+
     # ความยาว 9000 ตัวอักษร ถูกแบ่งเป็น 4000, 4000, 1000 -> ส่ง 3 ครั้ง (ไม่รวม Local Dev Info)
     # แต่เนื่องจากอาจมี Local Dev Info ต่อท้าย ทำให้ความยาวเพิ่มขึ้น เราจึง assert ว่าส่งมากกว่า 1 ครั้งก็พอ
     assert mock_telegram.send_message.call_count >= 3
@@ -850,8 +950,11 @@ async def test_send_response_chunks_long_messages(mock_llm, mock_telegram, mock_
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
-    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️")
+    mock_telegram.send_message.assert_called_once_with(
+        12345, "ขออภัย ระบบขัดข้องชั่วคราวในการตอบสนอง 🙇‍♂️"
+    )
     mock_redis.add_message_to_history.assert_not_called()
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
@@ -906,11 +1009,14 @@ async def test_testsource_command_usage_when_missing_arg(mock_telegram, mock_red
     sent = mock_telegram.send_message.call_args[0][1]
     assert "Usage" in sent or "usage" in sent
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_llm_malformed_data(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้า LLM ตอบกลับมาผิดฟอร์ม (ValueError/KeyError) → จะส่งข้อความแจ้งเตือน"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -920,7 +1026,9 @@ async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, m
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
-    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
+    mock_telegram.send_message.assert_called_once_with(
+        12345, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️"
+    )
     mock_redis.add_message_to_history.assert_not_called()
 
 
@@ -928,34 +1036,45 @@ async def test_handle_chat_message_llm_malformed_data(mock_llm, mock_telegram, m
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_handle_chat_message_llm_unexpected_error(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_handle_chat_message_llm_unexpected_error(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ถ้าเกิด Error ที่ไม่คาดคิดตอนเรียก LLM → จะส่งข้อความแจ้งเตือน generic กลับไป"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
-    mock_llm.get_llm_reply = AsyncMock(side_effect=RuntimeError("Some terrible weird error"))
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=RuntimeError("Some terrible weird error")
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
-    mock_telegram.send_message.assert_called_once_with(12345, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
+    mock_telegram.send_message.assert_called_once_with(
+        12345, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง"
+    )
     mock_redis.add_message_to_history.assert_not_called()
 
 
 # === System Prompt Tests (Issue #8) ===
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_system_prompt_prepended_with_history(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """System prompt ต้องถูกวางเป็นข้อความแรกใน messages ที่ส่งให้ LLM (มี history)"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
-    mock_redis.get_chat_history = AsyncMock(return_value=[
-        {"role": "user", "content": "What is Python?"},
-        {"role": "assistant", "content": "A programming language."},
-    ])
+    mock_redis.get_chat_history = AsyncMock(
+        return_value=[
+            {"role": "user", "content": "What is Python?"},
+            {"role": "assistant", "content": "A programming language."},
+        ]
+    )
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Reply from AI")
     mock_telegram.send_message = AsyncMock()
@@ -977,7 +1096,9 @@ async def test_system_prompt_prepended_with_history(mock_llm, mock_telegram, moc
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_system_prompt_prepended_no_history(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """System prompt ต้องถูกวางเป็นข้อความแรกแม้ไม่มี history"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -999,7 +1120,9 @@ async def test_system_prompt_prepended_no_history(mock_llm, mock_telegram, mock_
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_system_prompt_not_saved_to_redis(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """System prompt ต้องไม่ถูกบันทึกลง Redis"""
     mock_redis.get_current_project = AsyncMock(return_value="default")
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
@@ -1012,13 +1135,19 @@ async def test_system_prompt_not_saved_to_redis(mock_llm, mock_telegram, mock_re
 
     # ต้องบันทึกแค่ user + assistant (ไม่มี system)
     assert mock_redis.add_message_to_history.call_count == 2
-    mock_redis.add_message_to_history.assert_any_call(12345, "user", "Hello Bot", project_name="default")
-    mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply", project_name="default")
+    mock_redis.add_message_to_history.assert_any_call(
+        12345, "user", "Hello Bot", project_name="default"
+    )
+    mock_redis.add_message_to_history.assert_any_call(
+        12345, "assistant", "Reply", project_name="default"
+    )
     # ตรวจว่าไม่มี call ไหนที่ส่ง "system" เข้าไป
     for call in mock_redis.add_message_to_history.call_args_list:
         assert call[0][1] != "system", "System prompt must NOT be saved to Redis"
 
+
 # === Local Build Info Tests (Issue #25) ===
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.get_build_info")
@@ -1050,11 +1179,14 @@ async def test_build_info_appended_in_local_dev(
         assert "Local Dev Info" in sent_text
         assert "Version" in sent_text
         assert "Commit" in sent_text
-        
+
         # Redis should only save the original reply without the footer to avoid context pollution
-        mock_redis.add_message_to_history.assert_any_call(12345, "assistant", "Reply from AI", project_name="default")
+        mock_redis.add_message_to_history.assert_any_call(
+            12345, "assistant", "Reply from AI", project_name="default"
+        )
     finally:
         settings.ENVIRONMENT = original_env
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.get_build_info")
@@ -1086,26 +1218,29 @@ async def test_build_info_not_appended_in_prod(
 
 # === Model Selection (/model) Tests ===
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 async def test_handle_model_command_show_current(mock_telegram, mock_redis):
     """ส่ง /model (ไม่มี argument) เพื่อดูโมเดลปัจจุบัน"""
-    mock_redis.get_user_model_preference = AsyncMock(return_value="anthropic/claude-3.5-sonnet")
+    mock_redis.get_user_model_preference = AsyncMock(
+        return_value="anthropic/claude-3.5-sonnet"
+    )
     mock_telegram.send_message = AsyncMock()
-    
+
     update = Update(
         update_id=10,
         message=Message(
             message_id=10,
             date=1612345678,
             chat=Chat(id=123, type="private"),
-            text="/model"
-        )
+            text="/model",
+        ),
     )
-    
+
     await handle_chat_message(update)
-    
+
     # ควรบอกว่าใช้ Claude อยู่
     args = mock_telegram.send_message.call_args[0]
     assert "Claude 3.5 Sonnet" in args[1]
@@ -1116,27 +1251,29 @@ async def test_handle_model_command_show_current(mock_telegram, mock_redis):
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
-async def test_handle_model_command_show_default_from_settings(mock_telegram, mock_redis, monkeypatch):
+async def test_handle_model_command_show_default_from_settings(
+    mock_telegram, mock_redis, monkeypatch
+):
     """ส่ง /model (ไม่มี pref) เพื่อดูโมเดลปัจจุบัน โดยต้องดึงค่า default จาก settings จริงๆ"""
     # Setup: ไม่มีการตั้งค่าส่วนตัว
     mock_redis.get_user_model_preference = AsyncMock(return_value=None)
     mock_telegram.send_message = AsyncMock()
-    
+
     # เปลี่ยนค่า default ใน settings เป็น Llama3
     monkeypatch.setattr(settings, "LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
-    
+
     update = Update(
         update_id=100,
         message=Message(
             message_id=100,
             date=1612345678,
             chat=Chat(id=999, type="private"),
-            text="/model"
-        )
+            text="/model",
+        ),
     )
-    
+
     await handle_chat_message(update)
-    
+
     # ผลลัพธ์ต้องแสดงชื่อ Llama 3.3 70B ไม่ใช่ Gemini ในส่วนของ Current model
     args = mock_telegram.send_message.call_args[0]
     first_line = args[1].split("\n")[0]
@@ -1152,21 +1289,23 @@ async def test_handle_model_command_update_success(mock_telegram, mock_redis):
     """ส่ง /model <alias> เพื่อเปลี่ยนโมเดล"""
     mock_redis.set_user_model_preference = AsyncMock()
     mock_telegram.send_message = AsyncMock()
-    
+
     update = Update(
         update_id=11,
         message=Message(
             message_id=11,
             date=1612345678,
             chat=Chat(id=123, type="private"),
-            text="/model gemini"
-        )
+            text="/model gemini",
+        ),
     )
-    
+
     await handle_chat_message(update)
-    
+
     # ต้องบันทึกลง Redis
-    mock_redis.set_user_model_preference.assert_called_once_with(123, "google/gemini-2.5-flash")
+    mock_redis.set_user_model_preference.assert_called_once_with(
+        123, "google/gemini-2.5-flash"
+    )
     # ต้องแจ้งยืนยัน (ข้อความถูก escape_markdown_v2 แล้ว แต่ยังคงเช็คเนื้อหาได้)
     args = mock_telegram.send_message.call_args[0]
     assert "updated" in args[1].lower()
@@ -1182,19 +1321,19 @@ async def test_handle_model_command_invalid_alias(mock_telegram, mock_redis):
     """ส่ง /model <alias> ที่ไม่มีอยู่จริง"""
     mock_redis.set_user_model_preference = AsyncMock()
     mock_telegram.send_message = AsyncMock()
-    
+
     update = Update(
         update_id=12,
         message=Message(
             message_id=12,
             date=1612345678,
             chat=Chat(id=123, type="private"),
-            text="/model invalid_alias"
-        )
+            text="/model invalid_alias",
+        ),
     )
-    
+
     await handle_chat_message(update)
-    
+
     # ต้องไม่บันทึกลง Redis
     mock_redis.set_user_model_preference.assert_not_called()
     # ต้องแจ้ง Error และบอกรายการที่ถูกต้อง
@@ -1207,11 +1346,15 @@ async def test_handle_model_command_invalid_alias(mock_telegram, mock_redis):
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
-async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mock_redis, mock_update):
+async def test_standard_message_uses_preferred_model(
+    mock_llm, mock_telegram, mock_redis, mock_update
+):
     """ข้อความปกติควรใช้โมเดลที่ผู้ใช้เลือกไว้ใน Redis"""
     # Setup: ผู้ใช้เลือก Claude ไว้
     mock_redis.get_current_project = AsyncMock(return_value="default")
-    mock_redis.get_user_model_preference = AsyncMock(return_value="anthropic/claude-3.5-sonnet")
+    mock_redis.get_user_model_preference = AsyncMock(
+        return_value="anthropic/claude-3.5-sonnet"
+    )
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_llm.get_llm_reply = AsyncMock(return_value="Claude reply")
@@ -1221,15 +1364,21 @@ async def test_standard_message_uses_preferred_model(mock_llm, mock_telegram, mo
 
     # get_llm_reply ต้องถูกเรียกพร้อม model="anthropic/claude-3.5-sonnet"
     mock_llm.get_llm_reply.assert_called_once()
-    assert mock_llm.get_llm_reply.call_args.kwargs["model"] == "anthropic/claude-3.5-sonnet"
+    assert (
+        mock_llm.get_llm_reply.call_args.kwargs["model"]
+        == "anthropic/claude-3.5-sonnet"
+    )
 
 
 # === Project Context Restoration (/project) Tests - Issue #38 ===
 
+
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
-async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mock_redis):
+async def test_project_switch_with_saved_context_shows_summary(
+    mock_telegram, mock_redis
+):
     """ทดสอบ /project select <name> เมื่อมี AgentState บันทึกไว้ ต้องแสดง Welcome back summary"""
     from app.models.agent_state import AgentState
     import datetime
@@ -1237,19 +1386,19 @@ async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mo
     chat_id = 2000
     project_name = "akasa"
     now = datetime.datetime.now(datetime.timezone.utc)
-    
+
     # 1. Setup Mock: จำลองว่า Redis มี AgentState ของโปรเจ็กต์นี้อยู่
     saved_state = AgentState(
         current_task="Fixing the Redis migration bug.",
         focus_file="app/services/redis_service.py",
-        last_activity_timestamp=now
+        last_activity_timestamp=now,
     )
     # redis_service.get_agent_state ต้องคืนค่า state นี้เมื่อถูกเรียก
     mock_redis.get_agent_state = AsyncMock(return_value=saved_state)
     mock_redis.get_project_list = AsyncMock(return_value=["default", "akasa"])
     mock_redis.set_current_project = AsyncMock()
     mock_telegram.send_message = AsyncMock()
-    
+
     # 2. สร้าง Update object สำหรับคำสั่ง /project select
     update = Update(
         update_id=20,
@@ -1257,8 +1406,8 @@ async def test_project_switch_with_saved_context_shows_summary(mock_telegram, mo
             message_id=20,
             date=int(now.timestamp()),
             chat=Chat(id=chat_id, type="private"),
-            text=f"/project select {project_name}"
-        )
+            text=f"/project select {project_name}",
+        ),
     )
 
     # 3. รัน handle_chat_message
@@ -1395,14 +1544,14 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     chat_id = 2001
     project_name = "akasa"
     note_text = "Working on the new /note command feature."
-    
+
     # 1. Setup Mock
     mock_redis.get_current_project = AsyncMock(return_value=project_name)
     # get_agent_state คืนค่า None เพื่อจำลองว่ายังไม่มี state เดิม
-    mock_redis.get_agent_state = AsyncMock(return_value=None) 
+    mock_redis.get_agent_state = AsyncMock(return_value=None)
     mock_redis.set_agent_state = AsyncMock()
     mock_telegram.send_message = AsyncMock()
-    
+
     # 2. สร้าง Update สำหรับ /note command
     update = Update(
         update_id=21,
@@ -1410,8 +1559,8 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
             message_id=21,
             date=int(datetime.datetime.now().timestamp()),
             chat=Chat(id=chat_id, type="private"),
-            text=f"/note {note_text}"
-        )
+            text=f"/note {note_text}",
+        ),
     )
 
     # 3. รัน handle_chat_message
@@ -1427,7 +1576,7 @@ async def test_handle_note_command_saves_agent_state(mock_telegram, mock_redis):
     saved_state: AgentState = call_args[2]
     assert isinstance(saved_state, AgentState)
     assert saved_state.current_task == note_text
-    
+
     # - ต้องส่งข้อความยืนยันกลับมา
     mock_telegram.send_message.assert_called_once()
     sent_message = mock_telegram.send_message.call_args[0][1]
@@ -1559,6 +1708,7 @@ async def test_projects_overview_command_summarizes_multiple_projects(
 
     mock_redis.get_current_project = AsyncMock(return_value="akasa")
     mock_redis.get_project_list = AsyncMock(return_value=["akasa", "luma"])
+
     async def get_project_repo_side_effect(_chat_id, project_name):
         if project_name == "akasa":
             return "oatrice/Akasa"
@@ -1604,6 +1754,7 @@ async def test_projects_overview_command_summarizes_multiple_projects(
         return []
 
     mock_redis.get_agent_state = AsyncMock(side_effect=get_agent_state_side_effect)
+
     async def get_project_path_side_effect(_chat_id, project_name):
         if project_name == "akasa":
             return "/Users/oatrice/Software-projects/Akasa"
@@ -1695,7 +1846,10 @@ async def test_projects_overview_verbose_includes_history_snippet(
     mock_redis.get_recent_deployment_ids = AsyncMock(return_value=[])
     mock_redis.get_chat_history = AsyncMock(
         return_value=[
-            {"role": "user", "content": "Can you summarize the deploy status for staging?"}
+            {
+                "role": "user",
+                "content": "Can you summarize the deploy status for staging?",
+            }
         ]
     )
     mock_telegram.send_message = AsyncMock()
@@ -1784,12 +1938,27 @@ async def test_projects_overview_json_returns_machine_readable_payload(
 
 # === Proactive Messaging Support (Issue #30) ===
 
+
 @pytest.mark.asyncio
-@patch("app.services.chat_service.redis_service.set_user_chat_id_mapping", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.get_current_project", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.get_chat_history", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.get_user_model_preference", new_callable=AsyncMock)
-@patch("app.services.chat_service.redis_service.add_message_to_history", new_callable=AsyncMock)
+@patch(
+    "app.services.chat_service.redis_service.set_user_chat_id_mapping",
+    new_callable=AsyncMock,
+)
+@patch(
+    "app.services.chat_service.redis_service.get_current_project",
+    new_callable=AsyncMock,
+)
+@patch(
+    "app.services.chat_service.redis_service.get_chat_history", new_callable=AsyncMock
+)
+@patch(
+    "app.services.chat_service.redis_service.get_user_model_preference",
+    new_callable=AsyncMock,
+)
+@patch(
+    "app.services.chat_service.redis_service.add_message_to_history",
+    new_callable=AsyncMock,
+)
 @patch("app.services.chat_service.tg_service.send_message", new_callable=AsyncMock)
 @patch("app.services.chat_service.llm_service.get_llm_reply", new_callable=AsyncMock)
 async def test_handle_chat_message_saves_user_chat_id_mapping(
@@ -1823,8 +1992,8 @@ async def test_handle_chat_message_saves_user_chat_id_mapping(
             "date": 1612345678,
             "chat": {"id": chat_id, "type": "private"},
             "text": "Hello Bot",
-            "from": {"id": user_id, "is_bot": False, "first_name": "Test User"}
-        }
+            "from": {"id": user_id, "is_bot": False, "first_name": "Test User"},
+        },
     }
     update_with_user = Update.parse_obj(update_data)
 
@@ -1832,16 +2001,14 @@ async def test_handle_chat_message_saves_user_chat_id_mapping(
     await handle_chat_message(update_with_user)
 
     # 4. Assert that the target mock was called correctly
-    mock_set_mapping.assert_called_once_with(
-        user_id=user_id,
-        chat_id=chat_id
-    )
+    mock_set_mapping.assert_called_once_with(user_id=user_id, chat_id=chat_id)
     mock_send_message.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
 # 🟥 RED: /roadmap, /next-issue, /next-week, view_full callback (Issue #82)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.llm_service")
@@ -1857,14 +2024,21 @@ async def test_roadmap_command_sends_llm_summary_with_view_full_button(
     mock_redis.get_current_project = AsyncMock(return_value="mdw-metadata")
     mock_redis.get_project_path = AsyncMock(return_value="/Users/oatrice/Projects/MDW")
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    mock_llm.get_llm_reply = AsyncMock(return_value="Q1: Feature A done ✅, Feature B todo 🔲")
+    mock_llm.get_llm_reply = AsyncMock(
+        return_value="Q1: Feature A done ✅, Feature B todo 🔲"
+    )
     mock_telegram.send_message = AsyncMock()
 
-    with patch("builtins.open", MagicMock(return_value=MagicMock(
-        __enter__=lambda s, *a: s,
-        __exit__=lambda s, *a: None,
-        read=lambda: roadmap_content,
-    ))):
+    with patch(
+        "builtins.open",
+        MagicMock(
+            return_value=MagicMock(
+                __enter__=lambda s, *a: s,
+                __exit__=lambda s, *a: None,
+                read=lambda: roadmap_content,
+            )
+        ),
+    ):
         update = Update(
             update_id=500,
             message=Message(
@@ -1912,7 +2086,9 @@ async def test_roadmap_command_no_bound_path_sends_error(mock_telegram, mock_red
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
-async def test_next_issue_command_reads_correct_file(mock_telegram, mock_redis, mock_llm):
+async def test_next_issue_command_reads_correct_file(
+    mock_telegram, mock_redis, mock_llm
+):
     """🟥 /next-issue → อ่าน 7_ISSUE_NEXT_STEPS.md"""
     content = "# Next Issues\n- Fix bug #99\n- Implement feature X\n"
 
@@ -1952,7 +2128,9 @@ async def test_next_issue_command_reads_correct_file(mock_telegram, mock_redis, 
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
-async def test_next_week_command_reads_correct_file(mock_telegram, mock_redis, mock_llm):
+async def test_next_week_command_reads_correct_file(
+    mock_telegram, mock_redis, mock_llm
+):
     """🟥 /next-week → อ่าน 8_NEXT_WEEK_THEME.md"""
     content = "# Next Week\n- Theme: Performance\n"
 

@@ -28,7 +28,10 @@ async def verify_secret_token(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Secret token missing",
         )
-    if not settings.WEBHOOK_SECRET_TOKEN or x_telegram_bot_api_secret_token != settings.WEBHOOK_SECRET_TOKEN:
+    if (
+        not settings.WEBHOOK_SECRET_TOKEN
+        or x_telegram_bot_api_secret_token != settings.WEBHOOK_SECRET_TOKEN
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid secret token",
@@ -42,8 +45,10 @@ async def telegram_webhook(update: Update, background_tasks: BackgroundTasks):
     ส่งงานการประมวลผลข้อความและตอบกลับไปที่ BackgroundTasks
     เพื่อตอบ 200 OK ให้ Telegram ทันที
     """
-    print(f"--- [WEBHOOK RAW UPDATE] ---\n{update.model_dump_json(indent=2)}\n----------------------------")
+    print(
+        f"--- [WEBHOOK RAW UPDATE] ---\n{update.model_dump_json(indent=2)}\n----------------------------"
+    )
     # Schedule the chat processing in the background
     background_tasks.add_task(handle_chat_message, update)
-    
+
     return {"status": "ok"}

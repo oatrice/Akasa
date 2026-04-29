@@ -34,7 +34,9 @@ def mock_subprocess():
 
 @pytest.fixture
 def mock_redis():
-    with patch("scripts.local_tool_daemon.get_redis", new_callable=MagicMock) as mock_get:
+    with patch(
+        "scripts.local_tool_daemon.get_redis", new_callable=MagicMock
+    ) as mock_get:
         redis_client = AsyncMock()
         mock_get.return_value = redis_client
         yield redis_client
@@ -471,8 +473,12 @@ async def test_poll_queue_falls_back_to_redis_status_when_report_fails(
     mock_redis.brpop.side_effect = brpop_side_effect
     mock_redis.exists.return_value = 1
 
-    with patch("scripts.local_tool_daemon.execute_command", new_callable=AsyncMock) as mock_exec:
-        with patch("scripts.local_tool_daemon.report_result", new_callable=AsyncMock) as mock_report:
+    with patch(
+        "scripts.local_tool_daemon.execute_command", new_callable=AsyncMock
+    ) as mock_exec:
+        with patch(
+            "scripts.local_tool_daemon.report_result", new_callable=AsyncMock
+        ) as mock_report:
             mock_exec.return_value = (0, "ok")
             mock_report.return_value = False
 

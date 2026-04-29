@@ -1,6 +1,10 @@
 import pytest
 
-from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content, split_markdown_message
+from app.utils.markdown_utils import (
+    escape_markdown_v2,
+    escape_markdown_v2_content,
+    split_markdown_message,
+)
 
 
 def test_escape_markdown_v2_no_special_chars():
@@ -239,17 +243,17 @@ def test_split_markdown_message_code_block_preserve():
     """Should safely close and reopen unclosed code blocks across chunks."""
     text = "Here is some code:\n```python\n" + "A" * 60 + "\n```\nDone."
     chunks = split_markdown_message(text, max_length=50)
-    
+
     # Chunk 0 should have the opening ```python and forced close
     assert "```python" in chunks[0]
     assert chunks[0].endswith("```")
-    
+
     # Chunk 1 should have the reopened ``` and the rest of A's
     assert chunks[1].startswith("```\n")
-    
+
     # Because A*60 is longer than 50, it gets split again
     assert chunks[1].endswith("```")
     assert chunks[2].startswith("```\n")
-    
+
     # Total content should still be intact except for the injected blocks
     assert "Done." in chunks[-1]

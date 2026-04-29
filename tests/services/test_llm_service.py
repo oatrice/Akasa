@@ -4,6 +4,7 @@ from app.services.llm_service import get_llm_reply
 from app.config import settings
 from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
 
+
 @pytest.mark.asyncio
 async def test_get_llm_reply_success(respx_mock):
     # Mock settings
@@ -18,16 +19,7 @@ async def test_get_llm_reply_success(respx_mock):
     # Intercept OpenRouter API call
     route = respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
         return_value=httpx.Response(
-            200,
-            json={
-                "choices": [
-                    {
-                        "message": {
-                            "content": expected_reply
-                        }
-                    }
-                ]
-            }
+            200, json={"choices": [{"message": {"content": expected_reply}}]}
         )
     )
 
@@ -39,9 +31,11 @@ async def test_get_llm_reply_success(respx_mock):
     assert route.called
     assert route.calls[0].request.headers["Authorization"] == "Bearer test_api_key"
     import json
+
     sent_payload = json.loads(route.calls[0].request.content)
     # ต้องส่ง messages list ทั้งหมดไปให้ LLM (ไม่ใช่แค่ prompt เดียว)
     assert sent_payload["messages"] == messages
+
 
 @pytest.mark.asyncio
 async def test_get_llm_reply_api_error(respx_mock):
@@ -84,6 +78,7 @@ async def test_get_llm_reply_malformed_response(respx_mock):
     with pytest.raises(LLMMalformedResponseError):
         await get_llm_reply(messages)
 
+
 @pytest.mark.asyncio
 async def test_get_llm_reply_single_message(respx_mock):
     """ทดสอบกรณีส่ง message เดียว (ไม่มี history)"""
@@ -93,8 +88,7 @@ async def test_get_llm_reply_single_message(respx_mock):
 
     route = respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
         return_value=httpx.Response(
-            200,
-            json={"choices": [{"message": {"content": expected_reply}}]}
+            200, json={"choices": [{"message": {"content": expected_reply}}]}
         )
     )
 
@@ -102,6 +96,7 @@ async def test_get_llm_reply_single_message(respx_mock):
 
     assert reply == expected_reply
     import json
+
     sent_payload = json.loads(route.calls[0].request.content)
     assert len(sent_payload["messages"]) == 1
     assert sent_payload["messages"][0]["content"] == "Hello"
@@ -116,14 +111,14 @@ async def test_get_llm_reply_with_custom_model(respx_mock):
 
     route = respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
         return_value=httpx.Response(
-            200,
-            json={"choices": [{"message": {"content": "Claude reply"}}]}
+            200, json={"choices": [{"message": {"content": "Claude reply"}}]}
         )
     )
 
     await get_llm_reply(messages, model=custom_model)
 
     import json
+
     sent_payload = json.loads(route.calls[0].request.content)
     assert sent_payload["model"] == custom_model
 
@@ -136,17 +131,17 @@ async def test_get_llm_reply_uses_google_sdk_when_gemini_and_key_provided(monkey
 
     # Mock settings
     monkeypatch.setattr(settings, "GEMINI_API_KEY", "google_test_key")
-    
+
     # Mock genai
     mock_chat = MagicMock()
     mock_response = MagicMock()
     mock_response.text = "Google AI reply"
     # send_message_async เป็น coroutine
     mock_chat.send_message_async = AsyncMock(return_value=mock_response)
-    
+
     mock_model = MagicMock()
     mock_model.start_chat = MagicMock(return_value=mock_chat)
-    
+
     monkeypatch.setattr(genai, "GenerativeModel", MagicMock(return_value=mock_model))
     monkeypatch.setattr(genai, "configure", MagicMock())
 
@@ -168,15 +163,14 @@ async def test_get_llm_reply_uses_google_sdk_when_gemini_and_key_provided(monkey
 async def test_get_llm_reply_insufficient_credits(respx_mock):
     """ทดสอบกรณี OpenRouter แจ้งเตือนเงินไม่พอ (Insufficient credits)"""
     from app.services.llm_service import OpenRouterInsufficientCreditsError
-    
+
     settings.OPENROUTER_API_KEY = "test_api_key"
     messages = [{"role": "user", "content": "Hello"}]
 
     # 1. จำลองกรณี 402 Payment Required
     respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
         return_value=httpx.Response(
-            402, 
-            json={"error": {"message": "Insufficient credits", "code": 402}}
+            402, json={"error": {"message": "Insufficient credits", "code": 402}}
         )
     )
 
@@ -186,8 +180,7 @@ async def test_get_llm_reply_insufficient_credits(respx_mock):
     # 2. จำลองกรณี 400 Bad Request แต่ใน JSON บอกว่า Insufficient credits
     respx_mock.post("https://openrouter.ai/api/v1/chat/completions").mock(
         return_value=httpx.Response(
-            400, 
-            json={"error": {"message": "Credit balance too low", "code": 400}}
+            400, json={"error": {"message": "Credit balance too low", "code": 400}}
         )
     )
 

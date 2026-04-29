@@ -1,0 +1,15 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "akasa-remote-approval": {
+      "type": "local",
+      "command": ["python3", "/Users/oatrice/Software-projects/Akasa/scripts/akasa_mcp_server.py"],
+      "environment": {
+        "AKASA_API_URL": "http://localhost:8000",
+        "AKASA_API_KEY": "default-dev-key",
+        "AKASA_CHAT_ID": "6346467495"
+      },
+      "enabled": true
+    }
+  }
+}

@@ -14,7 +14,7 @@
 - 📱 **Remote Dev Workspace** (v0.7.0+) — จัดการ GitHub (สร้าง Issue, สร้าง PR, **สรุป Roadmap**), จัดการ **Planning Docs** (`spec`, `plan`, `sbe`, `analysis`), สั่ง Build/Deploy **แบบ Asynchronous**, และดู Screenshot จาก Emulator/Simulator ผ่านแชท
 - 🔄 **Bidirectional Control** — สั่งงาน Local Tools (Command Queue) ผ่าน Multi-Protocol Daemon และรับผลลัพธ์กลับในแชท
 - 🔒 **Secure Action Confirmation** — ยืนยันการทำงานที่สำคัญ (เช่น สร้าง GitHub PR หรือคำสั่งจาก IDE/MCP) ผ่านปุ่มใน Telegram ก่อนสั่งรันจริง
-- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running, AI Agent Timeout, Review Ready, หรือสถานะ Deploy แบบ Asynchronous พร้อมแสดงแหล่งที่มา (Source) ที่ชัดเจน
+- 🔔 **Proactive Notifications** — แจ้งเตือนงาน Long-running, AI Agent Timeout, Review Ready, หรือสถานะ Deploy แบบ Asynchronous พร้อมแสดงแหล่งที่มา (Source) และโมเดล AI ที่ใช้สำหรับเพิ่มความโปร่งใส
 - 🛡️ **Topic Restriction** — ระบบตรวจสอบและจำกัดหัวข้อการสนทนาให้เน้นเรื่องการเขียนโค้ดและเทคนิคเท่านั้น
 - 💬 **Multi-Platform** — รองรับ Telegram, LINE, WhatsApp
 - 📂 **Multi-Project Support** — จัดการและสลับ Context ระหว่างโปรเจ็กต์ด้วยคำสั่ง `/project`, `project overview` และ `project status` **พร้อมระบบสรุปงานปัจจุบันด้วย AI (Current Work Summary)** พร้อมประวัติแชทที่แยกจากกัน
@@ -56,7 +56,7 @@
 
 ---
 
-## � Local Development
+## 🚀 Local Development
 
 ### Running the Bot Locally
 
@@ -95,7 +95,7 @@ tail -f /tmp/uvicorn.log /tmp/tool_daemon.log
 
 ---
 
-## �📁 Project Structure
+## 📁 Project Structure
 
 ```
 akasa/

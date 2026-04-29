@@ -54,7 +54,9 @@ class TestTimeoutWatcher:
         """Test _check_timeouts when no tasks are timed out."""
         watcher = TimeoutWatcher()
 
-        with patch('app.services.timeout_watcher_service.find_timed_out_tasks') as mock_find:
+        with patch(
+            "app.services.timeout_watcher_service.find_timed_out_tasks"
+        ) as mock_find:
             mock_find.return_value = []
 
             await watcher._check_timeouts()
@@ -81,9 +83,13 @@ class TestTimeoutWatcher:
             chat_id="123456",
         )
 
-        with patch('app.services.timeout_watcher_service.find_timed_out_tasks') as mock_find:
-            with patch('app.services.timeout_watcher_service.mark_task_timed_out') as mock_mark:
-                with patch.object(watcher, '_send_timeout_alert') as mock_alert:
+        with patch(
+            "app.services.timeout_watcher_service.find_timed_out_tasks"
+        ) as mock_find:
+            with patch(
+                "app.services.timeout_watcher_service.mark_task_timed_out"
+            ) as mock_mark:
+                with patch.object(watcher, "_send_timeout_alert") as mock_alert:
                     mock_find.return_value = [timed_out_task]
                     mock_mark.return_value = timed_out_task
 
@@ -114,9 +120,9 @@ class TestTimeoutWatcher:
             chat_id="123456",
         )
 
-        with patch('app.services.timeout_watcher_service.tg_service') as mock_tg:
+        with patch("app.services.timeout_watcher_service.tg_service") as mock_tg:
             mock_tg.send_message = AsyncMock()
-            
+
             await watcher._send_timeout_alert(task_log)
 
             mock_tg.send_message.assert_called_once()
@@ -137,7 +143,7 @@ class TestTimeoutWatcher:
             chat_id=None,
         )
 
-        with patch('app.services.timeout_watcher_service.settings') as mock_settings:
+        with patch("app.services.timeout_watcher_service.settings") as mock_settings:
             mock_settings.AKASA_CHAT_ID = ""
 
             await watcher._send_timeout_alert(task_log)
@@ -164,7 +170,9 @@ class TestTimeoutWatcher:
         """Test _cleanup_indices calls the cleanup function."""
         watcher = TimeoutWatcher()
 
-        with patch('app.services.timeout_watcher_service.cleanup_expired_task_indices') as mock_cleanup:
+        with patch(
+            "app.services.timeout_watcher_service.cleanup_expired_task_indices"
+        ) as mock_cleanup:
             mock_cleanup.return_value = 5
 
             await watcher._cleanup_indices()
@@ -180,9 +188,11 @@ class TestTimeoutWatcher:
 
         # Run one iteration - the loop will run check/cleanup, then wait_for will
         # either timeout or be interrupted by stop_event
-        with patch.object(watcher, '_check_timeouts') as mock_check:
-            with patch.object(watcher, '_cleanup_indices') as mock_cleanup:
-                with patch('app.services.timeout_watcher_service.settings') as mock_settings:
+        with patch.object(watcher, "_check_timeouts") as mock_check:
+            with patch.object(watcher, "_cleanup_indices") as mock_cleanup:
+                with patch(
+                    "app.services.timeout_watcher_service.settings"
+                ) as mock_settings:
                     mock_settings.AGENT_TIMEOUT_CHECK_INTERVAL_MINUTES = 5
 
                     # Set stop_event after a short delay to simulate one iteration
@@ -207,7 +217,7 @@ class TestTimeoutWatcherIntegration:
         """Test that the watcher uses settings for check interval."""
         watcher = TimeoutWatcher()
 
-        with patch('app.services.timeout_watcher_service.settings') as mock_settings:
+        with patch("app.services.timeout_watcher_service.settings") as mock_settings:
             mock_settings.AGENT_TIMEOUT_CHECK_INTERVAL_MINUTES = 1
             mock_settings.AGENT_TIMEOUT_THRESHOLD_MINUTES = 5
 

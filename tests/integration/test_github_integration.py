@@ -1,12 +1,15 @@
 import pytest
 import os
-from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
+from app.services.github_service import (
+    GitHubService,
+    GitHubServiceError,
+    GitHubAuthError,
+)
 from app.config import settings
 
 # Skip tests if no GITHUB_TOKEN is present
 pytestmark = pytest.mark.skipif(
-    not settings.GITHUB_TOKEN,
-    reason="GITHUB_TOKEN not set in environment or .env"
+    not settings.GITHUB_TOKEN, reason="GITHUB_TOKEN not set in environment or .env"
 )
 
 

@@ -165,7 +165,7 @@ def _load_whitelist() -> Dict[str, List[str]]:
 
         _whitelist_cache = tools
         logger.info(
-            f"Loaded command whitelist: "
+            "Loaded command whitelist: "
             + ", ".join(f"{t}={v}" for t, v in tools.items())
         )
         return _whitelist_cache
@@ -225,7 +225,7 @@ def get_command_whitelist_entry(tool: str, command: str) -> Optional[dict]:
         if isinstance(execution_defaults, dict):
             defaults = copy.deepcopy(execution_defaults)
 
-    for entry in (tool_cfg.get("allowed_commands", []) or []):
+    for entry in tool_cfg.get("allowed_commands", []) or []:
         if not isinstance(entry, dict):
             continue
         if entry.get("name") != command:
@@ -360,7 +360,6 @@ async def enqueue_command(
     now = datetime.now(timezone.utc)
     command_id = f"cmd_{uuid.uuid4().hex[:12]}"
     ttl = request.ttl_seconds or settings.COMMAND_QUEUE_TTL_SECONDS
-    expires_at = now.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
     # Build the expiry timestamp as an ISO string for human-readable storage
     from datetime import timedelta
@@ -395,7 +394,7 @@ async def enqueue_command(
         logger.info(f"[ENQUEUE] Setting meta key: {meta_key}")
         await redis_pool.set(meta_key, "1", ex=ttl)
         logger.info(f"[ENQUEUE] Set TTL {ttl}s on meta key: {meta_key}")
-        
+
         # Debug: Verify TTL was set correctly
         actual_meta_ttl = await redis_pool.ttl(meta_key)
         logger.info(f"[ENQUEUE] Verified TTL - Meta: {actual_meta_ttl}s")

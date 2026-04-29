@@ -36,7 +36,11 @@ def normalize_source_display(source: Optional[str]) -> Optional[str]:
     if s in {"cursor", "cursor ide"} or "cursor" in s:
         label = "Cursor"
 
-    elif s in {"windsurf", "winsurf", "windsurf ide", "winsurf ide"} or "windsurf" in s or "winsurf" in s:
+    elif (
+        s in {"windsurf", "winsurf", "windsurf ide", "winsurf ide"}
+        or "windsurf" in s
+        or "winsurf" in s
+    ):
         label = "Windsurf"
 
     elif s in {"codex", "openai codex"} or "codex" in s:
@@ -65,4 +69,3 @@ def normalize_source_display(source: Optional[str]) -> Optional[str]:
 
     # Fallback: preserve the original value
     return raw
-

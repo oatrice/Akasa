@@ -1,4 +1,3 @@
-
 import asyncio
 import sys
 import os
@@ -9,12 +8,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.config import settings
 from app.services import llm_service
 
+
 # Note: Renamed to _test_model to prevent pytest from discovering it as a test
 async def _test_model(alias, identifier):
     print(f"Testing model: {alias} ({identifier})...", end=" ", flush=True)
     messages = [
-        {"role": "system", "content": "You are a helpful assistant. Reply with only one word: 'Success'."},
-        {"role": "user", "content": "Hello"}
+        {
+            "role": "system",
+            "content": "You are a helpful assistant. Reply with only one word: 'Success'.",
+        },
+        {"role": "user", "content": "Hello"},
     ]
     try:
         reply = await llm_service.get_llm_reply(messages, model=identifier)
@@ -28,10 +31,11 @@ async def _test_model(alias, identifier):
         print(f"❌ FAIL: {str(e)}")
         return False
 
+
 async def main():
     print("=== Akasa Multi-Model Connectivity Test ===")
     print(f"Environment: {settings.ENVIRONMENT}")
-    
+
     results = []
     for alias, info in settings.AVAILABLE_MODELS.items():
         success = await _test_model(alias, info["identifier"])
@@ -43,12 +47,13 @@ async def main():
     passed = sum(1 for _, s in results if s)
     total = len(results)
     print(f"Passed: {passed}/{total}")
-    
+
     if passed < total:
         print("Failed models:")
         for alias, success in results:
             if not success:
                 print(f"- {alias}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

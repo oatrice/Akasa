@@ -9,7 +9,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.routers import actions, commands, context, deployments, health, notifications, telegram
+from app.routers import (
+    actions,
+    commands,
+    context,
+    deployments,
+    health,
+    notifications,
+    telegram,
+)
 
 # ตั้งค่า Logging เบื้องต้น
 logging.basicConfig(

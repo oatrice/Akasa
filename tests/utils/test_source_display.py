@@ -36,4 +36,3 @@ def test_normalize_source_display_none_or_empty():
     assert normalize_source_display(None) is None
     assert normalize_source_display("") is None
     assert normalize_source_display("   ") is None
-

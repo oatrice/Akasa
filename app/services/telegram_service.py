@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import TYPE_CHECKING, Optional
 
 import httpx
@@ -25,7 +26,11 @@ class TelegramService:
         self.client = httpx.AsyncClient()
 
     async def send_message(
-        self, chat_id: int, text: str, reply_markup: Optional[dict] = None, parse_mode: Optional[str] = "MarkdownV2"
+        self,
+        chat_id: int,
+        text: str,
+        reply_markup: Optional[dict] = None,
+        parse_mode: Optional[str] = "MarkdownV2",
     ) -> None:
         """
         Sends a text message to a specific chat using the Telegram Bot API.
@@ -36,7 +41,7 @@ class TelegramService:
         }
         if parse_mode:
             payload["parse_mode"] = parse_mode
-            
+
         if reply_markup:
             payload["reply_markup"] = reply_markup
 
@@ -82,7 +87,7 @@ class TelegramService:
         message_id: int,
         text: str,
         reply_markup: Optional[dict] = None,
-        parse_mode: str = "MarkdownV2"
+        parse_mode: str = "MarkdownV2",
     ):
         """
         แก้ไขข้อความเดิม (ใช้สำหรับอัปเดตสถานะหลังจากกดปุ่ม)
@@ -190,25 +195,31 @@ class TelegramService:
             lines.append(f"*Duration:* {safe_duration}")
 
         if request.source:
-            logger.info(
-                f"[SOURCE DEBUG] raw source from payload: {request.source!r}"
-            )
+            logger.info(f"[SOURCE DEBUG] raw source from payload: {request.source!r}")
             normalized_source = normalize_source_display(request.source)
             logger.info(
                 f"[SOURCE DEBUG] after normalize_source_display: {normalized_source!r}"
             )
-            
+
             # Remove redundant project name from source. E.g., Project: "Akasa", Source: "Luma (Akasa)" -> "Luma"
             if request.project and normalized_source:
                 suffix = f"({request.project})"
-                if normalized_source.endswith(suffix) or normalized_source.endswith(suffix + " "):
+                if normalized_source.endswith(suffix) or normalized_source.endswith(
+                    suffix + " "
+                ):
                     # Might have a space before parentheses
                     prefix_end = normalized_source.rfind("(")
                     if prefix_end > 0:
                         normalized_source = normalized_source[:prefix_end].strip()
 
-            safe_source = escape_markdown_v2_content(normalized_source or request.source)
+            safe_source = escape_markdown_v2_content(
+                normalized_source or request.source
+            )
             lines.append(f"*Source:* {safe_source}")
+
+        if request.model:
+            safe_model = escape_markdown_v2_content(request.model)
+            lines.append(f"*Model:* {safe_model}")
 
         if request.message:
             msg = request.message
@@ -228,6 +239,13 @@ class TelegramService:
 
         text = "\n".join(lines)
 
+        # For testing: skip actual Telegram send if DISABLE_TELEGRAM is set
+        if os.getenv("DISABLE_TELEGRAM") == "1":
+            logger.info(
+                f"TELEGRAM DISABLED: Would send task notification to chat_id: {chat_id}, status: {request.status}, text: {text!r}"
+            )
+            return
+
         # Send pre-formatted MarkdownV2 directly — do NOT route through
         # send_message() as that would call escape_markdown_v2() again
         # and double-escape the already-escaped content.
@@ -236,15 +254,19 @@ class TelegramService:
             "text": text,
             "parse_mode": "MarkdownV2",
         }
-        response = await self.client.post(
-            f"{self.api_url}/sendMessage",
-            json=payload,
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        logger.info(
-            f"Task notification sent to chat_id: {chat_id}, status: {request.status}"
-        )
+        try:
+            response = await self.client.post(
+                f"{self.api_url}/sendMessage",
+                json=payload,
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            logger.info(
+                f"Task notification sent to chat_id: {chat_id}, status: {request.status}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send task notification: {e}")
+            raise
 
     async def send_deployment_notification(
         self, chat_id: int, record: "DeploymentRecord"

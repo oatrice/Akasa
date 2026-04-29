@@ -1,0 +1,290 @@
+# GitLab CI/CD Pipeline for Akasa
+# AI Coding Assistant Chatbot Backend
+#
+# Based on reference configurations from Luma, Zenith, and Cerebro projects
+# Adapted for FastAPI backend with MCP server and Telegram integrations
+#
+# Key features:
+# - Python FastAPI backend testing and linting
+# - MCP server integration testing
+# - Telegram notifications for CI status
+# - Redis-dependent notification features
+#
+# Required GitLab CI/CD Variables:
+# - TELEGRAM_BOT_TOKEN: Telegram bot token for notifications
+# - TELEGRAM_CHAT_ID: Telegram chat ID for notifications
+# - AKASA_API_KEY: API key for backend authentication (for tests)
+# - OPENROUTER_API_KEY: For LLM integration tests (optional)
+# - REDIS_URL: Redis connection URL (optional, defaults to localhost)
+#
+# Setup Instructions:
+# 1. Copy this file to your GitLab repository root as .gitlab-ci.yml
+# 2. Configure CI/CD variables in GitLab project settings (Settings → CI/CD → Variables)
+# 3. Ensure runners have Python 3.9+ and Redis available
+# 4. Adjust commands and dependencies based on your environment
+
+# Define stages
+stages:
+  - test
+  - lint
+  - notify
+
+# Global variables
+variables:
+  PYTHON_VERSION: "3.9"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Cache for Python dependencies
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+  key: ${CI_COMMIT_REF_SLUG}
+
+# ============================================================================
+# TEST JOB (Python FastAPI + MCP Server Testing)
+# ============================================================================
+
+test:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  services:
+    - redis:latest
+  variables:
+    REDIS_URL: "redis://redis:6379"
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest pytest-cov
+    - export PYTHONPATH=$PWD
+    # Set test environment variables
+    - export AKASA_API_KEY=${AKASA_API_KEY:-"test-api-key"}
+    - export TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-"test-bot-token"}
+    - export AKASA_CHAT_ID=${AKASA_CHAT_ID:-"123456789"}
+  script:
+    - echo "Running Python tests..."
+    - python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term
+    - echo "Running MCP server tests..."
+    - python -m pytest tests/scripts/ -v --tb=short
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    expire_in: 1 week
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: pytest-report.xml
+  allow_failure: false
+
+# ============================================================================
+# LINT JOB (Code Quality with Ruff)
+# ============================================================================
+
+lint:
+  stage: lint
+  image: python:${PYTHON_VERSION}
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install ruff
+  script:
+    - echo "Running Ruff linter..."
+    - ruff check app/ scripts/ tests/ --ignore E501,F401 --output-format=github
+    - echo "Running Ruff formatter check..."
+    - ruff format --check app/ scripts/ tests/
+  allow_failure: false
+
+# ============================================================================
+# INTEGRATION TEST JOB (Optional - API Health Check)
+# ============================================================================
+
+integration_test:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  services:
+    - redis:latest
+  variables:
+    REDIS_URL: "redis://redis:6379"
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+    - when: manual
+      allow_failure: true
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - export PYTHONPATH=$PWD
+    - export AKASA_API_KEY=${AKASA_API_KEY:-"test-api-key"}
+    - export TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-"test-bot-token"}
+    - export AKASA_CHAT_ID=${AKASA_CHAT_ID:-"123456789"}
+  script:
+    - echo "Starting FastAPI server for integration tests..."
+    - uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+    - sleep 10
+    - echo "Testing health endpoint..."
+    - curl -f http://localhost:8000/health || (echo "Health check failed" && exit 1)
+    - echo "Testing API endpoints..."
+    - |
+      curl -f -H "X-Akasa-API-Key: test-api-key" http://localhost:8000/api/v1/notifications/task-complete -X POST -H "Content-Type: application/json" -d '{"project":"test","task":"integration","status":"success","chat_id":"123456789"}' || (echo "API test failed" && exit 1)
+    - echo "Integration tests passed!"
+  allow_failure: true
+
+# ============================================================================
+# NOTIFICATION JOBS (Success/Failure via Telegram)
+# ============================================================================
+
+notify_test_success:
+  stage: notify
+  image: curlimages/curl:latest
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+  when: on_success
+  allow_failure: true
+  script:
+    - |
+      if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+        MESSAGE="✅ *Akasa CI Succeeded (Test)*%0A📦 Repo: \`$CI_PROJECT_NAME\`%0A🌿 Branch: \`$CI_COMMIT_REF_NAME\`%0A👤 Author: $CI_COMMIT_AUTHOR%0A📝 Commit: \`$CI_COMMIT_MESSAGE\`%0A🔗 [View Run]($CI_PIPELINE_URL)"
+        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          -d chat_id="$TELEGRAM_CHAT_ID" \
+          -d parse_mode="Markdown" \
+          -d text="$MESSAGE"
+        echo "Success notification sent to Telegram"
+      else
+        echo "Telegram credentials not configured, skipping notification"
+      fi
+
+notify_test_failure:
+  stage: notify
+  image: curlimages/curl:latest
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+  when: on_failure
+  allow_failure: true
+  script:
+    - |
+      if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+        MESSAGE="❌ *Akasa CI Failed (Test)*%0A📦 Repo: \`$CI_PROJECT_NAME\`%0A🌿 Branch: \`$CI_COMMIT_REF_NAME\`%0A👤 Author: $CI_COMMIT_AUTHOR%0A📝 Commit: \`$CI_COMMIT_MESSAGE\`%0A🔗 [View Run]($CI_PIPELINE_URL)"
+        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          -d chat_id="$TELEGRAM_CHAT_ID" \
+          -d parse_mode="Markdown" \
+          -d text="$MESSAGE"
+        echo "Failure notification sent to Telegram"
+      else
+        echo "Telegram credentials not configured, skipping notification"
+      fi
+
+notify_lint_failure:
+  stage: notify
+  image: curlimages/curl:latest
+  rules:
+    - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+  when: on_failure
+  allow_failure: true
+  script:
+    - |
+      if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+        MESSAGE="❌ *Akasa CI Failed (Lint)*%0A📦 Repo: \`$CI_PROJECT_NAME\`%0A🌿 Branch: \`$CI_COMMIT_REF_NAME\`%0A👤 Author: $CI_COMMIT_AUTHOR%0A📝 Commit: \`$CI_COMMIT_MESSAGE\`%0A🔗 [View Run]($CI_PIPELINE_URL)"
+        curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          -d chat_id="$TELEGRAM_CHAT_ID" \
+          -d parse_mode="Markdown" \
+          -d text="$MESSAGE"
+        echo "Lint failure notification sent to Telegram"
+      else
+        echo "Telegram credentials not configured, skipping notification"
+      fi
+
+# ============================================================================
+# DEPLOYMENT JOBS (Manual - Optional)
+# ============================================================================
+
+deploy_staging:
+  stage: notify
+  image: python:${PYTHON_VERSION}
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+  when: manual
+  allow_failure: true
+  script:
+    - |
+      echo "Deploying Akasa to staging environment"
+      echo "Add your staging deployment commands here"
+      echo "Example: deploy to Railway, Vercel, or VPS"
+
+deploy_production:
+  stage: notify
+  image: python:${PYTHON_VERSION}
+  rules:
+    - if: $CI_COMMIT_TAG  # Only deploy on tagged releases
+  when: manual
+  allow_failure: false
+  script:
+    - |
+      echo "Deploying Akasa to production environment"
+      echo "Add your production deployment commands here"
+      echo "Example: deploy to production Railway or VPS"
+
+# ============================================================================
+# CLEANUP JOB (Scheduled)
+# ============================================================================
+
+cleanup:
+  stage: notify
+  image: alpine:latest
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running cleanup tasks"
+    - echo "Cleaning up old cache and artifacts"
+
+# ============================================================================
+# GitLab CI/CD Setup Instructions for Akasa
+# ============================================================================
+#
+# 1. Pipeline Triggers:
+#    - Push to main/master: Automatic testing, linting, and notifications
+#    - Merge Requests: Automatic testing and linting
+#    - Manual jobs: Use GitLab UI for deployments and cleanup
+#    - Scheduled: Set up cleanup job in GitLab CI/CD → Schedules
+#
+# 2. Required CI/CD Variables (GitLab project settings → CI/CD → Variables):
+#    - TELEGRAM_BOT_TOKEN: For Telegram notifications (required)
+#    - TELEGRAM_CHAT_ID: For Telegram notifications (required)
+#    - AKASA_API_KEY: For API authentication in tests (required)
+#    - OPENROUTER_API_KEY: For LLM integration tests (optional)
+#    - REDIS_URL: Redis connection URL (optional, defaults to redis://redis:6379 in CI)
+#
+# 3. Runner Requirements:
+#    - Docker executor for containerized jobs
+#    - Python 3.9+ available in containers
+#    - Redis service available for tests
+#    - Network access for external API calls (Telegram, OpenRouter)
+#
+# 4. Environment-specific Configurations:
+#    - For local development: Use .env file with same variable names
+#    - For production deployment: Configure environment-specific variables
+#    - For MCP server: Ensure AKASA_API_URL and AKASA_CHAT_ID are set
+#
+# 5. Security Considerations:
+#    - Store all secrets in GitLab CI/CD variables (never in code)
+#    - Use protected variables for production secrets
+#    - Implement proper access controls for manual deployment jobs
+#    - Regularly rotate API keys and tokens
+#
+# 6. Monitoring and Troubleshooting:
+#    - Check pipeline logs for detailed error information
+#    - Use artifacts to review test reports and coverage
+#    - Monitor Telegram notifications for pipeline status
+#    - Use GitLab's pipeline retry functionality for transient failures
+#
+# ============================================================================

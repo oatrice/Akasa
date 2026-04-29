@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.23.0] - 2026-04-29
+
+### Added
+- **AI Model Transparency**: เพิ่มฟิลด์ model ใน TaskNotificationRequest และแสดงข้อมูลโมเดล AI ใน Telegram notifications เพื่อเพิ่มความโปร่งใสในการติดตามโมเดลที่ใช้สร้างผลลัพธ์ ([#90](https://github.com/oatrice/Akasa/issues/90))
+- **External AI Support**: รองรับการแสดงโมเดลจาก External AI editors (เช่น Windsurf, Kilo) โดยตรงใน notifications
+- **Local AI Preference**: รองรับการแสดงโมเดล preference จาก Redis เมื่อทำงานกับ Local AI
+- **MCP Server Enhancement**: อัปเดต MCP server เพื่อรองรับ model parameter ใน notify_task_complete tool
+- **Documentation**: เพิ่มเอกสาร feature ครบถ้วน รวมถึง spec, plan, analysis, และ manual verification guide
+
 ## [0.22.0](https://github.com/oatrice/Akasa/compare/v0.21.0...v0.22.0) (2026-03-27)
 
 

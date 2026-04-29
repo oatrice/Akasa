@@ -227,22 +227,19 @@ class TestHandleRpc:
         result = await handle_rpc({"method": "notifications/initialized", "params": {}})
         assert result is None
 
-
     @pytest.mark.asyncio
     async def test_handle_rpc_initialize_extracts_client_info_name(self):
         """ทดสอบว่า initialize เก็บชื่อ client ไว้ในตัวแปร global MCP_CLIENT_NAME (เพื่อส่งเป็น source)"""
         import scripts.akasa_mcp_server as server
 
         # จำลอง request จาก client ที่ส่ง clientInfo.name
-        await server.handle_rpc({
-            "id": 100,
-            "method": "initialize",
-            "params": {
-                "clientInfo": {
-                    "name": "TestIDE"
-                }
+        await server.handle_rpc(
+            {
+                "id": 100,
+                "method": "initialize",
+                "params": {"clientInfo": {"name": "TestIDE"}},
             }
-        })
+        )
 
         assert getattr(server, "MCP_CLIENT_NAME", None) == "TestIDE"
 
@@ -280,14 +277,17 @@ class TestNotifyTaskComplete:
     async def test_notify_task_complete_uses_mcp_client_name_as_source(self):
         """notify_task_complete ต้องส่ง source ตามชื่อ client (ถ้ามี)"""
         import scripts.akasa_mcp_server as server
-        
+
         # Mock global variable
         original_name = getattr(server, "MCP_CLIENT_NAME", None)
         server.MCP_CLIENT_NAME = "MyCustomIDE"
 
         try:
             mock_response = MagicMock()
-            mock_response.json.return_value = {"delivered": True, "timestamp": "2026-03-13T10:00:00+00:00"}
+            mock_response.json.return_value = {
+                "delivered": True,
+                "timestamp": "2026-03-13T10:00:00+00:00",
+            }
             mock_response.raise_for_status = MagicMock()
 
             mock_client = AsyncMock()
@@ -296,7 +296,10 @@ class TestNotifyTaskComplete:
             mock_client.__aexit__ = AsyncMock(return_value=False)
 
             with (
-                patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client),
+                patch(
+                    "scripts.akasa_mcp_server.httpx.AsyncClient",
+                    return_value=mock_client,
+                ),
                 patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "12345"),
             ):
                 await server.notify_task_complete(
@@ -304,14 +307,12 @@ class TestNotifyTaskComplete:
                     task="Test source",
                     status="success",
                 )
-                
+
             payload = mock_client.post.call_args.kwargs["json"]
             assert payload["source"] == "MyCustomIDE"
         finally:
             if original_name is not None:
                 server.MCP_CLIENT_NAME = original_name
-
-
 
     @pytest.mark.asyncio
     async def test_notify_task_complete_success(self):
@@ -429,6 +430,71 @@ class TestNotifyTaskComplete:
         payload = mock_client.post.call_args.kwargs["json"]
         assert payload["message"] == "PR #42 created with 3 commits"
         assert payload["link"] == "https://github.com/oatrice/Akasa/pull/42"
+
+    @pytest.mark.asyncio
+    async def test_notify_task_complete_includes_model_when_provided(self):
+        """Model field ต้องถูกรวมใน payload เมื่อระบุ"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            await notify_task_complete(
+                project="Akasa",
+                task="Implement feature",
+                status="success",
+                model="SWE-1.6",
+            )
+
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert payload["model"] == "SWE-1.6"
+
+    @pytest.mark.asyncio
+    async def test_notify_task_complete_excludes_model_when_not_provided(self):
+        """Model field ต้องไม่ปรากฏใน payload เมื่อไม่ระบุ"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            await notify_task_complete(
+                project="Akasa",
+                task="Implement feature",
+                status="success",
+            )
+
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert "model" not in payload
 
     @pytest.mark.asyncio
     async def test_handle_rpc_notify_task_complete_delivered(self):
@@ -550,6 +616,7 @@ class TestNotifyTaskComplete:
         assert "link" in properties
         assert "retry_count" in properties
         assert "max_retries" in properties
+        assert "model" in properties
 
         # status field ต้องมี enum ครบ 5 ค่า
         status_enum = properties["status"].get("enum", [])
@@ -818,7 +885,7 @@ class TestNotifyPendingReview:
                 mock_client.post = AsyncMock(return_value=mock_response)
                 mock_client_cls.return_value = mock_client
 
-                result = await notify_pending_review(
+                await notify_pending_review(
                     project="Akasa",
                     task="Quick fix",
                 )
