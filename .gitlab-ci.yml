@@ -214,9 +214,10 @@ deploy_staging:
   when: manual
   allow_failure: true
   script:
-    - echo "Deploying Akasa to staging environment"
-    - echo "Add your staging deployment commands here"
-    - echo "Example: deploy to Railway, Vercel, or VPS"
+    - |
+      echo "Deploying Akasa to staging environment"
+      echo "Add your staging deployment commands here"
+      echo "Example: deploy to Railway, Vercel, or VPS"
 
 deploy_production:
   stage: notify
@@ -226,9 +227,10 @@ deploy_production:
   when: manual
   allow_failure: false
   script:
-    - echo "Deploying Akasa to production environment"
-    - echo "Add your production deployment commands here"
-    - echo "Example: deploy to production Railway or VPS"
+    - |
+      echo "Deploying Akasa to production environment"
+      echo "Add your production deployment commands here"
+      echo "Example: deploy to production Railway or VPS"
 
 # ============================================================================
 # CLEANUP JOB (Scheduled)
