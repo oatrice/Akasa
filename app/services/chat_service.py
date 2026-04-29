@@ -860,13 +860,13 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                     doc_filename="docs/8_NEXT_WEEK_THEME.md",
                 )
             except GitHubServiceError as e:
-                await _send_response(chat_id, f"⚠️ {str(e)}")
+                await _send_response(chat_id, f"GitHub Error: {str(e)}")
                 return
             await _send_response(chat_id, _render_single_doc(doc))
         else:
-            await _send_response(chat_id, f"❌ Invalid GitHub command or missing arguments.")
+            await _send_response(chat_id, "Invalid GitHub command or missing arguments.")
     except Exception as e:
-        await _send_response(chat_id, f"❌ GitHub Error: {str(e)}")
+        await _send_response(chat_id, f"GitHub Error: {str(e)}")
 
 
 async def _handle_note_command(chat_id: int, args: list[str]) -> None:

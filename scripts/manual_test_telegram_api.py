@@ -1,15 +1,14 @@
-import asyncio
-import os
 import sys
 from pathlib import Path
-
-import httpx
 
 # Allow running from repo root: `python3 scripts/...py`
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+import asyncio
+import os
+import httpx
 from app.config import settings
 from app.services.telegram_service import TelegramService
 

@@ -765,14 +765,14 @@ class GitHubService:
     def close_issue(self, repo: str, issue_number: int) -> str:
         """Close an existing issue."""
         args = ["issue", "close", str(issue_number), "--repo", repo]
-        result = self._run_gh_command(args)
+        self._run_gh_command(args)
         return f"Successfully closed issue #{issue_number} in {repo}"
 
     def delete_issue(self, repo: str, issue_number: int) -> str:
         """Delete an existing issue (Permanent)."""
         # gh issue delete <number> --repo <repo> --yes (to skip confirmation)
         args = ["issue", "delete", str(issue_number), "--repo", repo, "--yes"]
-        result = self._run_gh_command(args)
+        self._run_gh_command(args)
         return f"Successfully deleted issue #{issue_number} from {repo}"
 
     def get_pr_status(self, repo: str) -> List[GitHubPR]:

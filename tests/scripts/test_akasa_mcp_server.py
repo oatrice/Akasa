@@ -884,7 +884,7 @@ class TestNotifyPendingReview:
                 mock_client.post = AsyncMock(return_value=mock_response)
                 mock_client_cls.return_value = mock_client
 
-                result = await notify_pending_review(
+                await notify_pending_review(
                     project="Akasa",
                     task="Quick fix",
                 )

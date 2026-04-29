@@ -1,11 +1,15 @@
 import asyncio
+import logging
 import sys
 import os
+from datetime import datetime, timezone, timedelta
+
+import httpx
+from httpx import HTTPStatusError
 
 # Ensure the root of the project is in the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from datetime import datetime, timezone, timedelta
 from app.config import settings
 from app.models.agent_task import AgentTaskLog
 from app.services.redis_service import redis_pool
@@ -40,14 +44,10 @@ async def run_timeout_test():
     print("Triggering check_timeouts()...")
     watcher = TimeoutWatcher()
     try:
-        import httpx
-        from httpx import HTTPStatusError
         # Actually it's hidden inside _check_timeouts which catches and logs exception. Let's patch logger
         pass
-    except Exception as e:
+    except Exception:
         pass
-    
-    import logging
     logging.getLogger().setLevel(logging.DEBUG)
     console_handler = logging.StreamHandler(sys.stdout)
     logging.getLogger().addHandler(console_handler)

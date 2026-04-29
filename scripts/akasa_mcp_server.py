@@ -62,7 +62,7 @@ async def request_remote_approval(
     request_id = str(uuid.uuid4())
 
     # 1. Format message สำหรับ Telegram
-    message = f"🤖 *Antigravity IDE — Action Confirmation*\n\n"
+    message = "Antigravity IDE - Action Confirmation\n\n"
     message += f"📂 `{cwd}`\n"
     message += f"💻 `{command}`"
     if description:

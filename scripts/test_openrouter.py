@@ -56,7 +56,7 @@ def main():
         print("\n--------------------------\n")
         
     except requests.exceptions.HTTPError as http_err:
-        print(f"\n--- API Call Failed ---")
+        print("\n--- API Call Failed ---")
         print(f"HTTP Error: {http_err}")
         try:
             # Try to print the detailed JSON error response

@@ -108,7 +108,7 @@ async def test_create_action_request_with_source_antigravity(valid_headers):
     """ทดสอบสร้าง Action Request พร้อม source=antigravity และ description"""
     payload = {
         "chat_id": "12345",
-        "message": "🤖 Antigravity: npm install",
+        "message": "Antigravity: npm install",
         "metadata": {
             "request_id": "req-ag-1",
             "command": "npm install",
@@ -122,7 +122,7 @@ async def test_create_action_request_with_source_antigravity(valid_headers):
     with patch("app.routers.actions.settings.ALLOWED_TELEGRAM_CHAT_IDS", "12345"), \
          patch("app.routers.actions.has_session_permission", new_callable=AsyncMock) as mock_session, \
          patch("app.routers.actions.set_action_request", new_callable=AsyncMock) as mock_set, \
-         patch("app.routers.actions.tg_service.send_confirmation_message", new_callable=AsyncMock) as mock_tg:
+         patch("app.routers.actions.tg_service.send_confirmation_message", new_callable=AsyncMock):
         
         mock_session.return_value = False
         
@@ -155,7 +155,7 @@ async def test_create_action_request_without_source_backward_compatible(valid_he
     with patch("app.routers.actions.settings.ALLOWED_TELEGRAM_CHAT_IDS", "12345"), \
          patch("app.routers.actions.has_session_permission", new_callable=AsyncMock) as mock_session, \
          patch("app.routers.actions.set_action_request", new_callable=AsyncMock) as mock_set, \
-         patch("app.routers.actions.tg_service.send_confirmation_message", new_callable=AsyncMock) as mock_tg:
+         patch("app.routers.actions.tg_service.send_confirmation_message", new_callable=AsyncMock):
         
         mock_session.return_value = False
         

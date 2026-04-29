@@ -214,7 +214,7 @@ class TestEnqueueEndpoint:
             "app.routers.commands.command_queue_service.enqueue_command",
             new_callable=AsyncMock,
             return_value=mock_response,
-        ) as mock_enqueue:
+        ):
             with patch(
                 "app.routers.commands.command_queue_service.check_rate_limit",
                 new_callable=AsyncMock,

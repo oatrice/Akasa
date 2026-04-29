@@ -8,7 +8,9 @@ Covers:
 - run_deployment: subprocess execution, status transitions, notify_callback (Issue #34)
 """
 
+import asyncio
 import json
+import shlex
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -517,10 +519,6 @@ class TestRunDeployment:
 # ---------------------------------------------------------------------------
 # Security: command injection prevention (shlex.split + create_subprocess_exec)
 # ---------------------------------------------------------------------------
-
-
-import asyncio
-import shlex
 
 
 class TestCommandInjectionPrevention:

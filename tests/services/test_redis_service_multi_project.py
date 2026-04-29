@@ -256,7 +256,6 @@ async def test_rename_project_migrates_bound_repo(patch_redis):
 async def test_auto_migration_from_v070(patch_redis):
     """ข้อมูลเดิมใน chat_history:{chat_id} ต้องถูกย้ายไปที่ :default อัตโนมัติ"""
     from app.services.redis_service import get_chat_history
-    import json
 
     chat_id = 700
     old_key = f"chat_history:{chat_id}"

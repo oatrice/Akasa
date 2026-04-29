@@ -367,7 +367,7 @@ class TestEnqueueCommand:
                 request = CommandQueueRequest(
                     tool="gemini", command="run_task", ttl_seconds=60
                 )
-                result = await svc.enqueue_command(request, user_id=123, chat_id=456)
+                await svc.enqueue_command(request, user_id=123, chat_id=456)
 
         # meta key SET called with ex=60
         mock_redis.set.assert_called_once()

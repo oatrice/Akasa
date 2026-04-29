@@ -165,7 +165,7 @@ def _load_whitelist() -> Dict[str, List[str]]:
 
         _whitelist_cache = tools
         logger.info(
-            f"Loaded command whitelist: "
+            "Loaded command whitelist: "
             + ", ".join(f"{t}={v}" for t, v in tools.items())
         )
         return _whitelist_cache
@@ -360,7 +360,6 @@ async def enqueue_command(
     now = datetime.now(timezone.utc)
     command_id = f"cmd_{uuid.uuid4().hex[:12]}"
     ttl = request.ttl_seconds or settings.COMMAND_QUEUE_TTL_SECONDS
-    expires_at = now.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
     # Build the expiry timestamp as an ISO string for human-readable storage
     from datetime import timedelta
