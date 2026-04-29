@@ -175,12 +175,14 @@ async def notify_task_complete(
     link: Optional[str] = None,
     retry_count: Optional[int] = None,
     max_retries: Optional[int] = None,
+    model: Optional[str] = None,
 ) -> dict:
     """
     ส่งการแจ้งเตือนสรุปงานไปยัง Akasa Backend เพื่อส่งต่อให้ผู้ใช้ผ่าน Telegram
 
-    Note: Model information is automatically retrieved by the backend from user preferences
-    stored in Redis and included in the notification display.
+    Note: If model is provided, it will be used directly in the notification.
+    If not provided, the backend will attempt to retrieve the model from user
+    preferences stored in Redis.
 
     Args:
         project: ชื่อโปรเจกต์ที่กำลังทำงานอยู่
@@ -191,6 +193,7 @@ async def notify_task_complete(
         link: URL ของ PR, ไฟล์, หรือแหล่งข้อมูลที่เกี่ยวข้อง (optional)
         retry_count: หมายเลข attempt ปัจจุบัน นับจาก 1 เช่น 2 (optional)
         max_retries: จำนวน retry สูงสุดที่อนุญาต เช่น 3 (optional)
+        model: AI model identifier (e.g., "SWE-1.6", "grok") (optional)
 
     Returns:
         dict: {"delivered": bool, "timestamp": str}
@@ -215,6 +218,8 @@ async def notify_task_complete(
         payload["retry_count"] = retry_count
     if max_retries is not None:
         payload["max_retries"] = max_retries
+    if model:
+        payload["model"] = model
 
     headers = {"X-Akasa-API-Key": AKASA_API_KEY}
 
@@ -341,6 +346,10 @@ TOOL_DEFINITIONS = [
                     "type": "integer",
                     "description": "Maximum number of retry attempts allowed, e.g., 3",
                 },
+                "model": {
+                    "type": "string",
+                    "description": "AI model identifier (e.g., 'SWE-1.6', 'grok', 'gpt-4o'). If not provided, backend will use user's model preference from Redis.",
+                },
             },
             "required": ["project", "task", "status"],
         },
@@ -462,6 +471,7 @@ async def handle_rpc(request: dict) -> str:
                     link=arguments.get("link"),
                     retry_count=arguments.get("retry_count"),
                     max_retries=arguments.get("max_retries"),
+                    model=arguments.get("model"),
                 )
                 delivered = result.get("delivered", False)
                 if delivered:

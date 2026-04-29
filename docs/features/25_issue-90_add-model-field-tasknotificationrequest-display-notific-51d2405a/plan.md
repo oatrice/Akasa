@@ -41,10 +41,11 @@ class TaskNotificationRequest(BaseModel):
 - **Code**: Modify `send_task_notification` to include model line when present
 - **Tests**: Add integration tests for notification display with model
 
-### Step 3: Update MCP server to include model in notifications
-- **Docs**: Update notify_task_complete tool documentation
-- **Code**: Retrieve user's model preference from Redis and include in payload
-- **Tests**: Test model retrieval and inclusion in notification payload
+### Step 3: Update MCP server to support dual-usecase model handling
+- **Docs**: Update notify_task_complete tool documentation to explain optional model parameter
+- **Code**: Add optional `model` parameter to notify_task_complete function and tool schema
+- **Code**: Backend logic: use model from payload if provided (External AI), otherwise retrieve from Redis (Local AI)
+- **Tests**: Test model parameter in payload and Redis fallback behavior
 
 ### Step 4: Update test commands and other notification senders
 - **Docs**: Document changes to test commands
@@ -62,8 +63,11 @@ class TaskNotificationRequest(BaseModel):
 ### Automated Tests
 - [ ] Unit Tests: test_notification_model_field.py for model field handling
 - [ ] Integration Tests: test_telegram_notification_with_model.py for end-to-end notification flow
+- [ ] MCP Server Tests: test_notify_task_complete_includes_model_when_provided
+- [ ] MCP Server Tests: test_notify_task_complete_excludes_model_when_not_provided
 
 ### Manual Verification
-- [ ] Send test notification with model and verify display
-- [ ] Send test notification without model and verify no model line
+- [ ] Local AI: Set model via `/model`, send notification without model, verify Redis model displayed
+- [ ] External AI: Send notification with model parameter, verify payload model displayed
+- [ ] No model: Send notification without model and no Redis preference, verify no model line
 - [ ] Test with various model names including special characters

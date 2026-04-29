@@ -431,6 +431,71 @@ class TestNotifyTaskComplete:
         assert payload["link"] == "https://github.com/oatrice/Akasa/pull/42"
 
     @pytest.mark.asyncio
+    async def test_notify_task_complete_includes_model_when_provided(self):
+        """Model field ต้องถูกรวมใน payload เมื่อระบุ"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            await notify_task_complete(
+                project="Akasa",
+                task="Implement feature",
+                status="success",
+                model="SWE-1.6",
+            )
+
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert payload["model"] == "SWE-1.6"
+
+    @pytest.mark.asyncio
+    async def test_notify_task_complete_excludes_model_when_not_provided(self):
+        """Model field ต้องไม่ปรากฏใน payload เมื่อไม่ระบุ"""
+        from scripts.akasa_mcp_server import notify_task_complete
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "delivered": True,
+            "timestamp": "2026-03-13T10:00:00+00:00",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "6346467495"),
+        ):
+            await notify_task_complete(
+                project="Akasa",
+                task="Implement feature",
+                status="success",
+            )
+
+        payload = mock_client.post.call_args.kwargs["json"]
+        assert "model" not in payload
+
+    @pytest.mark.asyncio
     async def test_handle_rpc_notify_task_complete_delivered(self):
         """tools/call notify_task_complete → delivered=True → ข้อความสำเร็จ"""
         from scripts.akasa_mcp_server import handle_rpc
@@ -550,6 +615,7 @@ class TestNotifyTaskComplete:
         assert "link" in properties
         assert "retry_count" in properties
         assert "max_retries" in properties
+        assert "model" in properties
 
         # status field ต้องมี enum ครบ 5 ค่า
         status_enum = properties["status"].get("enum", [])

@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import TYPE_CHECKING, Optional
 
 import httpx
@@ -238,6 +239,13 @@ class TelegramService:
 
         text = "\n".join(lines)
 
+        # For testing: skip actual Telegram send if DISABLE_TELEGRAM is set
+        if os.getenv("DISABLE_TELEGRAM") == "1":
+            logger.info(
+                f"TELEGRAM DISABLED: Would send task notification to chat_id: {chat_id}, status: {request.status}, text: {text!r}"
+            )
+            return
+
         # Send pre-formatted MarkdownV2 directly — do NOT route through
         # send_message() as that would call escape_markdown_v2() again
         # and double-escape the already-escaped content.
@@ -246,15 +254,18 @@ class TelegramService:
             "text": text,
             "parse_mode": "MarkdownV2",
         }
-        response = await self.client.post(
-            f"{self.api_url}/sendMessage",
-            json=payload,
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        logger.info(
-            f"Task notification sent to chat_id: {chat_id}, status: {request.status}"
-        )
+        try:
+            response = await self.client.post(
+                f"{self.api_url}/sendMessage",
+                json=payload,
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            logger.info(
+                f"Task notification sent to chat_id: {chat_id}, status: {request.status}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send task notification: {e}")
 
     async def send_deployment_notification(
         self, chat_id: int, record: "DeploymentRecord"
