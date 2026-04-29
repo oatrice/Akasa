@@ -130,7 +130,8 @@ integration_test:
     - echo "Testing health endpoint..."
     - curl -f http://localhost:8000/api/v1/health || (echo "Health check failed" && exit 1)
     - echo "Testing API endpoints..."
-    - curl -f -H "X-Akasa-API-Key: test-api-key" http://localhost:8000/api/v1/notifications/task-complete -X POST -H "Content-Type: application/json" -d '{\"project\":\"test\",\"task\":\"integration\",\"status\":\"success\",\"chat_id\":\"123456789\"}' || (echo "API test failed" && exit 1)
+    - |
+      curl -f -H "X-Akasa-API-Key: test-api-key" http://localhost:8000/api/v1/notifications/task-complete -X POST -H "Content-Type: application/json" -d '{"project":"test","task":"integration","status":"success","chat_id":"123456789"}' || (echo "API test failed" && exit 1)
     - echo "Integration tests passed!"
   allow_failure: true
 
