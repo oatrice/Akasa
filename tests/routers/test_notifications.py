@@ -58,8 +58,7 @@ def test_send_notification_bad_request_invalid_payload():
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_send_notification_success(mock_tg_service):
+def test_send_notification_success(mock_tg_service):
     """ต้องคืนค่า 200 และเรียกใช้ TelegramService เมื่อข้อมูลถูกต้อง"""
     mock_tg_service.send_proactive_message = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -81,8 +80,7 @@ async def test_send_notification_success(mock_tg_service):
     mock_tg_service.send_proactive_message.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_send_notification_user_not_found(mock_tg_service):
+def test_send_notification_user_not_found(mock_tg_service):
     """ต้องคืนค่า 400 เมื่อไม่พบ User ใน Redis Mapping"""
     mock_tg_service.send_proactive_message = AsyncMock(
         side_effect=UserChatIdNotFoundException("Not found")
@@ -99,8 +97,7 @@ async def test_send_notification_user_not_found(mock_tg_service):
     assert response.json()["detail"] == "User not found for notification"
 
 
-@pytest.mark.asyncio
-async def test_send_notification_bot_blocked(mock_tg_service):
+def test_send_notification_bot_blocked(mock_tg_service):
     """ต้องคืนค่า 500 เมื่อ Bot ถูก User Blocked"""
     mock_tg_service.send_proactive_message = AsyncMock(
         side_effect=BotBlockedException("Blocked")
@@ -202,8 +199,7 @@ def test_task_complete_invalid_empty_task(mock_tg_service):
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_task_complete_success_with_chat_id_in_payload(mock_tg_service):
+def test_task_complete_success_with_chat_id_in_payload(mock_tg_service):
     """Happy path: chat_id ใน payload → ส่ง notification และคืน delivered=True"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -225,10 +221,7 @@ async def test_task_complete_success_with_chat_id_in_payload(mock_tg_service):
     assert call_kwargs["chat_id"] == 6346467495
 
 
-@pytest.mark.asyncio
-async def test_task_complete_success_fallback_to_akasa_chat_id(
-    mock_tg_service, monkeypatch
-):
+def test_task_complete_success_fallback_to_akasa_chat_id(mock_tg_service, monkeypatch):
     """chat_id ไม่ได้ระบุใน payload → fallback ไปใช้ settings.AKASA_CHAT_ID"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -253,8 +246,7 @@ async def test_task_complete_success_fallback_to_akasa_chat_id(
     assert call_kwargs["chat_id"] == 6346467495
 
 
-@pytest.mark.asyncio
-async def test_task_complete_includes_model_preference(
+def test_task_complete_includes_model_preference(
     mock_tg_service, mock_get_user_model_preference
 ):
     """Model preference retrieved from Redis and included in notification request."""
@@ -311,8 +303,7 @@ def test_task_complete_invalid_chat_id_format(mock_tg_service, monkeypatch):
     assert "chat_id" in response.json()["detail"].lower()
 
 
-@pytest.mark.asyncio
-async def test_task_complete_failure_status(mock_tg_service, monkeypatch):
+def test_task_complete_failure_status(mock_tg_service, monkeypatch):
     """status='failure' ต้องผ่าน validation และ notify ได้ปกติ"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -330,8 +321,7 @@ async def test_task_complete_failure_status(mock_tg_service, monkeypatch):
     assert call_kwargs["request"].status == "failure"
 
 
-@pytest.mark.asyncio
-async def test_task_complete_partial_status(mock_tg_service, monkeypatch):
+def test_task_complete_partial_status(mock_tg_service, monkeypatch):
     """status='partial' ต้องผ่าน validation และ notify ได้ปกติ"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -347,8 +337,7 @@ async def test_task_complete_partial_status(mock_tg_service, monkeypatch):
     assert response.json()["delivered"] is True
 
 
-@pytest.mark.asyncio
-async def test_task_complete_telegram_429_returns_429(mock_tg_service, monkeypatch):
+def test_task_complete_telegram_429_returns_429(mock_tg_service, monkeypatch):
     """Telegram rate limit (429) → router ต้องคืนค่า 429 พร้อม detail ที่เหมาะสม"""
     monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -372,8 +361,7 @@ async def test_task_complete_telegram_429_returns_429(mock_tg_service, monkeypat
     assert "rate limit" in response.json()["detail"].lower()
 
 
-@pytest.mark.asyncio
-async def test_task_complete_telegram_other_error_returns_delivered_false(
+def test_task_complete_telegram_other_error_returns_delivered_false(
     mock_tg_service, monkeypatch
 ):
     """Non-429 Telegram HTTP error → delivered=False (ไม่ raise 500)"""
@@ -398,10 +386,7 @@ async def test_task_complete_telegram_other_error_returns_delivered_false(
     assert "timestamp" in response.json()
 
 
-@pytest.mark.asyncio
-async def test_task_complete_unexpected_exception_returns_500(
-    mock_tg_service, monkeypatch
-):
+def test_task_complete_unexpected_exception_returns_500(mock_tg_service, monkeypatch):
     """Unexpected exception → 500 Internal Server Error"""
     monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -419,8 +404,7 @@ async def test_task_complete_unexpected_exception_returns_500(
     assert response.status_code == 500
 
 
-@pytest.mark.asyncio
-async def test_task_complete_payload_chat_id_takes_precedence_over_server_default(
+def test_task_complete_payload_chat_id_takes_precedence_over_server_default(
     mock_tg_service, monkeypatch
 ):
     """chat_id ใน payload ต้องมีความสำคัญเหนือกว่า AKASA_CHAT_ID ของ server"""
@@ -460,8 +444,7 @@ def test_task_complete_status_is_case_insensitive(mock_tg_service, monkeypatch):
 # === Retry Statuses (Issue #61 extension) ===
 
 
-@pytest.mark.asyncio
-async def test_task_complete_retrying_status_with_counts(mock_tg_service, monkeypatch):
+def test_task_complete_retrying_status_with_counts(mock_tg_service, monkeypatch):
     """status='retrying' พร้อม retry_count/max_retries → delivered=True"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -488,10 +471,7 @@ async def test_task_complete_retrying_status_with_counts(mock_tg_service, monkey
     assert call_kwargs["request"].max_retries == 3
 
 
-@pytest.mark.asyncio
-async def test_task_complete_retrying_status_without_counts(
-    mock_tg_service, monkeypatch
-):
+def test_task_complete_retrying_status_without_counts(mock_tg_service, monkeypatch):
     """status='retrying' ไม่มี retry_count/max_retries → delivered=True เช่นกัน"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -514,8 +494,7 @@ async def test_task_complete_retrying_status_without_counts(
     assert call_kwargs["request"].max_retries is None
 
 
-@pytest.mark.asyncio
-async def test_task_complete_limit_reached_status(mock_tg_service, monkeypatch):
+def test_task_complete_limit_reached_status(mock_tg_service, monkeypatch):
     """status='limit_reached' + max_retries → delivered=True"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -554,8 +533,7 @@ def test_task_complete_invalid_retry_status(mock_tg_service, monkeypatch):
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
-async def test_task_complete_success_after_retries_passes_counts(
+def test_task_complete_success_after_retries_passes_counts(
     mock_tg_service, monkeypatch
 ):
     """success พร้อม retry_count/max_retries → service ได้รับ counts ครบ"""
