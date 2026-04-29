@@ -95,7 +95,7 @@ lint:
     - pip install ruff
   script:
     - echo "Running Ruff linter..."
-    - ruff check app/ scripts/ tests/ --ignore E501,F401,W503 --output-format=github
+    - ruff check app/ scripts/ tests/ --ignore E501,F401 --output-format=github
     - echo "Running Ruff formatter check..."
     - ruff format --check app/ scripts/ tests/
   allow_failure: false
