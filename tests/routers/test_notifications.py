@@ -30,6 +30,12 @@ def mock_redis_service():
         yield mock
 
 
+@pytest.fixture
+def mock_get_user_model_preference():
+    with patch("app.routers.notifications.get_user_model_preference") as mock:
+        yield mock
+
+
 def test_send_notification_unauthorized():
     """ต้องคืนค่า 401 ถ้า API Key ไม่ถูกต้องหรือหายไป"""
     response = client.post(
@@ -245,6 +251,30 @@ async def test_task_complete_success_fallback_to_akasa_chat_id(
     assert response.json()["delivered"] is True
     call_kwargs = mock_tg_service.send_task_notification.call_args.kwargs
     assert call_kwargs["chat_id"] == 6346467495
+
+
+@pytest.mark.asyncio
+async def test_task_complete_includes_model_preference(
+    mock_tg_service, mock_get_user_model_preference
+):
+    """Model preference retrieved from Redis and included in notification request."""
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+    mock_get_user_model_preference.return_value = "gpt-4o"
+    app.dependency_overrides[verify_api_key] = lambda: True
+
+    payload = {**VALID_TASK_PAYLOAD, "chat_id": "6346467495"}
+
+    response = client.post(
+        TASK_COMPLETE_URL,
+        json=payload,
+        headers={"X-Akasa-API-Key": "valid-key"},
+    )
+
+    assert response.status_code == 200
+    mock_get_user_model_preference.assert_called_once_with(6346467495)
+    call_kwargs = mock_tg_service.send_task_notification.call_args.kwargs
+    request = call_kwargs["request"]
+    assert request.model == "gpt-4o"
 
 
 def test_task_complete_no_chat_id_and_no_server_default(mock_tg_service, monkeypatch):

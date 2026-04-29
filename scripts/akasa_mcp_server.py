@@ -39,7 +39,6 @@ MCP_SESSION_ID = str(uuid.uuid4())
 MCP_CLIENT_NAME = "Antigravity"
 
 
-
 async def request_remote_approval(
     command: str,
     cwd: str,
@@ -179,6 +178,9 @@ async def notify_task_complete(
 ) -> dict:
     """
     ส่งการแจ้งเตือนสรุปงานไปยัง Akasa Backend เพื่อส่งต่อให้ผู้ใช้ผ่าน Telegram
+
+    Note: Model information is automatically retrieved by the backend from user preferences
+    stored in Redis and included in the notification display.
 
     Args:
         project: ชื่อโปรเจกต์ที่กำลังทำงานอยู่
