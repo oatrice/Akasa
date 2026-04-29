@@ -217,7 +217,6 @@ deploy_staging:
     - echo "Deploying Akasa to staging environment"
     - echo "Add your staging deployment commands here"
     - echo "Example: deploy to Railway, Vercel, or VPS"
-    # Add actual deployment logic for your staging environment
 
 deploy_production:
   stage: notify
@@ -230,7 +229,6 @@ deploy_production:
     - echo "Deploying Akasa to production environment"
     - echo "Add your production deployment commands here"
     - echo "Example: deploy to production Railway or VPS"
-    # Add actual deployment logic for your production environment
 
 # ============================================================================
 # CLEANUP JOB (Scheduled)
@@ -246,7 +244,6 @@ cleanup:
   script:
     - echo "Running cleanup tasks"
     - echo "Cleaning up old cache and artifacts"
-    # Add cleanup logic as needed
 
 # ============================================================================
 # GitLab CI/CD Setup Instructions for Akasa
