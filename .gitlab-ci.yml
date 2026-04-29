@@ -128,7 +128,7 @@ integration_test:
     - uvicorn app.main:app --host 0.0.0.0 --port 8000 &
     - sleep 10
     - echo "Testing health endpoint..."
-    - curl -f http://localhost:8000/api/v1/health || (echo "Health check failed" && exit 1)
+    - curl -f http://localhost:8000/health || (echo "Health check failed" && exit 1)
     - echo "Testing API endpoints..."
     - |
       curl -f -H "X-Akasa-API-Key: test-api-key" http://localhost:8000/api/v1/notifications/task-complete -X POST -H "Content-Type: application/json" -d '{"project":"test","task":"integration","status":"success","chat_id":"123456789"}' || (echo "API test failed" && exit 1)

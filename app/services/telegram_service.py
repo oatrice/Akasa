@@ -266,6 +266,7 @@ class TelegramService:
             )
         except Exception as e:
             logger.error(f"Failed to send task notification: {e}")
+            raise
 
     async def send_deployment_notification(
         self, chat_id: int, record: "DeploymentRecord"
