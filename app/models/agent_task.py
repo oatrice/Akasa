@@ -30,24 +30,38 @@ class AgentTaskLog(BaseModel):
     task_id: str = Field(..., description="Unique task identifier")
     project: str = Field(default="General", description="Project name")
     task: str = Field(..., description="Task description")
-    status: AgentTaskStatus = Field(default="starting", description="Current task status")
-    source: Optional[str] = Field(default=None, description="Source agent (e.g., 'Antigravity IDE')")
-    chat_id: Optional[str] = Field(default=None, description="Telegram chat ID for notifications")
+    status: AgentTaskStatus = Field(
+        default="starting", description="Current task status"
+    )
+    source: Optional[str] = Field(
+        default=None, description="Source agent (e.g., 'Antigravity IDE')"
+    )
+    chat_id: Optional[str] = Field(
+        default=None, description="Telegram chat ID for notifications"
+    )
 
     # Timestamps (ISO 8601)
     started_at: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z"),
+        default_factory=lambda: (
+            datetime.now(timezone.utc)
+            .replace(microsecond=0)
+            .isoformat()
+            .replace("+00:00", "Z")
+        ),
         description="When the task started",
     )
-    completed_at: Optional[str] = Field(default=None, description="When the task completed/failed/timed out")
+    completed_at: Optional[str] = Field(
+        default=None, description="When the task completed/failed/timed out"
+    )
 
     # Optional fields from notify_task_complete
-    duration: Optional[str] = Field(default=None, description="Task duration (e.g., '5m 20s')")
+    duration: Optional[str] = Field(
+        default=None, description="Task duration (e.g., '5m 20s')"
+    )
     message: Optional[str] = Field(default=None, description="Additional details")
-    link: Optional[str] = Field(default=None, description="Related link (PR, file, etc.)")
+    link: Optional[str] = Field(
+        default=None, description="Related link (PR, file, etc.)"
+    )
 
     def is_timed_out(self, threshold_minutes: int) -> bool:
         """

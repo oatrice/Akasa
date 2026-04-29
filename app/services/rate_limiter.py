@@ -23,9 +23,7 @@ async def check_telegram_message_rate_limit(
     Returns:
         (allowed, retry_after_seconds)
     """
-    configured_limit = (
-        settings.TELEGRAM_MESSAGE_RATE_LIMIT if limit is None else limit
-    )
+    configured_limit = settings.TELEGRAM_MESSAGE_RATE_LIMIT if limit is None else limit
     configured_window = (
         settings.TELEGRAM_MESSAGE_RATE_WINDOW_SECONDS
         if window_seconds is None

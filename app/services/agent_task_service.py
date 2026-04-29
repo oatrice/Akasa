@@ -19,6 +19,7 @@ from app.services.redis_service import redis_pool
 
 logger = logging.getLogger(__name__)
 
+
 # Redis key patterns
 def _task_key(task_id: str) -> str:
     """Redis key for a single task log."""
@@ -79,7 +80,9 @@ async def create_task(
     # Add to project-specific index
     await redis_pool.sadd(_project_tasks_key(project), task_id)
 
-    logger.info(f"[AGENT_TASK] Created task {task_id} for project '{project}': {task[:50]}...")
+    logger.info(
+        f"[AGENT_TASK] Created task {task_id} for project '{project}': {task[:50]}..."
+    )
     return task_log
 
 

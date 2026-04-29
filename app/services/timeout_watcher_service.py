@@ -89,13 +89,14 @@ class TimeoutWatcher:
                 await self._check_timeouts()
                 await self._cleanup_indices()
             except Exception as e:
-                logger.error(f"[TIMEOUT_WATCHER] Error in check cycle: {e}", exc_info=True)
+                logger.error(
+                    f"[TIMEOUT_WATCHER] Error in check cycle: {e}", exc_info=True
+                )
 
             # Wait for the next interval or until stopped
             try:
                 await asyncio.wait_for(
-                    self._stop_event.wait(),
-                    timeout=interval_seconds
+                    self._stop_event.wait(), timeout=interval_seconds
                 )
                 # If we reach here, stop_event was set
                 break
@@ -113,7 +114,9 @@ class TimeoutWatcher:
             logger.debug("[TIMEOUT_WATCHER] No timed-out tasks found")
             return
 
-        logger.warning(f"[TIMEOUT_WATCHER] Found {len(timed_out_tasks)} timed-out task(s)")
+        logger.warning(
+            f"[TIMEOUT_WATCHER] Found {len(timed_out_tasks)} timed-out task(s)"
+        )
 
         for task_log in timed_out_tasks:
             try:
@@ -130,7 +133,7 @@ class TimeoutWatcher:
             except Exception as e:
                 logger.error(
                     f"[TIMEOUT_WATCHER] Failed to process timeout for task {task_log.task_id}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     async def _send_timeout_alert(self, task_log: AgentTaskLog) -> None:
@@ -155,7 +158,10 @@ class TimeoutWatcher:
             return
 
         # Build alert message
-        from app.utils.markdown_utils import escape_markdown_v2_content, escape_markdown_v2
+        from app.utils.markdown_utils import (
+            escape_markdown_v2_content,
+            escape_markdown_v2,
+        )
 
         safe_project = escape_markdown_v2_content(task_log.project)
         safe_task = escape_markdown_v2_content(
@@ -187,8 +193,7 @@ class TimeoutWatcher:
             )
         except Exception as e:
             logger.error(
-                f"[TIMEOUT_WATCHER] Failed to send Telegram alert: {e}",
-                exc_info=True
+                f"[TIMEOUT_WATCHER] Failed to send Telegram alert: {e}", exc_info=True
             )
 
     async def _cleanup_indices(self) -> None:

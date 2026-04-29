@@ -119,7 +119,9 @@ async def _amain() -> int:
         args={},
         ttl_seconds=int(args.ttl_a),
     )
-    resp_a = await enqueue_command(req_a, user_id=int(args.user_id), chat_id=int(args.chat_id))
+    resp_a = await enqueue_command(
+        req_a, user_id=int(args.user_id), chat_id=int(args.chat_id)
+    )
     meta_a = _meta_key(resp_a.command_id)
 
     # Manually set a baseline TTL on the QUEUE key (simulates "bad legacy state")
@@ -130,7 +132,9 @@ async def _amain() -> int:
         print("=== Bug 2 manual verification (queue TTL) ===")
         print(f"Tool: {tool}")
         print(f"Queue key: {qkey}")
-        print(f"Command A: {resp_a.command_id} (meta ttl target={args.ttl_a}s) meta={meta_a}")
+        print(
+            f"Command A: {resp_a.command_id} (meta ttl target={args.ttl_a}s) meta={meta_a}"
+        )
         print()
         print(
             "FAIL: Could not apply baseline TTL to the queue key.\n"
@@ -152,7 +156,9 @@ async def _amain() -> int:
         args={},
         ttl_seconds=int(args.ttl_b),
     )
-    resp_b = await enqueue_command(req_b, user_id=int(args.user_id), chat_id=int(args.chat_id))
+    resp_b = await enqueue_command(
+        req_b, user_id=int(args.user_id), chat_id=int(args.chat_id)
+    )
     meta_b = _meta_key(resp_b.command_id)
 
     ttl_queue_after = await redis_pool.ttl(qkey)
@@ -162,8 +168,12 @@ async def _amain() -> int:
     print("=== Bug 2 manual verification (queue TTL) ===")
     print(f"Tool: {tool}")
     print(f"Queue key: {qkey}")
-    print(f"Command A: {resp_a.command_id} (meta ttl target={args.ttl_a}s) meta={meta_a}")
-    print(f"Command B: {resp_b.command_id} (meta ttl target={args.ttl_b}s) meta={meta_b}")
+    print(
+        f"Command A: {resp_a.command_id} (meta ttl target={args.ttl_a}s) meta={meta_a}"
+    )
+    print(
+        f"Command B: {resp_b.command_id} (meta ttl target={args.ttl_b}s) meta={meta_b}"
+    )
     print()
     print(f"Queue TTL before enqueue B: {ttl_queue_before}s")
     print(f"Queue TTL after  enqueue B: {ttl_queue_after}s")
@@ -176,7 +186,9 @@ async def _amain() -> int:
     # - Queue TTL should be roughly the baseline and non-increasing as time passes.
     # - Meta keys should have TTLs close to their requested values (within tolerance).
     if ttl_queue_before <= 0 or ttl_queue_after <= 0:
-        print("FAIL: Queue TTL is missing or non-positive; baseline EXPIRE may not have applied.")
+        print(
+            "FAIL: Queue TTL is missing or non-positive; baseline EXPIRE may not have applied."
+        )
         return 2
 
     # If the bug existed, we'd expect ttl_queue_after ~ ttl_b (or at least far smaller than before).
@@ -214,4 +226,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

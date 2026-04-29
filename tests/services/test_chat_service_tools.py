@@ -16,6 +16,7 @@ def allow_telegram_rate_limit():
     ) as mock_rate_limit:
         yield mock_rate_limit
 
+
 @pytest.fixture
 def mock_update_base():
     return Update(
@@ -24,16 +25,19 @@ def mock_update_base():
             message_id=1,
             date=1612345678,
             chat=Chat(id=12345, type="private"),
-            text="dummy text"
-        )
+            text="dummy text",
+        ),
     )
+
 
 @pytest.mark.asyncio
 @patch("app.services.chat_service.redis_service")
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_create_issue_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_create_issue_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test creating a GitHub issue via tool call."""
     mock_update = mock_update_base
     mock_update.message.text = "สร้าง issue ใน oatrice/Akasa"
@@ -43,22 +47,26 @@ async def test_handle_chat_message_with_create_issue_tool_call(mock_github, mock
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_1",
         "type": "function",
         "function": {
             "name": "create_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "title": "Test Issue", "body": "Test Body"}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Test Issue", "body": "Test Body"}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "สร้าง Issue ให้เรียบร้อยแล้วค่ะ"
-    ])
 
-    mock_github.create_issue = MagicMock(return_value="https://github.com/oatrice/Akasa/issues/1")
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "สร้าง Issue ให้เรียบร้อยแล้วค่ะ",
+        ]
+    )
+
+    mock_github.create_issue = MagicMock(
+        return_value="https://github.com/oatrice/Akasa/issues/1"
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
@@ -74,7 +82,9 @@ async def test_handle_chat_message_with_create_issue_tool_call(mock_github, mock
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_create_issue_duration_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_create_issue_duration_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test creating a GitHub issue with a duration synced to the project card."""
     mock_update = mock_update_base
     mock_update.message.text = "สร้าง issue พร้อม duration 90m ใน oatrice/Akasa"
@@ -90,16 +100,20 @@ async def test_handle_chat_message_with_create_issue_duration_tool_call(mock_git
         "type": "function",
         "function": {
             "name": "create_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "title": "Timed Issue", "body": "Body", "duration": "90m"}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Timed Issue", "body": "Body", "duration": "90m"}',
+        },
     }
 
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "สร้าง Issue พร้อม Duration ให้เรียบร้อยแล้วค่ะ"
-    ])
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "สร้าง Issue พร้อม Duration ให้เรียบร้อยแล้วค่ะ",
+        ]
+    )
 
-    mock_github.create_issue = MagicMock(return_value="https://github.com/oatrice/Akasa/issues/2")
+    mock_github.create_issue = MagicMock(
+        return_value="https://github.com/oatrice/Akasa/issues/2"
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
@@ -114,7 +128,9 @@ async def test_handle_chat_message_with_create_issue_duration_tool_call(mock_git
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_list_prs_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_list_prs_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test listing PRs via tool call, ensuring author is displayed."""
     mock_update = mock_update_base
     mock_update.message.text = "ขอดู PR ของ oatrice/Akasa"
@@ -124,28 +140,30 @@ async def test_handle_chat_message_with_list_prs_tool_call(mock_github, mock_llm
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_2",
         "type": "function",
         "function": {
             "name": "list_github_open_prs",
-            "arguments": '{"repo": "oatrice/Akasa"}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa"}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "นี่คือรายการ PR ค่ะ"
-    ])
+
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "นี่คือรายการ PR ค่ะ",
+        ]
+    )
 
     # Mock PR with author
     sample_pr = GitHubPR(
-        number=10, 
-        title="New Feature", 
-        state="open", 
+        number=10,
+        title="New Feature",
+        state="open",
         url="https://github.com/oatrice/Akasa/pull/10",
-        author={"login": "developer_chan"}
+        author={"login": "developer_chan"},
     )
     mock_github.get_pr_status = MagicMock(return_value=[sample_pr])
     mock_telegram.send_message = AsyncMock()
@@ -164,7 +182,9 @@ async def test_handle_chat_message_with_list_prs_tool_call(mock_github, mock_llm
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_create_comment_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_create_comment_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test creating a GitHub comment via tool call."""
     mock_update = mock_update_base
     mock_update.message.text = "คอมเมนต์ใน PR #10 ว่า 'Good job'"
@@ -174,22 +194,26 @@ async def test_handle_chat_message_with_create_comment_tool_call(mock_github, mo
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_3",
         "type": "function",
         "function": {
             "name": "create_github_comment",
-            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10, "body": "Good job"}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10, "body": "Good job"}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "คอมเมนต์ให้แล้วค่ะ"
-    ])
 
-    mock_github.create_comment = MagicMock(return_value="https://github.com/oatrice/Akasa/issues/10#issuecomment-123")
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "คอมเมนต์ให้แล้วค่ะ",
+        ]
+    )
+
+    mock_github.create_comment = MagicMock(
+        return_value="https://github.com/oatrice/Akasa/issues/10#issuecomment-123"
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
@@ -205,7 +229,9 @@ async def test_handle_chat_message_with_create_comment_tool_call(mock_github, mo
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_close_issue_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_close_issue_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test closing a GitHub issue via tool call."""
     mock_update = mock_update_base
     mock_update.message.text = "ปิด issue #10 ใน oatrice/Akasa"
@@ -215,27 +241,31 @@ async def test_handle_chat_message_with_close_issue_tool_call(mock_github, mock_
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_4",
         "type": "function",
         "function": {
             "name": "close_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "ปิด Issue ให้แล้วค่ะ"
-    ])
+
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "ปิด Issue ให้แล้วค่ะ",
+        ]
+    )
 
     mock_github.close_issue = MagicMock(return_value="Successfully closed issue #10")
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
 
-    mock_github.close_issue.assert_called_once_with(repo="oatrice/Akasa", issue_number=10)
+    mock_github.close_issue.assert_called_once_with(
+        repo="oatrice/Akasa", issue_number=10
+    )
 
 
 @pytest.mark.asyncio
@@ -243,7 +273,9 @@ async def test_handle_chat_message_with_close_issue_tool_call(mock_github, mock_
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_delete_issue_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_delete_issue_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test deleting a GitHub issue via tool call."""
     mock_update = mock_update_base
     mock_update.message.text = "ลบ issue #10 ใน oatrice/Akasa ทิ้งเลย"
@@ -254,23 +286,25 @@ async def test_handle_chat_message_with_delete_issue_tool_call(mock_github, mock
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
     mock_redis.set_pending_tool_call = AsyncMock()
-    
+
     # We explicitly provide the Exception class to the mock to prevent TypeError in tests
     mock_llm.OpenRouterInsufficientCreditsError = OpenRouterInsufficientCreditsError
-    
+
     tool_call = {
         "id": "call_5",
         "type": "function",
         "function": {
             "name": "delete_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "ลบ Issue ให้ถาวรแล้วค่ะ"
-    ])
+
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "ลบ Issue ให้ถาวรแล้วค่ะ",
+        ]
+    )
 
     mock_github.delete_issue = MagicMock(return_value="Successfully deleted issue #10")
     mock_telegram.send_message = AsyncMock()
@@ -287,7 +321,9 @@ async def test_handle_chat_message_with_delete_issue_tool_call(mock_github, mock
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_create_pr_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_create_pr_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test creating a GitHub Pull Request via tool call."""
     mock_update = mock_update_base
     mock_update.message.text = "เปิด PR จาก feat/login ไป main ใน oatrice/Akasa"
@@ -297,28 +333,36 @@ async def test_handle_chat_message_with_create_pr_tool_call(mock_github, mock_ll
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_pr_1",
         "type": "function",
         "function": {
             "name": "create_github_pr",
-            "arguments": '{"repo": "oatrice/Akasa", "title": "Feat: Login", "body": "Add login page", "head": "feat/login", "base": "main"}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Feat: Login", "body": "Add login page", "head": "feat/login", "base": "main"}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "เปิด Pull Request ให้เรียบร้อยแล้วค่ะ"
-    ])
 
-    mock_github.pr_create = MagicMock(return_value="https://github.com/oatrice/Akasa/pull/55")
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "เปิด Pull Request ให้เรียบร้อยแล้วค่ะ",
+        ]
+    )
+
+    mock_github.pr_create = MagicMock(
+        return_value="https://github.com/oatrice/Akasa/pull/55"
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
 
     mock_github.pr_create.assert_called_once_with(
-        repo="oatrice/Akasa", title="Feat: Login", body="Add login page", head="feat/login", base="main"
+        repo="oatrice/Akasa",
+        title="Feat: Login",
+        body="Add login page",
+        head="feat/login",
+        base="main",
     )
 
 
@@ -327,7 +371,9 @@ async def test_handle_chat_message_with_create_pr_tool_call(mock_github, mock_ll
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_requires_confirmation_for_destructive_tools(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_requires_confirmation_for_destructive_tools(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """
     Test that sensitive tools (like delete_issue) require user confirmation
     before being executed.
@@ -341,7 +387,7 @@ async def test_handle_chat_message_requires_confirmation_for_destructive_tools(m
     mock_redis.set_pending_tool_call = AsyncMock()
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     mock_llm.OpenRouterInsufficientCreditsError = OpenRouterInsufficientCreditsError
 
     tool_call = {
@@ -349,22 +395,24 @@ async def test_handle_chat_message_requires_confirmation_for_destructive_tools(m
         "type": "function",
         "function": {
             "name": "delete_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 10}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(return_value={"role": "assistant", "content": None, "tool_calls": [tool_call]})
+
+    mock_llm.get_llm_reply = AsyncMock(
+        return_value={"role": "assistant", "content": None, "tool_calls": [tool_call]}
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
 
     # 1. บอทต้องไม่รัน delete_issue ทันที
     mock_github.delete_issue.assert_not_called()
-    
+
     # 2. บอทต้องถามยืนยัน
     sent_text = mock_telegram.send_message.call_args[0][1]
     assert "ยืนยัน" in sent_text
-    
+
     # 3. บอทต้องบันทึกคำสั่งลง Redis เพื่อรอยืนยัน
     mock_redis.set_pending_tool_call.assert_called_once()
 
@@ -374,7 +422,9 @@ async def test_handle_chat_message_requires_confirmation_for_destructive_tools(m
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_with_get_issue_detail_tool_call(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_with_get_issue_detail_tool_call(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """Test getting full issue details including body."""
     mock_update = mock_update_base
     mock_update.message.text = "ขอดูรายละเอียด issue #54"
@@ -384,25 +434,30 @@ async def test_handle_chat_message_with_get_issue_detail_tool_call(mock_github, 
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_view_1",
         "type": "function",
         "function": {
             "name": "get_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 54}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "issue_number": 54}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "นี่คือรายละเอียดค่ะ"
-    ])
+
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "นี่คือรายละเอียดค่ะ",
+        ]
+    )
 
     mock_issue = GitHubIssue(
-        number=54, title="Bug Report", state="open", 
-        url="https://github.com/...", author={"login": "armor"},
-        body="This is the issue body content"
+        number=54,
+        title="Bug Report",
+        state="open",
+        url="https://github.com/...",
+        author={"login": "armor"},
+        body="This is the issue body content",
     )
     mock_github.get_issue = MagicMock(return_value=mock_issue)
     mock_telegram.send_message = AsyncMock()
@@ -420,7 +475,9 @@ async def test_handle_chat_message_with_get_issue_detail_tool_call(mock_github, 
 @patch("app.services.chat_service.tg_service")
 @patch("app.services.chat_service.llm_service")
 @patch("app.services.chat_service.github_service")
-async def test_handle_chat_message_saves_full_tool_context_to_history(mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base):
+async def test_handle_chat_message_saves_full_tool_context_to_history(
+    mock_github, mock_llm, mock_telegram, mock_redis, mock_update_base
+):
     """
     Verify that the full conversational turn (user prompt, tool call, tool result, and final reply)
     is saved to Redis history.
@@ -433,22 +490,26 @@ async def test_handle_chat_message_saves_full_tool_context_to_history(mock_githu
     mock_redis.get_chat_history = AsyncMock(return_value=[])
     mock_redis.add_message_to_history = AsyncMock()
     mock_redis.set_user_chat_id_mapping = AsyncMock()
-    
+
     tool_call = {
         "id": "call_999",
         "type": "function",
         "function": {
             "name": "create_github_issue",
-            "arguments": '{"repo": "oatrice/Akasa", "title": "Context Test", "body": "Testing history"}'
-        }
+            "arguments": '{"repo": "oatrice/Akasa", "title": "Context Test", "body": "Testing history"}',
+        },
     }
-    
-    mock_llm.get_llm_reply = AsyncMock(side_effect=[
-        {"role": "assistant", "content": None, "tool_calls": [tool_call]},
-        "สร้าง Issue ให้เรียบร้อยแล้วค่ะ (พร้อมจำบริบท)"
-    ])
 
-    mock_github.create_issue = MagicMock(return_value="https://github.com/oatrice/Akasa/issues/999")
+    mock_llm.get_llm_reply = AsyncMock(
+        side_effect=[
+            {"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            "สร้าง Issue ให้เรียบร้อยแล้วค่ะ (พร้อมจำบริบท)",
+        ]
+    )
+
+    mock_github.create_issue = MagicMock(
+        return_value="https://github.com/oatrice/Akasa/issues/999"
+    )
     mock_telegram.send_message = AsyncMock()
 
     await handle_chat_message(mock_update)
@@ -456,7 +517,7 @@ async def test_handle_chat_message_saves_full_tool_context_to_history(mock_githu
     # Verify history calls
     calls = mock_redis.add_message_to_history.call_args_list
     roles_saved = [call[0][1] for call in calls]
-    
+
     assert "user" in roles_saved
     assert "assistant" in roles_saved
     assert "tool" in roles_saved

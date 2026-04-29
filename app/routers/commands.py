@@ -32,7 +32,9 @@ router = APIRouter(prefix="/commands", tags=["commands"])
 
 _QUOTA_RESET_RE = re.compile(r"quota will reset after ([^\n.]+)", re.IGNORECASE)
 _DURATION_FRAGMENT_RE = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", re.IGNORECASE)
-_FALLBACK_MODEL_RE = re.compile(r"Retried with fallback model:\s*([^\n]+)", re.IGNORECASE)
+_FALLBACK_MODEL_RE = re.compile(
+    r"Retried with fallback model:\s*([^\n]+)", re.IGNORECASE
+)
 
 
 # ---------------------------------------------------------------------------
@@ -82,13 +84,9 @@ def _summarize_command_output(
     if fallback_match:
         fallback_model = fallback_match.group(1).strip()
         if status == "success":
-            return (
-                f"Gemini quota บนโมเดลหลัก จึงสลับไปใช้ {fallback_model} "
-                "และรันต่อสำเร็จ"
-            )
+            return f"Gemini quota บนโมเดลหลัก จึงสลับไปใช้ {fallback_model} และรันต่อสำเร็จ"
         return (
-            f"Gemini quota บนโมเดลหลัก จึงลองสลับไปใช้ {fallback_model} "
-            "แล้ว แต่คำสั่งยังไม่สำเร็จ"
+            f"Gemini quota บนโมเดลหลัก จึงลองสลับไปใช้ {fallback_model} แล้ว แต่คำสั่งยังไม่สำเร็จ"
         )
 
     normalized = output.lower()
@@ -131,7 +129,9 @@ async def enqueue_command(
     resolved_chat_id = chat_id or _get_default_chat_id()
 
     # Rate limit check
-    allowed, retry_after = await command_queue_service.check_rate_limit(resolved_user_id)
+    allowed, retry_after = await command_queue_service.check_rate_limit(
+        resolved_user_id
+    )
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -207,13 +207,17 @@ async def report_command_result(
     # Send Telegram notification
     notification_sent = False
     try:
-        from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content
+        from app.utils.markdown_utils import (
+            escape_markdown_v2,
+            escape_markdown_v2_content,
+        )
+
         emoji = "✅" if result.status == "success" else "❌"
-        
+
         safe_tool = escape_markdown_v2_content(status.tool)
         safe_command = escape_markdown_v2_content(status.command)
         safe_status = escape_markdown_v2_content(result.status)
-        
+
         msg = (
             f"{emoji} *Command Result*\n\n"
             f"*Command ID:* `{command_id}`\n"
@@ -225,7 +229,9 @@ async def report_command_result(
             safe_exit = escape_markdown_v2_content(str(result.exit_code))
             msg += f"*Exit Code:* {safe_exit}\n"
         if result.duration_seconds is not None:
-            safe_duration = escape_markdown_v2_content(f"{result.duration_seconds:.1f}s")
+            safe_duration = escape_markdown_v2_content(
+                f"{result.duration_seconds:.1f}s"
+            )
             msg += f"*Duration:* {safe_duration}\n"
         effective_cwd = result.cwd or status.cwd
         if effective_cwd:
@@ -241,7 +247,7 @@ async def report_command_result(
             msg += f"*Summary:* {safe_summary}\n"
         if result.output:
             # We don't escape output with _content because it goes in a code block
-            # where escape_markdown_v2 will preserve it, though if it contains ``` 
+            # where escape_markdown_v2 will preserve it, though if it contains ```
             # we should replace it to avoid breaking the block.
             output_safe = result.output.replace("```", "'''")
             msg += f"\n*Output:*\n```\n{output_safe}\n```"
@@ -253,11 +259,14 @@ async def report_command_result(
         elif settings.AKASA_CHAT_ID:
             target_chat_id = int(settings.AKASA_CHAT_ID)
         else:
-            raise ValueError("No chat_id available for notification (both status.chat_id and AKASA_CHAT_ID are empty)")
+            raise ValueError(
+                "No chat_id available for notification (both status.chat_id and AKASA_CHAT_ID are empty)"
+            )
 
         from app.utils.markdown_utils import split_markdown_message
+
         chunks = split_markdown_message(msg, max_length=4000)
-        
+
         for chunk in chunks:
             escaped_chunk = escape_markdown_v2(chunk)
             await tg_service.send_message(

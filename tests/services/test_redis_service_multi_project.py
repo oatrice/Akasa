@@ -18,11 +18,13 @@ async def fake_redis():
 def patch_redis(fake_redis, monkeypatch):
     """Patch redis_service to use fakeredis."""
     import app.services.redis_service as rs
+
     monkeypatch.setattr(rs, "redis_pool", fake_redis)
     return fake_redis
 
 
 # --- Multi-Project History Support ---
+
 
 @pytest.mark.asyncio
 async def test_get_chat_history_with_project(patch_redis):
@@ -31,9 +33,13 @@ async def test_get_chat_history_with_project(patch_redis):
 
     chat_id = 100
     # บันทึกในโปรเจ็กต์ A
-    await add_message_to_history(chat_id, "user", "Message in A", project_name="project-a")
+    await add_message_to_history(
+        chat_id, "user", "Message in A", project_name="project-a"
+    )
     # บันทึกในโปรเจ็กต์ B
-    await add_message_to_history(chat_id, "user", "Message in B", project_name="project-b")
+    await add_message_to_history(
+        chat_id, "user", "Message in B", project_name="project-b"
+    )
 
     history_a = await get_chat_history(chat_id, project_name="project-a")
     history_b = await get_chat_history(chat_id, project_name="project-b")
@@ -64,10 +70,12 @@ async def test_get_chat_history_default_project(patch_redis):
 
 # --- Current Project Management ---
 
+
 @pytest.mark.asyncio
 async def test_get_current_project_none(patch_redis):
     """หากยังไม่เคยตั้งค่าโปรเจ็กต์ปัจจุบัน ต้องคืนค่า 'default'"""
     from app.services.redis_service import get_current_project
+
     project = await get_current_project(chat_id=300)
     assert project == "default"
 
@@ -79,14 +87,17 @@ async def test_set_and_get_current_project(patch_redis):
 
     chat_id = 400
     await set_current_project(chat_id, "my-awesome-project")
-    
+
     project = await get_current_project(chat_id)
     assert project == "my-awesome-project"
 
 
 @pytest.mark.asyncio
 async def test_get_owner_current_project_uses_akasa_chat_id(patch_redis, monkeypatch):
-    from app.services.redis_service import get_owner_current_project, set_current_project
+    from app.services.redis_service import (
+        get_owner_current_project,
+        set_current_project,
+    )
 
     monkeypatch.setattr("app.services.redis_service.settings.AKASA_CHAT_ID", "4321")
     await set_current_project(4321, "owner-project")
@@ -97,7 +108,10 @@ async def test_get_owner_current_project_uses_akasa_chat_id(patch_redis, monkeyp
 
 @pytest.mark.asyncio
 async def test_set_owner_current_project_normalizes_lowercase(patch_redis, monkeypatch):
-    from app.services.redis_service import set_owner_current_project, get_current_project
+    from app.services.redis_service import (
+        set_owner_current_project,
+        get_current_project,
+    )
 
     monkeypatch.setattr("app.services.redis_service.settings.AKASA_CHAT_ID", "4321")
 
@@ -129,7 +143,9 @@ async def test_set_project_path_rejects_relative_path(patch_redis):
 
 
 @pytest.mark.asyncio
-async def test_get_owner_project_path_uses_akasa_chat_id(patch_redis, monkeypatch, tmp_path):
+async def test_get_owner_project_path_uses_akasa_chat_id(
+    patch_redis, monkeypatch, tmp_path
+):
     from app.services.redis_service import (
         get_owner_project_path,
         set_current_project,
@@ -159,6 +175,7 @@ async def test_set_and_get_project_repo(patch_redis):
 
 # --- Recent Project Activity Indexes ---
 
+
 @pytest.mark.asyncio
 async def test_recent_command_ids_are_tracked_per_project(patch_redis):
     from app.services.redis_service import add_recent_command_id, get_recent_command_ids
@@ -174,7 +191,10 @@ async def test_recent_command_ids_are_tracked_per_project(patch_redis):
 
 @pytest.mark.asyncio
 async def test_recent_deployment_ids_are_tracked_per_project(patch_redis):
-    from app.services.redis_service import add_recent_deployment_id, get_recent_deployment_ids
+    from app.services.redis_service import (
+        add_recent_deployment_id,
+        get_recent_deployment_ids,
+    )
 
     chat_id = 778
     await add_recent_deployment_id(chat_id, "akasa", "dep_1")
@@ -189,10 +209,12 @@ async def test_recent_deployment_ids_are_tracked_per_project(patch_redis):
 
 # --- Project List Management ---
 
+
 @pytest.mark.asyncio
 async def test_get_project_list_contains_default(patch_redis):
     """รายชื่อโปรเจ็กต์ต้องมี 'default' เสมอ"""
     from app.services.redis_service import get_project_list
+
     projects = await get_project_list(chat_id=500)
     assert "default" in projects
 
@@ -204,7 +226,7 @@ async def test_add_project_to_list(patch_redis):
 
     chat_id = 600
     await add_message_to_history(chat_id, "user", "Hello", project_name="new-project")
-    
+
     projects = await get_project_list(chat_id)
     assert "default" in projects
     assert "new-project" in projects
@@ -252,6 +274,7 @@ async def test_rename_project_migrates_bound_repo(patch_redis):
 
 # --- Migration Support ---
 
+
 @pytest.mark.asyncio
 async def test_auto_migration_from_v070(patch_redis):
     """ข้อมูลเดิมใน chat_history:{chat_id} ต้องถูกย้ายไปที่ :default อัตโนมัติ"""
@@ -281,6 +304,7 @@ async def test_auto_migration_from_v070(patch_redis):
 
 # --- Test Agent State (Project-Specific Memory - Issue #38) ---
 
+
 @pytest.mark.asyncio
 async def test_set_and_get_agent_state(patch_redis):
     """ทดสอบการบันทึกและดึง AgentState (JSON object)"""
@@ -300,7 +324,7 @@ async def test_set_and_get_agent_state(patch_redis):
     state_to_save = AgentState(
         current_task="Refactoring the authentication flow.",
         focus_file="app/services/auth_service.py",
-        last_activity_timestamp=now
+        last_activity_timestamp=now,
     )
     await set_agent_state(chat_id, project_name, state_to_save)
 

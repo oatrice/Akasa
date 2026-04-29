@@ -119,6 +119,7 @@ def test_webhook_success_edited_message():
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
+
 def test_webhook_success_calls_chat_service():
     """ส่ง request ที่ถูกต้อง → ต้องเรียกใช้ chat_service.handle_chat_message ผ่าน BackgroundTasks"""
     with patch("app.routers.telegram.settings") as mock_settings:

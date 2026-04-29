@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+
 class GitHubIssue(BaseModel):
     number: int
     title: str
@@ -8,6 +9,7 @@ class GitHubIssue(BaseModel):
     url: str
     body: Optional[str] = None
     author: Optional[dict] = None
+
 
 class GitHubPR(BaseModel):
     number: int
@@ -17,6 +19,7 @@ class GitHubPR(BaseModel):
     is_draft: bool = Field(False, alias="isDraft")
     mergeable: Optional[str] = None
     author: Optional[dict] = None
+
 
 class GitHubRepo(BaseModel):
     full_name: str = Field(..., alias="nameWithOwner")

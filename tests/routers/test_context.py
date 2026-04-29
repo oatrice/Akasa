@@ -31,18 +31,22 @@ def test_get_context_unauthorized_wrong_key():
 async def test_get_context_success():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.get_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="akasa",
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_path",
-        new_callable=AsyncMock,
-        return_value=None,
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_repo",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.routers.context.redis_service.get_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_path",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_repo",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         response = client.get(CONTEXT_URL, headers={"X-Akasa-API-Key": "valid-key"})
 
@@ -54,18 +58,22 @@ async def test_get_context_success():
 async def test_get_context_success_includes_project_path():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.get_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="akasa",
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_path",
-        new_callable=AsyncMock,
-        return_value="/Users/oatrice/Software-projects/Akasa",
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_repo",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.routers.context.redis_service.get_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_path",
+            new_callable=AsyncMock,
+            return_value="/Users/oatrice/Software-projects/Akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_repo",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         response = client.get(CONTEXT_URL, headers={"X-Akasa-API-Key": "valid-key"})
 
@@ -80,18 +88,22 @@ async def test_get_context_success_includes_project_path():
 async def test_get_context_success_includes_project_path_and_repo():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.get_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="akasa",
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_path",
-        new_callable=AsyncMock,
-        return_value="/Users/oatrice/Software-projects/Akasa",
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_repo",
-        new_callable=AsyncMock,
-        return_value="oatrice/Akasa",
+    with (
+        patch(
+            "app.routers.context.redis_service.get_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_path",
+            new_callable=AsyncMock,
+            return_value="/Users/oatrice/Software-projects/Akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_repo",
+            new_callable=AsyncMock,
+            return_value="oatrice/Akasa",
+        ),
     ):
         response = client.get(CONTEXT_URL, headers={"X-Akasa-API-Key": "valid-key"})
 
@@ -122,18 +134,22 @@ async def test_get_context_owner_chat_misconfigured():
 async def test_put_context_success_and_normalizes_project_name():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.set_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="docs-bot",
-    ) as mock_set, patch(
-        "app.routers.context.redis_service.get_owner_project_path",
-        new_callable=AsyncMock,
-        return_value=None,
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_repo",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.routers.context.redis_service.set_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="docs-bot",
+        ) as mock_set,
+        patch(
+            "app.routers.context.redis_service.get_owner_project_path",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_repo",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         response = client.put(
             CONTEXT_URL,
@@ -150,18 +166,22 @@ async def test_put_context_success_and_normalizes_project_name():
 async def test_put_context_can_bind_project_path():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.set_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="akasa",
-    ) as mock_set_project, patch(
-        "app.routers.context.redis_service.set_owner_project_path",
-        new_callable=AsyncMock,
-        return_value="/Users/oatrice/Software-projects/Akasa",
-    ) as mock_set_path, patch(
-        "app.routers.context.redis_service.get_owner_project_repo",
-        new_callable=AsyncMock,
-        return_value=None,
+    with (
+        patch(
+            "app.routers.context.redis_service.set_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="akasa",
+        ) as mock_set_project,
+        patch(
+            "app.routers.context.redis_service.set_owner_project_path",
+            new_callable=AsyncMock,
+            return_value="/Users/oatrice/Software-projects/Akasa",
+        ) as mock_set_path,
+        patch(
+            "app.routers.context.redis_service.get_owner_project_repo",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         response = client.put(
             CONTEXT_URL,
@@ -188,19 +208,23 @@ async def test_put_context_can_bind_project_path():
 async def test_put_context_can_bind_project_path_and_repo():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.set_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="the-middle-way",
-    ) as mock_set_project, patch(
-        "app.routers.context.redis_service.set_owner_project_path",
-        new_callable=AsyncMock,
-        return_value="/Users/oatrice/Software-projects/TheMiddleWay",
-    ) as mock_set_path, patch(
-        "app.routers.context.redis_service.set_owner_project_repo",
-        new_callable=AsyncMock,
-        return_value="oatrice/TheMiddleWay",
-    ) as mock_set_repo:
+    with (
+        patch(
+            "app.routers.context.redis_service.set_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="the-middle-way",
+        ) as mock_set_project,
+        patch(
+            "app.routers.context.redis_service.set_owner_project_path",
+            new_callable=AsyncMock,
+            return_value="/Users/oatrice/Software-projects/TheMiddleWay",
+        ) as mock_set_path,
+        patch(
+            "app.routers.context.redis_service.set_owner_project_repo",
+            new_callable=AsyncMock,
+            return_value="oatrice/TheMiddleWay",
+        ) as mock_set_repo,
+    ):
         response = client.put(
             CONTEXT_URL,
             json={
@@ -244,14 +268,17 @@ def test_put_context_invalid_empty_project():
 async def test_put_context_invalid_project_path_returns_400():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.set_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="akasa",
-    ), patch(
-        "app.routers.context.redis_service.set_owner_project_path",
-        new_callable=AsyncMock,
-        side_effect=ValueError("project_path must be an absolute path"),
+    with (
+        patch(
+            "app.routers.context.redis_service.set_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.set_owner_project_path",
+            new_callable=AsyncMock,
+            side_effect=ValueError("project_path must be an absolute path"),
+        ),
     ):
         response = client.put(
             CONTEXT_URL,
@@ -267,18 +294,22 @@ async def test_put_context_invalid_project_path_returns_400():
 async def test_put_context_invalid_project_repo_returns_400():
     app.dependency_overrides[verify_api_key] = lambda: True
 
-    with patch(
-        "app.routers.context.redis_service.set_owner_current_project",
-        new_callable=AsyncMock,
-        return_value="akasa",
-    ), patch(
-        "app.routers.context.redis_service.get_owner_project_path",
-        new_callable=AsyncMock,
-        return_value=None,
-    ), patch(
-        "app.routers.context.redis_service.set_owner_project_repo",
-        new_callable=AsyncMock,
-        side_effect=ValueError("project_repo must use owner/repo format"),
+    with (
+        patch(
+            "app.routers.context.redis_service.set_owner_current_project",
+            new_callable=AsyncMock,
+            return_value="akasa",
+        ),
+        patch(
+            "app.routers.context.redis_service.get_owner_project_path",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.routers.context.redis_service.set_owner_project_repo",
+            new_callable=AsyncMock,
+            side_effect=ValueError("project_repo must use owner/repo format"),
+        ),
     ):
         response = client.put(
             CONTEXT_URL,

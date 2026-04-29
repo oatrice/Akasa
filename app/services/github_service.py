@@ -17,17 +17,24 @@ _DURATION_TOKEN_RE = re.compile(
 _GITHUB_REMOTE_PATTERNS = [
     re.compile(r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$"),
     re.compile(r"^git@github\.com:(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?$"),
-    re.compile(r"^ssh://git@github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$"),
+    re.compile(
+        r"^ssh://git@github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$"
+    ),
 ]
 _ROADMAP_RELATIVE_PATH = os.path.join("docs", "ROADMAP.md")
 
+
 class GitHubServiceError(Exception):
     """Base exception for GitHub Service errors."""
+
     pass
+
 
 class GitHubAuthError(GitHubServiceError):
     """Exception raised for authentication issues."""
+
     pass
+
 
 class GitHubService:
     def __init__(self):
@@ -56,7 +63,7 @@ class GitHubService:
         """Basic sanitization to prevent command injection characters."""
         if not text:
             return ""
-        return re.sub(r'[;&|`$]', '', text)
+        return re.sub(r"[;&|`$]", "", text)
 
     def _parse_json_output(self, stdout: str) -> Any:
         text = (stdout or "").strip()
@@ -207,7 +214,11 @@ class GitHubService:
         )
         for item in items:
             content = item.get("content")
-            if isinstance(content, dict) and content.get("url") == issue_url and item.get("id"):
+            if (
+                isinstance(content, dict)
+                and content.get("url") == issue_url
+                and item.get("id")
+            ):
                 return str(item["id"])
         return None
 
@@ -217,7 +228,9 @@ class GitHubService:
         project_number: int,
         issue_url: str,
     ) -> str:
-        existing_item_id = self._get_project_item_id(project_owner, project_number, issue_url)
+        existing_item_id = self._get_project_item_id(
+            project_owner, project_number, issue_url
+        )
         if existing_item_id:
             return existing_item_id
 
@@ -242,10 +255,14 @@ class GitHubService:
             # Another automation may have added the issue between list and add.
             pass
 
-        added_item_id = self._get_project_item_id(project_owner, project_number, issue_url)
+        added_item_id = self._get_project_item_id(
+            project_owner, project_number, issue_url
+        )
         if added_item_id:
             return added_item_id
-        raise GitHubServiceError("Failed to resolve GitHub project item ID for the issue.")
+        raise GitHubServiceError(
+            "Failed to resolve GitHub project item ID for the issue."
+        )
 
     def sync_issue_duration_to_project_card(
         self,
@@ -258,7 +275,9 @@ class GitHubService:
             raise GitHubServiceError("GITHUB_PROJECT_NUMBER is not configured.")
 
         project_owner = self._get_project_owner(repo)
-        field_name = (settings.GITHUB_PROJECT_DURATION_FIELD_NAME or "Duration").strip() or "Duration"
+        field_name = (
+            settings.GITHUB_PROJECT_DURATION_FIELD_NAME or "Duration"
+        ).strip() or "Duration"
         normalized_duration = self._normalize_duration_for_project(duration)
 
         project_id = self._get_project_id(project_owner, project_number)
@@ -285,29 +304,39 @@ class GitHubService:
     def _run_gh_command(self, args: List[str]) -> subprocess.CompletedProcess:
         """Execute a gh CLI command securely."""
         self.check_gh_installed()
-        
+
         env = os.environ.copy()
         if self.token:
             env["GH_TOKEN"] = self.token
-        
+
         try:
             result = subprocess.run(
                 [self.gh_path] + args,
                 capture_output=True,
                 text=True,
                 env=env,
-                check=False
+                check=False,
             )
-            
+
             if result.returncode != 0:
                 stderr = result.stderr.lower()
-                if "not logged in" in stderr or "token" in stderr or "graphql: your token" in stderr:
-                    raise GitHubAuthError(f"GitHub Authentication failed: {result.stderr.strip()}")
-                if "could not find repository" in stderr or ("404" in stderr and "repo" in stderr):
-                    raise GitHubServiceError(f"Repository not found: {result.stderr.strip()}")
-                
+                if (
+                    "not logged in" in stderr
+                    or "token" in stderr
+                    or "graphql: your token" in stderr
+                ):
+                    raise GitHubAuthError(
+                        f"GitHub Authentication failed: {result.stderr.strip()}"
+                    )
+                if "could not find repository" in stderr or (
+                    "404" in stderr and "repo" in stderr
+                ):
+                    raise GitHubServiceError(
+                        f"Repository not found: {result.stderr.strip()}"
+                    )
+
                 raise GitHubServiceError(f"GitHub CLI error: {result.stderr.strip()}")
-                
+
             return result
         except Exception as e:
             if not isinstance(e, GitHubServiceError):
@@ -365,12 +394,16 @@ class GitHubService:
 
     def get_local_roadmap_content(self, project_path: str) -> tuple[str, str]:
         """Read planning docs from a bound local project path."""
-        planning_docs = ["docs/ROADMAP.md", "docs/7_ISSUE_NEXT_STEPS.md", "docs/8_NEXT_WEEK_THEME.md"]
+        planning_docs = [
+            "docs/ROADMAP.md",
+            "docs/7_ISSUE_NEXT_STEPS.md",
+            "docs/8_NEXT_WEEK_THEME.md",
+        ]
         base_path = os.path.abspath(os.path.expanduser(project_path))
-        
+
         found_paths = []
         combined_content = []
-        
+
         for doc_path in planning_docs:
             full_path = os.path.join(base_path, *doc_path.split("/"))
             if os.path.isfile(full_path):
@@ -380,44 +413,64 @@ class GitHubService:
                         found_paths.append(doc_path)
                 except OSError as e:
                     logger.warning(f"Failed to read local roadmap {doc_path}: {e}")
-                    
+
         if not combined_content:
-            raise GitHubServiceError(f"No planning docs (ROADMAP.md etc) found in bound path: {project_path}")
-            
+            raise GitHubServiceError(
+                f"No planning docs (ROADMAP.md etc) found in bound path: {project_path}"
+            )
+
         main_path = os.path.join(base_path, found_paths[0])
         return main_path, "\n\n".join(combined_content)
 
     def get_remote_roadmap_content(self, repo: str) -> tuple[str, str]:
         """Fetch planning docs from GitHub repository contents API."""
-        planning_docs = ["docs/ROADMAP.md", "docs/7_ISSUE_NEXT_STEPS.md", "docs/8_NEXT_WEEK_THEME.md"]
-        
+        planning_docs = [
+            "docs/ROADMAP.md",
+            "docs/7_ISSUE_NEXT_STEPS.md",
+            "docs/8_NEXT_WEEK_THEME.md",
+        ]
+
         found_urls = []
         combined_content = []
-        
+
         for doc_path in planning_docs:
             try:
-                result = self._run_gh_command(["api", f"repos/{repo}/contents/{doc_path}"])
+                result = self._run_gh_command(
+                    ["api", f"repos/{repo}/contents/{doc_path}"]
+                )
                 data = self._parse_json_output(result.stdout)
-                
+
                 if isinstance(data, dict):
                     encoded_content = data.get("content")
                     if encoded_content:
-                        raw_bytes = base64.b64decode(str(encoded_content), validate=False)
+                        raw_bytes = base64.b64decode(
+                            str(encoded_content), validate=False
+                        )
                         content = raw_bytes.decode("utf-8")
                         combined_content.append(f"## 📁 {doc_path}\n{content}")
-                        
-                        url = data.get("html_url") or data.get("download_url") or f"https://github.com/{repo}/blob/HEAD/{doc_path}"
+
+                        url = (
+                            data.get("html_url")
+                            or data.get("download_url")
+                            or f"https://github.com/{repo}/blob/HEAD/{doc_path}"
+                        )
                         found_urls.append(str(url))
             except GitHubServiceError as e:
                 message = str(e).lower()
                 if "404" not in message and "not found" not in message:
-                    logger.warning(f"Failed to fetch remote planning doc {doc_path} for {repo}: {e}")
+                    logger.warning(
+                        f"Failed to fetch remote planning doc {doc_path} for {repo}: {e}"
+                    )
             except (ValueError, UnicodeDecodeError) as e:
-                logger.warning(f"Failed to decode remote planning doc {doc_path} for {repo}: {e}")
-                
+                logger.warning(
+                    f"Failed to decode remote planning doc {doc_path} for {repo}: {e}"
+                )
+
         if not combined_content:
-            raise GitHubServiceError(f"No planning docs (ROADMAP.md etc) found in {repo}.")
-            
+            raise GitHubServiceError(
+                f"No planning docs (ROADMAP.md etc) found in {repo}."
+            )
+
         return found_urls[0], "\n\n".join(combined_content)
 
     def _list_owner_projects(self, owner: str, limit: int = 30) -> list[dict]:
@@ -602,7 +655,9 @@ class GitHubService:
                 )
                 continue
 
-            matched_items = [item for item in items if self._item_matches_repo(item, repo)]
+            matched_items = [
+                item for item in items if self._item_matches_repo(item, repo)
+            ]
             if matched_items:
                 candidates.append(
                     {
@@ -655,7 +710,9 @@ class GitHubService:
                     "items": items[:3],
                 }
             )
-        ordered_columns.sort(key=lambda column: (-column["count"], column["name"].lower()))
+        ordered_columns.sort(
+            key=lambda column: (-column["count"], column["name"].lower())
+        )
 
         selection_note = None
         if len(candidates) > 1:
@@ -685,7 +742,15 @@ class GitHubService:
 
     def get_issue(self, repo: str, issue_number: int) -> GitHubIssue:
         """Get details of a specific issue."""
-        args = ["issue", "view", str(issue_number), "--repo", repo, "--json", "number,title,state,url,body,author"]
+        args = [
+            "issue",
+            "view",
+            str(issue_number),
+            "--repo",
+            repo,
+            "--json",
+            "number,title,state,url,body,author",
+        ]
         result = self._run_gh_command(args)
 
         try:
@@ -696,7 +761,16 @@ class GitHubService:
 
     def list_issues(self, repo: str, limit: int = 30) -> List[GitHubIssue]:
         """List open issues in a repository."""
-        args = ["issue", "list", "--repo", repo, "--limit", str(limit), "--json", "number,title,state,url,author"]
+        args = [
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--limit",
+            str(limit),
+            "--json",
+            "number,title,state,url,author",
+        ]
         result = self._run_gh_command(args)
 
         try:
@@ -705,10 +779,23 @@ class GitHubService:
         except (json.JSONDecodeError, AttributeError, KeyError):
             raise GitHubServiceError("Failed to parse GitHub issues list.")
 
-    def search_issues(self, query: str, repo: str, limit: int = 30) -> List[GitHubIssue]:
+    def search_issues(
+        self, query: str, repo: str, limit: int = 30
+    ) -> List[GitHubIssue]:
         """Search for issues in a repository."""
         # gh issue list --search "query" --repo repo
-        args = ["issue", "list", "--repo", repo, "--search", query, "--limit", str(limit), "--json", "number,title,state,url,author"]
+        args = [
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--search",
+            query,
+            "--limit",
+            str(limit),
+            "--json",
+            "number,title,state,url,author",
+        ]
         result = self._run_gh_command(args)
 
         try:
@@ -724,14 +811,13 @@ class GitHubService:
         body: str,
         duration: Optional[str] = None,
     ) -> str:
-
         """Create a new issue and return the URL."""
         title = self.sanitize_input(title)
         body = self.sanitize_input(body)
-        
+
         args = ["issue", "create", "--repo", repo, "--title", title, "--body", body]
         result = self._run_gh_command(args)
-        
+
         url = result.stdout.strip()
         if url.startswith("http"):
             if duration:
@@ -752,11 +838,11 @@ class GitHubService:
     def create_comment(self, repo: str, issue_number: int, body: str) -> str:
         """Add a comment to an existing issue or pull request and return the URL."""
         body = self.sanitize_input(body)
-        
+
         # gh issue comment <number> --body "..."
         args = ["issue", "comment", str(issue_number), "--repo", repo, "--body", body]
         result = self._run_gh_command(args)
-        
+
         url = result.stdout.strip()
         if url.startswith("http"):
             return url
@@ -778,9 +864,16 @@ class GitHubService:
     def get_pr_status(self, repo: str) -> List[GitHubPR]:
         """Get the status of PRs in a repository."""
         # Use 'status' instead of 'list' to match existing tests and models
-        args = ["pr", "status", "--repo", repo, "--json", "number,title,state,url,isDraft,mergeable,author"]
+        args = [
+            "pr",
+            "status",
+            "--repo",
+            repo,
+            "--json",
+            "number,title,state,url,isDraft,mergeable,author",
+        ]
         result = self._run_gh_command(args)
-        
+
         try:
             data = json.loads(result.stdout)
             # 'pr status' returns an object with 'pullRequests' key
@@ -790,15 +883,28 @@ class GitHubService:
             logger.error(f"Failed to parse GitHub PR status: {e}")
             raise GitHubServiceError(f"Failed to parse GitHub PR status: {str(e)}")
 
-    def pr_create(self, repo: str, title: str, body: str, base: str = "main", head: str = "") -> str:
+    def pr_create(
+        self, repo: str, title: str, body: str, base: str = "main", head: str = ""
+    ) -> str:
         """Create a new Pull Request and return the URL."""
         title = self.sanitize_input(title)
         body = self.sanitize_input(body)
-        
-        args = ["pr", "create", "--repo", repo, "--title", title, "--body", body, "--base", base]
+
+        args = [
+            "pr",
+            "create",
+            "--repo",
+            repo,
+            "--title",
+            title,
+            "--body",
+            body,
+            "--base",
+            base,
+        ]
         if head:
             args.extend(["--head", head])
-            
+
         result = self._run_gh_command(args)
         url = result.stdout.strip()
         if url.startswith("http"):
@@ -810,7 +916,14 @@ class GitHubService:
         args = ["repo", "list"]
         if owner:
             args.append(owner)
-        args.extend(["--limit", str(limit), "--json", "nameWithOwner,description,url,stargazerCount"])
+        args.extend(
+            [
+                "--limit",
+                str(limit),
+                "--json",
+                "nameWithOwner,description,url,stargazerCount",
+            ]
+        )
         result = self._run_gh_command(args)
 
         try:
@@ -821,9 +934,15 @@ class GitHubService:
 
     def get_repo_info(self, repo: str) -> GitHubRepo:
         """Get repository information."""
-        args = ["repo", "view", repo, "--json", "nameWithOwner,description,url,stargazerCount"]
+        args = [
+            "repo",
+            "view",
+            repo,
+            "--json",
+            "nameWithOwner,description,url,stargazerCount",
+        ]
         result = self._run_gh_command(args)
-        
+
         try:
             data = json.loads(result.stdout)
             return GitHubRepo(**data)
@@ -831,15 +950,12 @@ class GitHubService:
             raise GitHubServiceError("Failed to parse Repository info.")
 
     # --- Git Operations via Shell (subprocess) ---
-    
+
     def _run_git_command(self, args: List[str]) -> str:
         """รันคำสั่ง git โดยตรงใน workspace"""
         try:
             result = subprocess.run(
-                ["git"] + args,
-                capture_output=True,
-                text=True,
-                check=True
+                ["git"] + args, capture_output=True, text=True, check=True
             )
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
@@ -868,7 +984,9 @@ class GitHubService:
         """Get recent git history from a local project path."""
         normalized_path = os.path.abspath(os.path.expanduser(project_path))
         try:
-            return self._run_git_command(["-C", normalized_path, "log", f"-n{limit}", "--oneline"])
+            return self._run_git_command(
+                ["-C", normalized_path, "log", f"-n{limit}", "--oneline"]
+            )
         except Exception:
             return ""
 

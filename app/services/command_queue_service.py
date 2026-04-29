@@ -225,7 +225,7 @@ def get_command_whitelist_entry(tool: str, command: str) -> Optional[dict]:
         if isinstance(execution_defaults, dict):
             defaults = copy.deepcopy(execution_defaults)
 
-    for entry in (tool_cfg.get("allowed_commands", []) or []):
+    for entry in tool_cfg.get("allowed_commands", []) or []:
         if not isinstance(entry, dict):
             continue
         if entry.get("name") != command:
@@ -394,7 +394,7 @@ async def enqueue_command(
         logger.info(f"[ENQUEUE] Setting meta key: {meta_key}")
         await redis_pool.set(meta_key, "1", ex=ttl)
         logger.info(f"[ENQUEUE] Set TTL {ttl}s on meta key: {meta_key}")
-        
+
         # Debug: Verify TTL was set correctly
         actual_meta_ttl = await redis_pool.ttl(meta_key)
         logger.info(f"[ENQUEUE] Verified TTL - Meta: {actual_meta_ttl}s")

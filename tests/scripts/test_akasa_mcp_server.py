@@ -227,22 +227,19 @@ class TestHandleRpc:
         result = await handle_rpc({"method": "notifications/initialized", "params": {}})
         assert result is None
 
-
     @pytest.mark.asyncio
     async def test_handle_rpc_initialize_extracts_client_info_name(self):
         """ทดสอบว่า initialize เก็บชื่อ client ไว้ในตัวแปร global MCP_CLIENT_NAME (เพื่อส่งเป็น source)"""
         import scripts.akasa_mcp_server as server
 
         # จำลอง request จาก client ที่ส่ง clientInfo.name
-        await server.handle_rpc({
-            "id": 100,
-            "method": "initialize",
-            "params": {
-                "clientInfo": {
-                    "name": "TestIDE"
-                }
+        await server.handle_rpc(
+            {
+                "id": 100,
+                "method": "initialize",
+                "params": {"clientInfo": {"name": "TestIDE"}},
             }
-        })
+        )
 
         assert getattr(server, "MCP_CLIENT_NAME", None) == "TestIDE"
 
@@ -280,14 +277,17 @@ class TestNotifyTaskComplete:
     async def test_notify_task_complete_uses_mcp_client_name_as_source(self):
         """notify_task_complete ต้องส่ง source ตามชื่อ client (ถ้ามี)"""
         import scripts.akasa_mcp_server as server
-        
+
         # Mock global variable
         original_name = getattr(server, "MCP_CLIENT_NAME", None)
         server.MCP_CLIENT_NAME = "MyCustomIDE"
 
         try:
             mock_response = MagicMock()
-            mock_response.json.return_value = {"delivered": True, "timestamp": "2026-03-13T10:00:00+00:00"}
+            mock_response.json.return_value = {
+                "delivered": True,
+                "timestamp": "2026-03-13T10:00:00+00:00",
+            }
             mock_response.raise_for_status = MagicMock()
 
             mock_client = AsyncMock()
@@ -296,7 +296,10 @@ class TestNotifyTaskComplete:
             mock_client.__aexit__ = AsyncMock(return_value=False)
 
             with (
-                patch("scripts.akasa_mcp_server.httpx.AsyncClient", return_value=mock_client),
+                patch(
+                    "scripts.akasa_mcp_server.httpx.AsyncClient",
+                    return_value=mock_client,
+                ),
                 patch("scripts.akasa_mcp_server.AKASA_CHAT_ID", "12345"),
             ):
                 await server.notify_task_complete(
@@ -304,14 +307,12 @@ class TestNotifyTaskComplete:
                     task="Test source",
                     status="success",
                 )
-                
+
             payload = mock_client.post.call_args.kwargs["json"]
             assert payload["source"] == "MyCustomIDE"
         finally:
             if original_name is not None:
                 server.MCP_CLIENT_NAME = original_name
-
-
 
     @pytest.mark.asyncio
     async def test_notify_task_complete_success(self):

@@ -28,8 +28,12 @@ class Settings(BaseSettings):
     AKASA_CHAT_ID: str = ""  # Default Telegram Chat ID for server-side notifications (e.g., task completion alerts)
     GITHUB_TOKEN: str = ""
     GITHUB_PROJECT_OWNER: str = ""  # Optional owner for gh project commands; defaults to the repo owner when empty
-    GITHUB_PROJECT_NUMBER: int = 0  # Optional GitHub Project number used for syncing issue card metadata
-    GITHUB_PROJECT_DURATION_FIELD_NAME: str = "Duration"  # Custom project field name for normalized duration text
+    GITHUB_PROJECT_NUMBER: int = (
+        0  # Optional GitHub Project number used for syncing issue card metadata
+    )
+    GITHUB_PROJECT_DURATION_FIELD_NAME: str = (
+        "Duration"  # Custom project field name for normalized duration text
+    )
     ALLOWED_TELEGRAM_CHAT_IDS: str = (
         ""  # Comma-separated list of Chat IDs (e.g., "123,456")
     )
@@ -42,14 +46,22 @@ class Settings(BaseSettings):
         ""  # Comma-separated Telegram user_ids allowed to queue commands (e.g., "123,456").
         # Falls back to AKASA_CHAT_ID if empty.
     )
-    COMMAND_QUEUE_TTL_SECONDS: int = 600  # Default command TTL: 10 minutes (temporarily increased for testing)
+    COMMAND_QUEUE_TTL_SECONDS: int = (
+        600  # Default command TTL: 10 minutes (temporarily increased for testing)
+    )
     COMMAND_QUEUE_RATE_LIMIT: int = 10  # Max commands per user per minute
-    TELEGRAM_MESSAGE_RATE_LIMIT: int = 5  # Max inbound Telegram messages per rate window
+    TELEGRAM_MESSAGE_RATE_LIMIT: int = (
+        5  # Max inbound Telegram messages per rate window
+    )
     TELEGRAM_MESSAGE_RATE_WINDOW_SECONDS: int = 60  # Telegram inbound rate-limit window
 
     # --- Feature: AI Agent Timeout Observer ---
-    AGENT_TIMEOUT_THRESHOLD_MINUTES: int = 15  # Minutes before a task is considered timed out
-    AGENT_TIMEOUT_CHECK_INTERVAL_MINUTES: int = 5  # How often to check for timed out tasks
+    AGENT_TIMEOUT_THRESHOLD_MINUTES: int = (
+        15  # Minutes before a task is considered timed out
+    )
+    AGENT_TIMEOUT_CHECK_INTERVAL_MINUTES: int = (
+        5  # How often to check for timed out tasks
+    )
 
     AVAILABLE_MODELS: dict[str, dict[str, str]] = {
         "gemini": {

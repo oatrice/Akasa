@@ -37,7 +37,7 @@ async def get_chat_history(chat_id: int, project_name: str = "default") -> list[
 
     # โครงสร้าง Key ใหม่: chat_history:{chat_id}:{project_name}
     history_key = f"chat_history:{chat_id}:{project_name}"
-    
+
     # --- Migration Logic ---
     # ถ้าดึงจาก 'default' และไม่มีข้อมูล ให้ลองเช็ค Key แบบเก่า (v0.7.0 ลงไป)
     if project_name == "default":
@@ -47,26 +47,34 @@ async def get_chat_history(chat_id: int, project_name: str = "default") -> list[
             old_exists = await redis_pool.exists(old_key)
             if old_exists:
                 # ย้ายข้อมูลจาก Key เก่ามาที่ 'default' ใหม่
-                logger.info(f"Migrating history for {chat_id} from old key to 'default' project.")
+                logger.info(
+                    f"Migrating history for {chat_id} from old key to 'default' project."
+                )
                 # ใช้ RENAME (atomic) เพื่อย้ายข้อมูล
                 await redis_pool.rename(old_key, history_key)
     # -----------------------
 
-    raw_history = await redis_pool.lrange(history_key, 0, settings.REDIS_HISTORY_LIMIT - 1)
-    
+    raw_history = await redis_pool.lrange(
+        history_key, 0, settings.REDIS_HISTORY_LIMIT - 1
+    )
+
     # LPUSH เก็บแบบ LIFO → reverse เพื่อให้ได้ chronological order
     history = []
     for msg in reversed(raw_history):
         try:
             history.append(json.loads(msg))
         except json.JSONDecodeError as e:
-            logger.warning(f"Skipping corrupted JSON in Redis for {chat_id} (Project: {project_name}): {msg} - Error: {e}")
+            logger.warning(
+                f"Skipping corrupted JSON in Redis for {chat_id} (Project: {project_name}): {msg} - Error: {e}"
+            )
             continue
-            
+
     return history
 
 
-async def add_message_to_history(chat_id: int, role: str, content: any, project_name: str = "default"):
+async def add_message_to_history(
+    chat_id: int, role: str, content: any, project_name: str = "default"
+):
     """เพิ่มข้อความลงในประวัติการสนทนาของ chat_id ในโปรเจ็กต์ที่กำหนด"""
     if settings.REDIS_HISTORY_LIMIT <= 0:
         return
@@ -75,22 +83,26 @@ async def add_message_to_history(chat_id: int, role: str, content: any, project_
     await _add_project_to_list(chat_id, project_name)
 
     history_key = f"chat_history:{chat_id}:{project_name}"
-    
+
     # สร้าง message dict
     msg_dict = {"role": role}
-    
+
     # ถ้าเป็นบทบาท assistant และมี tool_calls ให้เก็บโครงสร้างนั้นไว้
     if role == "assistant" and isinstance(content, dict) and "tool_calls" in content:
         msg_dict.update(content)
     elif role == "tool":
-        msg_dict["tool_call_id"] = content.get("tool_call_id") if isinstance(content, dict) else None
+        msg_dict["tool_call_id"] = (
+            content.get("tool_call_id") if isinstance(content, dict) else None
+        )
         msg_dict["name"] = content.get("name") if isinstance(content, dict) else None
-        msg_dict["content"] = content.get("content") if isinstance(content, dict) else str(content)
+        msg_dict["content"] = (
+            content.get("content") if isinstance(content, dict) else str(content)
+        )
     else:
         msg_dict["content"] = str(content)
 
     message_json = json.dumps(msg_dict)
-    
+
     # Push ข้อความใหม่ไปที่หัว list
     await redis_pool.lpush(history_key, message_json)
     # ตัด list ให้เหลือไม่เกิน limit
@@ -112,6 +124,7 @@ async def set_user_model_preference(chat_id: int, model_identifier: str):
 
 
 # --- Multi-Project Management ---
+
 
 async def get_current_project(chat_id: int) -> str:
     """ดึงชื่อโปรเจ็กต์ที่ Active อยู่ในปัจจุบัน"""
@@ -289,12 +302,12 @@ async def get_project_list(chat_id: int) -> List[str]:
     # ต้องมี default เสมอ
     if not projects:
         return ["default"]
-    
+
     # แปลงจาก set เป็น list และตรวจสอบว่ามี default หรือไม่
     project_list = list(projects)
     if "default" not in project_list:
         project_list.append("default")
-        
+
     return project_list
 
 
@@ -306,6 +319,7 @@ async def _add_project_to_list(chat_id: int, project_name: str):
 
 
 # --- Project Activity Indexes ---
+
 
 def _normalize_project_name(project_name: str) -> str:
     normalized = (project_name or "").strip().lower()
@@ -364,6 +378,7 @@ async def get_recent_deployment_ids(
 
 # --- Agent State (Project-Specific Memory) ---
 
+
 def _get_agent_state_key(chat_id: int, project_name: str) -> str:
     """Helper to generate the Redis key for agent state."""
     return f"agent_state:{chat_id}:{project_name}"
@@ -378,11 +393,13 @@ async def get_agent_state(chat_id: int, project_name: str) -> Optional[AgentStat
     json_str = await redis_pool.get(state_key)
     if not json_str:
         return None
-    
+
     try:
         return AgentState.from_json(json_str)
     except (json.JSONDecodeError, TypeError) as e:
-        logger.error(f"Failed to decode AgentState for {chat_id} (Project: {project_name}): {e}")
+        logger.error(
+            f"Failed to decode AgentState for {chat_id} (Project: {project_name}): {e}"
+        )
         return None
 
 
@@ -396,6 +413,7 @@ async def set_agent_state(chat_id: int, project_name: str, state: AgentState):
 
 
 # --- User ID to Chat ID Mapping (for Proactive Messaging) ---
+
 
 async def set_user_chat_id_mapping(user_id: int, chat_id: int):
     """
@@ -415,6 +433,7 @@ async def get_chat_id_for_user(user_id: int) -> Optional[str]:
 
 
 # --- Pending Tool Calls (Action Confirmation) ---
+
 
 async def set_pending_tool_call(chat_id: int, tool_call: dict):
     """เก็บคำสั่งที่รอยืนยันลง Redis (หมดอายุใน 10 นาที)"""
@@ -438,6 +457,7 @@ async def clear_pending_tool_call(chat_id: int):
 
 
 # --- Remote Action Confirmation (Issue #49) ---
+
 
 async def set_action_request(request_id: str, state: ActionRequestState):
     """บันทึกสถานะ Action Request ลง Redis (หมดอายุใน 1 ชั่วโมง)"""

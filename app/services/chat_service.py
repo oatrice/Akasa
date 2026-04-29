@@ -10,8 +10,17 @@ from app.models.agent_state import AgentState
 from app.services import redis_service
 from app.services import rate_limiter
 from app.services.telegram_service import tg_service
-from app.services.github_service import GitHubService, GitHubServiceError, GitHubAuthError
-from app.utils.markdown_utils import escape_markdown_v2, escape_markdown_v2_content, split_markdown_message
+from app.services.github_service import (
+    GitHubService,
+    GitHubServiceError,
+    GitHubAuthError,
+)
+from app.utils.markdown_utils import (
+    escape_markdown_v2,
+    escape_markdown_v2_content,
+    split_markdown_message,
+)
+
 # Re-import module to support existing tests that patch 'llm_service'
 from app.services import llm_service
 from app.services.llm_service import OpenRouterInsufficientCreditsError
@@ -45,10 +54,22 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "title": {"type": "string", "description": "The title of the issue."},
-                    "body": {"type": "string", "description": "The body content of the issue."},
-                    "duration": {"type": "string", "description": "Optional estimated or observed duration for the GitHub Project card (e.g., '90m', '2h', '1h 30m', '38883s')."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "The title of the issue.",
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The body content of the issue.",
+                    },
+                    "duration": {
+                        "type": "string",
+                        "description": "Optional estimated or observed duration for the GitHub Project card (e.g., '90m', '2h', '1h 30m', '38883s').",
+                    },
                 },
                 "required": ["repo", "title", "body"],
             },
@@ -62,7 +83,10 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
                 },
                 "required": ["repo"],
             },
@@ -76,9 +100,18 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "issue_number": {"type": "integer", "description": "The number of the issue or pull request."},
-                    "body": {"type": "string", "description": "The body content of the comment."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "issue_number": {
+                        "type": "integer",
+                        "description": "The number of the issue or pull request.",
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The body content of the comment.",
+                    },
                 },
                 "required": ["repo", "issue_number", "body"],
             },
@@ -92,8 +125,14 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "issue_number": {"type": "integer", "description": "The number of the issue."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "issue_number": {
+                        "type": "integer",
+                        "description": "The number of the issue.",
+                    },
                 },
                 "required": ["repo", "issue_number"],
             },
@@ -107,8 +146,14 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "issue_number": {"type": "integer", "description": "The number of the issue."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "issue_number": {
+                        "type": "integer",
+                        "description": "The number of the issue.",
+                    },
                 },
                 "required": ["repo", "issue_number"],
             },
@@ -122,8 +167,14 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "issue_number": {"type": "integer", "description": "The number of the issue."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "issue_number": {
+                        "type": "integer",
+                        "description": "The number of the issue.",
+                    },
                 },
                 "required": ["repo", "issue_number"],
             },
@@ -137,9 +188,18 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "query": {"type": "string", "description": "The search query (e.g., 'bug', 'is:closed sort:updated-desc')."},
-                    "limit": {"type": "integer", "description": "Max number of issues to return (default: 30)."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "The search query (e.g., 'bug', 'is:closed sort:updated-desc').",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max number of issues to return (default: 30).",
+                    },
                 },
                 "required": ["repo", "query"],
             },
@@ -153,11 +213,26 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "repo": {"type": "string", "description": "The full name of the repository (e.g., 'owner/repo')."},
-                    "title": {"type": "string", "description": "The title of the Pull Request."},
-                    "body": {"type": "string", "description": "The body content of the Pull Request."},
-                    "head": {"type": "string", "description": "The name of the branch where your changes are implemented."},
-                    "base": {"type": "string", "description": "The name of the branch you want your changes pulled into (default: 'main')."},
+                    "repo": {
+                        "type": "string",
+                        "description": "The full name of the repository (e.g., 'owner/repo').",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "The title of the Pull Request.",
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The body content of the Pull Request.",
+                    },
+                    "head": {
+                        "type": "string",
+                        "description": "The name of the branch where your changes are implemented.",
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "The name of the branch you want your changes pulled into (default: 'main').",
+                    },
                 },
                 "required": ["repo", "title", "body", "head", "base"],
             },
@@ -171,8 +246,14 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "owner": {"type": "string", "description": "GitHub username or organization (optional, defaults to authenticated user)."},
-                    "limit": {"type": "integer", "description": "Max number of repos to return (default: 30)."},
+                    "owner": {
+                        "type": "string",
+                        "description": "GitHub username or organization (optional, defaults to authenticated user).",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max number of repos to return (default: 30).",
+                    },
                 },
             },
         },
@@ -225,7 +306,10 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path to add (default: '.')"},
+                    "path": {
+                        "type": "string",
+                        "description": "Path to add (default: '.')",
+                    },
                 },
             },
         },
@@ -252,14 +336,22 @@ GITHUB_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "branch": {"type": "string", "description": "Branch name (default: 'main')."},
+                    "branch": {
+                        "type": "string",
+                        "description": "Branch name (default: 'main').",
+                    },
                 },
             },
         },
     },
 ]
 
-TOOLS_REQUIRING_CONFIRMATION = ["delete_github_issue", "git_push", "git_commit", "git_add"]
+TOOLS_REQUIRING_CONFIRMATION = [
+    "delete_github_issue",
+    "git_push",
+    "git_commit",
+    "git_add",
+]
 COMMAND_ALIASES = {
     "/pj": "/project",
     "/gh": "/github",
@@ -327,6 +419,7 @@ CURRENT_WORK_SHORTCUT_PHRASES = (
 # Cache build info at startup
 _BUILD_INFO_CACHE = None
 
+
 def get_build_info() -> str:
     global _BUILD_INFO_CACHE
     if _BUILD_INFO_CACHE:
@@ -334,7 +427,10 @@ def get_build_info() -> str:
 
     # Version
     version = "Unknown"
-    version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "VERSION")
+    version_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "VERSION",
+    )
     if os.path.exists(version_file):
         with open(version_file, "r") as f:
             version = f.read().strip()
@@ -346,10 +442,10 @@ def get_build_info() -> str:
     git_hash = "Unknown"
     try:
         git_hash = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], 
+            ["git", "rev-parse", "--short", "HEAD"],
             cwd=os.path.dirname(os.path.abspath(__file__)),
             stderr=subprocess.DEVNULL,
-            text=True
+            text=True,
         ).strip()
     except Exception:
         pass
@@ -364,24 +460,28 @@ async def _send_response(chat_id: int, text: str) -> None:
     if settings.ENVIRONMENT == "development":
         build_info = get_build_info()
         final_text = f"{text}\n\n---\n*Local Dev Info*\n{build_info}"
-    
+
     # Chunk the text to fit Telegram's 4096 character limit
     # Safe chunk size of 4000 characters, using smart markdown chunking
     chunks = split_markdown_message(final_text, max_length=4000)
-    
+
     for chunk in chunks:
         # Escape MarkdownV2 special characters before sending
         escaped_text = escape_markdown_v2(chunk)
-        
+
         try:
             await tg_service.send_message(chat_id, escaped_text)
         except httpx.HTTPStatusError as e:
             if e.response is not None and e.response.status_code == 400:
-                logger.warning(f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}")
+                logger.warning(
+                    f"MarkdownV2 parse failed for {chat_id}, falling back to plain text: {e}"
+                )
                 try:
                     await tg_service.send_message(chat_id, chunk, parse_mode=None)
                 except Exception as fallback_err:
-                    logger.error(f"Plain text fallback also failed for {chat_id}: {fallback_err}")
+                    logger.error(
+                        f"Plain text fallback also failed for {chat_id}: {fallback_err}"
+                    )
             else:
                 logger.error(f"HTTP error sending to Telegram for {chat_id}: {e}")
         except Exception as e:
@@ -393,7 +493,7 @@ async def _send_escaped_response(chat_id: int, text: str) -> None:
     """
     Helper สำหรับส่งข้อความที่ escape แล้วโดยตรง (ไม่ผ่าน send_message)
     ใช้สำหรับ error messages ที่มีอักขระพิเศษเยอะ เช่น `_`, `*`, `[]`
-    
+
     NOTE: ไม่ลบ function นี้ตาม code review suggestion เพราะ:
     - escape_markdown_v2() ไม่ escape `_` (underscore) เพื่อ preserve italic formatting
     - แต่ `_` ใน command names เช่น 'delete_all', 'run_task' ทำให้ Telegram ตีความเป็น italic ผิด
@@ -402,12 +502,12 @@ async def _send_escaped_response(chat_id: int, text: str) -> None:
     """
     # Escape ALL special characters including _ and *
     safe_text = escape_markdown_v2_content(text)
-    
+
     if settings.ENVIRONMENT == "development":
         build_info = get_build_info()
         safe_build = escape_markdown_v2_content(build_info)
         safe_text = f"{safe_text}\n\n\\-\\-\\-\n*Local Dev Info*\n{safe_build}"
-    
+
     try:
         await tg_service.client.post(
             f"{tg_service.api_url}/sendMessage",
@@ -419,15 +519,15 @@ async def _send_escaped_response(chat_id: int, text: str) -> None:
             timeout=10.0,
         )
     except Exception as e:
-        logger.error(f"Unexpected error sending escaped message to Telegram for {chat_id}: {e}")
+        logger.error(
+            f"Unexpected error sending escaped message to Telegram for {chat_id}: {e}"
+        )
 
 
 async def _check_telegram_rate_limit(message: "Message") -> bool:
     """Check inbound Telegram message rate limits before command or LLM handling."""
     identifier = (
-        message.from_user.id
-        if message.from_user is not None
-        else message.chat.id
+        message.from_user.id if message.from_user is not None else message.chat.id
     )
 
     try:
@@ -454,11 +554,12 @@ async def handle_chat_message(update: Update) -> None:
         if update.message.from_user:
             try:
                 await redis_service.set_user_chat_id_mapping(
-                    user_id=update.message.from_user.id,
-                    chat_id=update.message.chat.id
+                    user_id=update.message.from_user.id, chat_id=update.message.chat.id
                 )
             except Exception as e:
-                logger.warning(f"Failed to set user_chat_id mapping for user {update.message.from_user.id}: {e}")
+                logger.warning(
+                    f"Failed to set user_chat_id mapping for user {update.message.from_user.id}: {e}"
+                )
 
         if not await _check_telegram_rate_limit(update.message):
             return
@@ -481,7 +582,7 @@ async def _handle_command(message: "Message") -> None:
     raw_cmd = parts[0].lower()
     cmd = COMMAND_ALIASES.get(raw_cmd, raw_cmd)
     args = parts[1:] if len(parts) > 1 else []
-    
+
     if cmd == "/model":
         await _handle_model_command(chat_id, args)
     elif cmd == "/project":
@@ -506,6 +607,7 @@ async def _handle_command(message: "Message") -> None:
         await _handle_testsource_command(chat_id, args)
     else:
         await _send_response(chat_id, f"❌ Unknown command: {cmd}")
+
 
 async def _handle_testsource_command(chat_id: int, args: list[str]) -> None:
     """
@@ -569,7 +671,9 @@ async def _handle_queue_command(message: "Message", args: list[str]) -> None:
     await _enqueue_telegram_command(message, tool, command, payload)
 
 
-async def _resolve_queued_command_context(chat_id: int, tool: str) -> dict[str, Optional[str]]:
+async def _resolve_queued_command_context(
+    chat_id: int, tool: str
+) -> dict[str, Optional[str]]:
     context = {
         "project_name": None,
         "cwd": None,
@@ -582,7 +686,9 @@ async def _resolve_queued_command_context(chat_id: int, tool: str) -> dict[str, 
     try:
         project_name = await redis_service.get_current_project(chat_id)
     except Exception as exc:
-        logger.warning(f"Failed to resolve current project for queued {tool} command: {exc}")
+        logger.warning(
+            f"Failed to resolve current project for queued {tool} command: {exc}"
+        )
         return context
 
     if not project_name:
@@ -633,15 +739,15 @@ async def _enqueue_telegram_command(
 
     allowed, retry_after = await command_queue_service.check_rate_limit(user_id)
     if not allowed:
-        await _send_response(chat_id, f"❌ Rate limit exceeded. Retry after {retry_after}s.")
+        await _send_response(
+            chat_id, f"❌ Rate limit exceeded. Retry after {retry_after}s."
+        )
         return
 
     try:
         request = CommandQueueRequest(**request_kwargs)
         result = await command_queue_service.enqueue_command(
-            request,
-            user_id=user_id,
-            chat_id=chat_id
+            request, user_id=user_id, chat_id=chat_id
         )
         safe_tool = escape_markdown_v2_content(tool)
         safe_command = escape_markdown_v2_content(command)
@@ -716,6 +822,7 @@ async def _handle_gemini_command(message: "Message", args: list[str]) -> None:
         {"task": task_text},
     )
 
+
 async def _handle_github_command(chat_id: int, args: list[str]) -> None:
     if not args:
         msg = "🐙 *GitHub Commands* (alias: `/gh`)\n"
@@ -745,7 +852,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
         elif sub_cmd == "issues":
             explicit_repo = args[1] if len(args) > 1 else None
             if explicit_repo and not _looks_like_repo_name(explicit_repo):
-                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                await _send_response(
+                    chat_id, "⚠️ Please specify repository in format `owner/repo`."
+                )
                 return
 
             target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
@@ -758,26 +867,40 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                 return
             issues = github_service.list_issues(repo_name)
             if not issues:
-                await _send_response(chat_id, f"✅ No open issues found for `{repo_name}`")
+                await _send_response(
+                    chat_id, f"✅ No open issues found for `{repo_name}`"
+                )
                 return
             msg = f"🎯 *Open Issues for {repo_name}:*\n"
             for issue in issues:
                 msg += f"• #{issue.number} {issue.title} ([link]({issue.url}))\n"
             await _send_response(chat_id, msg)
         elif sub_cmd == "issue" and len(args) > 3 and args[1] == "new":
-            url = github_service.create_issue(args[2], args[3], " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot")
+            url = github_service.create_issue(
+                args[2],
+                args[3],
+                " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot",
+            )
             await _send_response(chat_id, f"✅ Issue created: {url}")
         elif sub_cmd == "pr":
             if len(args) > 1 and args[1] == "new" and len(args) > 3:
-                url = github_service.pr_create(args[2], args[3], " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot")
+                url = github_service.pr_create(
+                    args[2],
+                    args[3],
+                    " ".join(args[4:]) if len(args) > 4 else "Created via Akasa Bot",
+                )
                 await _send_response(chat_id, f"✅ Pull Request created: {url}")
             else:
                 explicit_repo = args[1] if len(args) > 1 else None
                 if explicit_repo and not _looks_like_repo_name(explicit_repo):
-                    await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                    await _send_response(
+                        chat_id, "⚠️ Please specify repository in format `owner/repo`."
+                    )
                     return
 
-                target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
+                target = await _resolve_github_target(
+                    chat_id, explicit_repo=explicit_repo
+                )
                 repo_name = target.get("repo")
                 if not repo_name or not _looks_like_repo_name(repo_name):
                     await _send_response(
@@ -787,7 +910,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                     return
                 prs = github_service.get_pr_status(repo_name)
                 if not prs:
-                    await _send_response(chat_id, f"✅ No active PRs found for `{repo_name}`")
+                    await _send_response(
+                        chat_id, f"✅ No active PRs found for `{repo_name}`"
+                    )
                     return
                 msg = f"🔀 *PR Status for {repo_name}:*\n"
                 for pr in prs:
@@ -797,7 +922,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
         elif sub_cmd == "kanban":
             explicit_repo = args[1] if len(args) > 1 else None
             if explicit_repo and not _looks_like_repo_name(explicit_repo):
-                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                await _send_response(
+                    chat_id, "⚠️ Please specify repository in format `owner/repo`."
+                )
                 return
 
             target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
@@ -814,7 +941,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
         elif sub_cmd == "roadmap":
             explicit_repo = args[1] if len(args) > 1 else None
             if explicit_repo and not _looks_like_repo_name(explicit_repo):
-                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                await _send_response(
+                    chat_id, "⚠️ Please specify repository in format `owner/repo`."
+                )
                 return
 
             target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
@@ -832,7 +961,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
         elif sub_cmd in ("next-issue", "nextissue"):
             explicit_repo = args[1] if len(args) > 1 else None
             if explicit_repo and not _looks_like_repo_name(explicit_repo):
-                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                await _send_response(
+                    chat_id, "⚠️ Please specify repository in format `owner/repo`."
+                )
                 return
             target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
             try:
@@ -849,7 +980,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
         elif sub_cmd in ("next-week", "nextweek"):
             explicit_repo = args[1] if len(args) > 1 else None
             if explicit_repo and not _looks_like_repo_name(explicit_repo):
-                await _send_response(chat_id, "⚠️ Please specify repository in format `owner/repo`.")
+                await _send_response(
+                    chat_id, "⚠️ Please specify repository in format `owner/repo`."
+                )
                 return
             target = await _resolve_github_target(chat_id, explicit_repo=explicit_repo)
             try:
@@ -864,7 +997,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
                 return
             await _send_response(chat_id, _render_single_doc(doc))
         else:
-            await _send_response(chat_id, "Invalid GitHub command or missing arguments.")
+            await _send_response(
+                chat_id, "Invalid GitHub command or missing arguments."
+            )
     except Exception as e:
         await _send_response(chat_id, f"GitHub Error: {str(e)}")
 
@@ -872,7 +1007,9 @@ async def _handle_github_command(chat_id: int, args: list[str]) -> None:
 async def _handle_note_command(chat_id: int, args: list[str]) -> None:
     note_text = " ".join(args)
     current_project = await redis_service.get_current_project(chat_id)
-    agent_state = await redis_service.get_agent_state(chat_id, current_project) or AgentState()
+    agent_state = (
+        await redis_service.get_agent_state(chat_id, current_project) or AgentState()
+    )
     agent_state.current_task = note_text
     agent_state.last_activity_timestamp = datetime.now(timezone.utc)
     await redis_service.set_agent_state(chat_id, current_project, agent_state)
@@ -897,15 +1034,21 @@ async def _handle_model_command(chat_id: int, args: list[str]) -> None:
                     model_name = info["name"]
                     break
             model_name = f"{model_name} (default)"
-        message = f"❇️ Current model: `{model_name}`\n\nTo switch, use `/model <alias>`:\n"
+        message = (
+            f"❇️ Current model: `{model_name}`\n\nTo switch, use `/model <alias>`:\n"
+        )
         for alias, info in available_models.items():
             message += f"- `{alias}`: {info['name']}\n"
         await _send_response(chat_id, message)
         return
     alias = args[0].lower()
     if alias in available_models:
-        await redis_service.set_user_model_preference(chat_id, available_models[alias]["identifier"])
-        await _send_response(chat_id, f"✅ Model selection updated to: {available_models[alias]['name']}")
+        await redis_service.set_user_model_preference(
+            chat_id, available_models[alias]["identifier"]
+        )
+        await _send_response(
+            chat_id, f"✅ Model selection updated to: {available_models[alias]['name']}"
+        )
     else:
         message = f"❌ Invalid model '{alias}'.\nAvailable models:\n"
         for a in available_models.keys():
@@ -952,7 +1095,9 @@ def _looks_like_repo_name(value: Optional[str]) -> bool:
     return bool(owner.strip() and repo.strip())
 
 
-async def _get_project_repo_binding(chat_id: int, project_name: Optional[str]) -> Optional[str]:
+async def _get_project_repo_binding(
+    chat_id: int, project_name: Optional[str]
+) -> Optional[str]:
     if not project_name:
         return None
 
@@ -979,7 +1124,9 @@ async def _resolve_github_target(
     except Exception as e:
         logger.warning(f"Failed to resolve project path for {target_project}: {e}")
 
-    current_project_repo = target_project if _looks_like_repo_name(target_project) else None
+    current_project_repo = (
+        target_project if _looks_like_repo_name(target_project) else None
+    )
 
     repo_from_path = None
     if project_path:
@@ -1061,7 +1208,9 @@ def _summarize_roadmap_content(content: str, max_sections: int = 15) -> list[str
         complete = sum("✅" in line for line in lines)
         todo = sum("🔲" in line for line in lines)
         in_progress = sum(
-            ("🟡" in line) or ("in progress" in line.lower()) or ("running" in line.lower())
+            ("🟡" in line)
+            or ("in progress" in line.lower())
+            or ("running" in line.lower())
             for line in lines
         )
 
@@ -1143,7 +1292,9 @@ def _render_kanban_summary(summary: dict) -> str:
                         + "; ".join(item_parts)
                     )
                 else:
-                    lines.append(f"• {column.get('name', 'Open')}: {column.get('count', 0)}")
+                    lines.append(
+                        f"• {column.get('name', 'Open')}: {column.get('count', 0)}"
+                    )
 
         if summary.get("project_url"):
             lines.append(f"🔗 [View project]({summary['project_url']})")
@@ -1165,6 +1316,7 @@ def _render_kanban_summary(summary: dict) -> str:
 def _split_roadmap_docs(content: str) -> list[tuple[str, str]]:
     """Split combined roadmap content (joined by '## 📁 docs/...') into (filename, text) pairs."""
     import re
+
     pattern = re.compile(r"## 📁 (docs/[^\n]+)")
     parts = pattern.split(content)
     result: list[tuple[str, str]] = []
@@ -1179,7 +1331,9 @@ def _split_roadmap_docs(content: str) -> list[tuple[str, str]]:
 
 
 def _render_roadmap_summary(summary: dict) -> str:
-    display_name = summary.get("repo") or summary.get("project_name") or "current project"
+    display_name = (
+        summary.get("repo") or summary.get("project_name") or "current project"
+    )
     lines = [f"🗺️ *Roadmap for {display_name}*"]
 
     # New: render per-file raw content if available
@@ -1309,9 +1463,7 @@ def _load_single_planning_doc(
     if local_error:
         raise GitHubServiceError(local_error)
 
-    raise GitHubServiceError(
-        f"Could not find {doc_filename} for the current project."
-    )
+    raise GitHubServiceError(f"Could not find {doc_filename} for the current project.")
 
 
 _SINGLE_DOC_ICON = {
@@ -1322,7 +1474,9 @@ _SINGLE_DOC_ICON = {
 
 
 def _render_single_doc(summary: dict) -> str:
-    display_name = summary.get("repo") or summary.get("project_name") or "current project"
+    display_name = (
+        summary.get("repo") or summary.get("project_name") or "current project"
+    )
     fname = summary.get("doc_filename", "docs/planning.md")
     icon = _SINGLE_DOC_ICON.get(fname, "📁")
     lines = [
@@ -1371,7 +1525,11 @@ async def _read_local_doc_file(chat_id: int, doc_type: str) -> tuple[str, str]:
     Returns (filepath, content). Raises GitHubServiceError ถ้าไม่มี path หรือไฟล์.
     """
     project_name = await redis_service.get_current_project(chat_id)
-    project_path = await redis_service.get_project_path(chat_id, project_name) if project_name else None
+    project_path = (
+        await redis_service.get_project_path(chat_id, project_name)
+        if project_name
+        else None
+    )
     if not project_path:
         raise GitHubServiceError(
             "No folder path is bound to the current project. "
@@ -1383,15 +1541,15 @@ async def _read_local_doc_file(chat_id: int, doc_type: str) -> tuple[str, str]:
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
     except FileNotFoundError:
-        raise GitHubServiceError(
-            f"`docs/{filename}` not found in `{project_path}`."
-        )
+        raise GitHubServiceError(f"`docs/{filename}` not found in `{project_path}`.")
     return filepath, content
 
 
 async def _summarize_doc_with_llm(content: str, doc_type: str, chat_id: int) -> str:
     """ส่ง raw content ไปให้ LLM สรุป"""
-    system = _DOC_SHORTCUT_SYSTEM_PROMPTS.get(doc_type, "Summarize this document concisely.")
+    system = _DOC_SHORTCUT_SYSTEM_PROMPTS.get(
+        doc_type, "Summarize this document concisely."
+    )
     truncated = content[:8000]
     return await llm_service.get_llm_reply(
         chat_id=chat_id,
@@ -1418,19 +1576,25 @@ async def _handle_doc_shortcut_command(
     except Exception as e:
         logger.warning(f"LLM summarization failed for {doc_type}: {e}")
         bullet_lines = _summarize_roadmap_content(content, max_sections=5)
-        summary = "\n".join(f"• {line}" for line in bullet_lines) if bullet_lines else content[:500]
+        summary = (
+            "\n".join(f"• {line}" for line in bullet_lines)
+            if bullet_lines
+            else content[:500]
+        )
 
     safe_title = escape_markdown_v2_content(title)
     safe_summary = escape_markdown_v2_content(summary)
     msg = f"*{safe_title}*\n\n{safe_summary}"
 
     reply_markup = {
-        "inline_keyboard": [[
-            {
-                "text": "📄 ดูฉบับเต็ม",
-                "callback_data": f"view_full:{doc_type}:{chat_id}",
-            }
-        ]]
+        "inline_keyboard": [
+            [
+                {
+                    "text": "📄 ดูฉบับเต็ม",
+                    "callback_data": f"view_full:{doc_type}:{chat_id}",
+                }
+            ]
+        ]
     }
     await tg_service.send_message(chat_id=chat_id, text=msg, reply_markup=reply_markup)
 
@@ -1474,7 +1638,7 @@ async def _handle_view_full_callback(callback: "CallbackQuery") -> None:
 
     filename = _DOC_SHORTCUT_FILES[doc_type]
     MAX_CHUNK = 4000
-    chunks = [content[i:i + MAX_CHUNK] for i in range(0, len(content), MAX_CHUNK)]
+    chunks = [content[i : i + MAX_CHUNK] for i in range(0, len(content), MAX_CHUNK)]
 
     for i, chunk in enumerate(chunks[:3]):
         if i == 0:
@@ -1570,8 +1734,10 @@ async def _try_handle_project_insight_shortcut(
             if luma_state:
                 phase = luma_state.get("phase", "Unknown")
                 active_branch = luma_state.get("active_branch", "None")
-                sections.append(f"\n💡 **Luma State**\n• Phase: `{phase}`\n• Branch: `{active_branch}`")
-                
+                sections.append(
+                    f"\n💡 **Luma State**\n• Phase: `{phase}`\n• Branch: `{active_branch}`"
+                )
+
                 active_issues = luma_state.get("active_issues", [])
                 if active_issues:
                     sections.append("• Active Issues:")
@@ -1579,7 +1745,7 @@ async def _try_handle_project_insight_shortcut(
                         num = issue.get("number", "?")
                         title = issue.get("title", "Unknown")
                         sections.append(f"  {idx}. #{num} - {title}")
-            
+
             # Git History
             git_log = github_service.get_local_git_history(project_path, limit=5)
             if git_log:
@@ -1589,7 +1755,13 @@ async def _try_handle_project_insight_shortcut(
         if repo_name and _looks_like_repo_name(repo_name):
             try:
                 summary = github_service.get_repo_kanban_summary(repo_name)
-                in_progress_cols = [c for c in summary.get("columns", []) if "progress" in c["name"].lower() or "doing" in c["name"].lower() or "active" in c["name"].lower()]
+                in_progress_cols = [
+                    c
+                    for c in summary.get("columns", [])
+                    if "progress" in c["name"].lower()
+                    or "doing" in c["name"].lower()
+                    or "active" in c["name"].lower()
+                ]
                 if not in_progress_cols and summary.get("columns"):
                     in_progress_cols = summary.get("columns")[:1]
 
@@ -1598,7 +1770,11 @@ async def _try_handle_project_insight_shortcut(
                     sections.append(f"*{col['name']}* ({col['count']})")
                     for item in col.get("items", []):
                         title = item.get("title", "")
-                        num_text = f"[#{item['number']}]({item['url']})" if item.get("number") and item.get("url") else ""
+                        num_text = (
+                            f"[#{item['number']}]({item['url']})"
+                            if item.get("number") and item.get("url")
+                            else ""
+                        )
                         sections.append(f"• {num_text} {title}".strip())
                     if col["count"] > len(col.get("items", [])):
                         sections.append("  ... (more hidden)")
@@ -1606,7 +1782,9 @@ async def _try_handle_project_insight_shortcut(
                 logger.error(f"Failed to load kanban for current work: {e}")
                 sections.append(f"\n📋 **Kanban**\n⚠️ Failed to load kanban: {e}")
         else:
-            sections.append("\n📋 **Kanban**\n⚠️ Repository not bound. Cannot fetch GitHub board.")
+            sections.append(
+                "\n📋 **Kanban**\n⚠️ Repository not bound. Cannot fetch GitHub board."
+            )
 
         final_response = "\n".join(sections)
 
@@ -1679,7 +1857,8 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
                 "❌ "
                 + (
                     str(exc)
-                    if str(exc) not in {"missing bind arguments", "missing project path"}
+                    if str(exc)
+                    not in {"missing bind arguments", "missing project path"}
                     else "Usage: `/project bind <name> <absolute_path>` or `/project bind <absolute_path>` for the current project. Alias: `/pj`."
                 ),
             )
@@ -1745,17 +1924,27 @@ async def _handle_project_command(chat_id: int, args: list[str]) -> None:
         await redis_service.set_current_project(chat_id, target)
         agent_state = await redis_service.get_agent_state(chat_id, target)
         if agent_state and agent_state.current_task:
-            await _send_response(chat_id, f"✅ Switched to project: `{target}`\n\n👋 Welcome back! Last known task:\n```{agent_state.current_task}```")
+            await _send_response(
+                chat_id,
+                f"✅ Switched to project: `{target}`\n\n👋 Welcome back! Last known task:\n```{agent_state.current_task}```",
+            )
         else:
             await _send_response(chat_id, f"✅ Switched to project: `{target}`")
     elif sub_cmd == "new" and len(args) > 1:
         await redis_service.set_current_project(chat_id, args[1].lower())
-        await _send_response(chat_id, f"🆕 Created and switched to project: `{args[1].lower()}`")
+        await _send_response(
+            chat_id, f"🆕 Created and switched to project: `{args[1].lower()}`"
+        )
     elif sub_cmd == "rename" and len(args) > 2:
         await redis_service.rename_project(chat_id, args[1].lower(), args[2].lower())
-        await _send_response(chat_id, f"✅ Project renamed from `{args[1].lower()}` to `{args[2].lower()}`.\n(Current project updated if needed)")
+        await _send_response(
+            chat_id,
+            f"✅ Project renamed from `{args[1].lower()}` to `{args[2].lower()}`.\n(Current project updated if needed)",
+        )
     else:
-        await _send_response(chat_id, "❌ Invalid usage. Try `/project` or `/pj` for help.")
+        await _send_response(
+            chat_id, "❌ Invalid usage. Try `/project` or `/pj` for help."
+        )
 
 
 def _format_project_timestamp(value) -> Optional[str]:
@@ -1891,7 +2080,9 @@ async def _load_project_status_snapshot(
             chat_id, project_name, limit=command_limit
         )
     except Exception as e:
-        logger.warning(f"Failed to load recent command IDs for project {project_name}: {e}")
+        logger.warning(
+            f"Failed to load recent command IDs for project {project_name}: {e}"
+        )
 
     try:
         recent_deployment_ids = await redis_service.get_recent_deployment_ids(
@@ -1974,7 +2165,9 @@ async def _handle_project_status_command(
     project_name: str,
     current_project: Optional[str] = None,
 ) -> None:
-    current_project = current_project or await redis_service.get_current_project(chat_id)
+    current_project = current_project or await redis_service.get_current_project(
+        chat_id
+    )
     snapshot = await _load_project_status_snapshot(chat_id, project_name)
     agent_state = snapshot["agent_state"]
     project_path = snapshot["project_path"]
@@ -2012,7 +2205,9 @@ async def _handle_project_status_command(
         lines.append(f"📝 Current task: {agent_state.current_task}")
         if agent_state.focus_file:
             lines.append(f"📄 Focus file: `{agent_state.focus_file}`")
-        last_note_update = _format_project_timestamp(agent_state.last_activity_timestamp)
+        last_note_update = _format_project_timestamp(
+            agent_state.last_activity_timestamp
+        )
         if last_note_update:
             lines.append(f"🕒 Last note update: `{last_note_update}`")
     else:
@@ -2025,9 +2220,7 @@ async def _handle_project_status_command(
     lines.append("⚙️ Recent commands:")
     if recent_command_statuses:
         for status in recent_command_statuses:
-            line = (
-                f"• `{status.command_id}` — `{status.tool} {status.command}` → `{status.status}`"
-            )
+            line = f"• `{status.command_id}` — `{status.tool} {status.command}` → `{status.status}`"
             if status.cwd:
                 line += f" @ `{status.cwd}`"
             lines.append(line)
@@ -2146,7 +2339,9 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
             {
                 "project": project_name,
                 "active": project_name == current_project,
-                "task": agent_state.current_task if agent_state and agent_state.current_task else None,
+                "task": agent_state.current_task
+                if agent_state and agent_state.current_task
+                else None,
                 "project_path": project_path,
                 "project_repo": project_repo,
                 "project_repo_source": project_repo_source,
@@ -2165,7 +2360,9 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
             "verbose": verbose,
             "projects": overview_items,
         }
-        rendered = "```json\n" + json.dumps(payload, ensure_ascii=False, indent=2) + "\n```"
+        rendered = (
+            "```json\n" + json.dumps(payload, ensure_ascii=False, indent=2) + "\n```"
+        )
         await _send_response(chat_id, rendered)
         return
 
@@ -2174,14 +2371,18 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
         prefix = "✅" if item["active"] else "•"
         lines.append(f"{prefix} `{item['project']}`")
         lines.append(f"Task: {item['task'] or 'No saved note'}")
-        lines.append(f"Path: `{item['project_path']}`" if item["project_path"] else "Path: none")
+        lines.append(
+            f"Path: `{item['project_path']}`" if item["project_path"] else "Path: none"
+        )
         lines.append(
             f"GitHub: `{item['project_repo']}`"
             if item["project_repo"]
             else "GitHub: none"
         )
         lines.append(
-            f"Last updated: `{item['last_updated']}`" if item["last_updated"] else "Last updated: unknown"
+            f"Last updated: `{item['last_updated']}`"
+            if item["last_updated"]
+            else "Last updated: unknown"
         )
         lines.append(f"History count: {_format_history_count(item['history_count'])}")
 
@@ -2203,7 +2404,11 @@ async def _handle_projects_command(chat_id: int, args: list[str]) -> None:
 
         latest_agent_task = item["latest_agent_task"]
         if latest_agent_task:
-            source = f" ({latest_agent_task['source']})" if latest_agent_task["source"] else ""
+            source = (
+                f" ({latest_agent_task['source']})"
+                if latest_agent_task["source"]
+                else ""
+            )
             lines.append(
                 f"Agent: `{latest_agent_task['status']}` — {latest_agent_task['task']}{source}"
             )
@@ -2239,23 +2444,63 @@ async def _execute_tool_call(
             return github_service.create_issue(**create_kwargs)
         elif function_name == "list_github_open_prs":
             prs = github_service.get_pr_status(repo=args.get("repo"))
-            return "\n".join([f"#{pr.number}: {pr.title} by @{pr.author.get('login') if pr.author else 'unknown'} ({pr.url})" for pr in prs]) if prs else "No open PRs."
+            return (
+                "\n".join(
+                    [
+                        f"#{pr.number}: {pr.title} by @{pr.author.get('login') if pr.author else 'unknown'} ({pr.url})"
+                        for pr in prs
+                    ]
+                )
+                if prs
+                else "No open PRs."
+            )
         elif function_name == "create_github_comment":
-            return github_service.create_comment(repo=args.get("repo"), issue_number=args.get("issue_number"), body=args.get("body"))
+            return github_service.create_comment(
+                repo=args.get("repo"),
+                issue_number=args.get("issue_number"),
+                body=args.get("body"),
+            )
         elif function_name == "close_github_issue":
-            return github_service.close_issue(repo=args.get("repo"), issue_number=args.get("issue_number"))
+            return github_service.close_issue(
+                repo=args.get("repo"), issue_number=args.get("issue_number")
+            )
         elif function_name == "delete_github_issue":
-            return github_service.delete_issue(repo=args.get("repo"), issue_number=args.get("issue_number"))
+            return github_service.delete_issue(
+                repo=args.get("repo"), issue_number=args.get("issue_number")
+            )
         elif function_name == "get_github_issue":
-            issue = github_service.get_issue(repo=args.get("repo"), issue_number=args.get("issue_number"))
+            issue = github_service.get_issue(
+                repo=args.get("repo"), issue_number=args.get("issue_number")
+            )
             return f"Issue #{issue.number}: {getattr(issue, 'title', 'No Title')}\nStatus: {getattr(issue, 'state', 'Unknown')}\nAuthor: @{issue.author.get('login') if issue.author else 'unknown'}\nURL: {issue.url}\n\nBody:\n{getattr(issue, 'body', '')}"
         elif function_name == "search_github_issues":
-            issues = github_service.search_issues(repo=args.get("repo"), query=args.get("query"), limit=args.get("limit", 30))
-            return "\n".join([f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})" for i in issues]) if issues else "No issues found."
+            issues = github_service.search_issues(
+                repo=args.get("repo"),
+                query=args.get("query"),
+                limit=args.get("limit", 30),
+            )
+            return (
+                "\n".join(
+                    [
+                        f"#{i.number}: {i.title} (@{i.author.get('login') if i.author else 'unknown'})"
+                        for i in issues
+                    ]
+                )
+                if issues
+                else "No issues found."
+            )
         elif function_name == "create_github_pr":
-            return github_service.pr_create(repo=args.get("repo"), title=args.get("title"), body=args.get("body"), head=args.get("head"), base=args.get("base", "main"))
+            return github_service.pr_create(
+                repo=args.get("repo"),
+                title=args.get("title"),
+                body=args.get("body"),
+                head=args.get("head"),
+                base=args.get("base", "main"),
+            )
         elif function_name == "list_github_repos":
-            repos = github_service.list_repos(owner=args.get("owner", ""), limit=args.get("limit", 30))
+            repos = github_service.list_repos(
+                owner=args.get("owner", ""), limit=args.get("limit", 30)
+            )
             if not repos:
                 return "No repositories found."
             lines = []
@@ -2314,7 +2559,7 @@ async def _execute_tool_call(
 async def _handle_standard_message(message: "Message") -> None:
     chat_id = message.chat.id
     prompt = message.text.strip()
-    
+
     # 1. ดึงโปรเจ็กต์ปัจจุบัน (ทนทานต่อ Redis ล่ม)
     try:
         current_project = await redis_service.get_current_project(chat_id)
@@ -2341,11 +2586,18 @@ async def _handle_standard_message(message: "Message") -> None:
                 pass
 
             try:
-                history = await redis_service.get_chat_history(chat_id, project_name=current_project)
+                history = await redis_service.get_chat_history(
+                    chat_id, project_name=current_project
+                )
             except Exception:
                 history = []
 
-            messages = [{"role": "system", "content": f"{settings.SYSTEM_PROMPT}\nYou are continuing a confirmed action."}] + history
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"{settings.SYSTEM_PROMPT}\nYou are continuing a confirmed action.",
+                }
+            ] + history
             response = pending_message
             while isinstance(response, dict) and "tool_calls" in response:
                 tool_calls = response["tool_calls"]
@@ -2353,26 +2605,45 @@ async def _handle_standard_message(message: "Message") -> None:
                     messages.append(response)
                 for tc in tool_calls:
                     call_id = tc["id"] if hasattr(tc, "__getitem__") else tc.id
-                    fname = tc["function"]["name"] if hasattr(tc, "__getitem__") else tc.function.name
-                    args_str = tc["function"]["arguments"] if hasattr(tc, "__getitem__") else tc.function.arguments
+                    fname = (
+                        tc["function"]["name"]
+                        if hasattr(tc, "__getitem__")
+                        else tc.function.name
+                    )
+                    args_str = (
+                        tc["function"]["arguments"]
+                        if hasattr(tc, "__getitem__")
+                        else tc.function.arguments
+                    )
                     result = await _execute_tool_call(
                         fname,
                         args_str,
                         chat_id=chat_id,
                         current_project=current_project,
                     )
-                    tool_msg = {"role": "tool", "tool_call_id": call_id, "name": fname, "content": str(result)}
+                    tool_msg = {
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "name": fname,
+                        "content": str(result),
+                    }
                     messages.append(tool_msg)
                     try:
-                        await redis_service.add_message_to_history(chat_id, "tool", tool_msg, project_name=current_project)
+                        await redis_service.add_message_to_history(
+                            chat_id, "tool", tool_msg, project_name=current_project
+                        )
                     except Exception:
                         pass
-                response = await llm_service.get_llm_reply(messages, model=model_pref, tools=GITHUB_TOOLS)
-            
+                response = await llm_service.get_llm_reply(
+                    messages, model=model_pref, tools=GITHUB_TOOLS
+                )
+
             reply = response if isinstance(response, str) else "ดำเนินการเรียบร้อยแล้วครับ"
             await _send_response(chat_id, reply)
             try:
-                await redis_service.add_message_to_history(chat_id, "assistant", reply, project_name=current_project)
+                await redis_service.add_message_to_history(
+                    chat_id, "assistant", reply, project_name=current_project
+                )
             except Exception:
                 pass
             return
@@ -2387,27 +2658,37 @@ async def _handle_standard_message(message: "Message") -> None:
         if isinstance(shortcut_result, tuple):
             shortcut_reply, _cid = shortcut_result
             reply_markup = {
-                "inline_keyboard": [[
-                    {
-                        "text": "\U0001f916 สรุปให้ฟังหน่อย",
-                        "callback_data": f"current_work_summary:{chat_id}:{current_project}",
-                    }
-                ]]
+                "inline_keyboard": [
+                    [
+                        {
+                            "text": "\U0001f916 สรุปให้ฟังหน่อย",
+                            "callback_data": f"current_work_summary:{chat_id}:{current_project}",
+                        }
+                    ]
+                ]
             }
-            await tg_service.send_message(chat_id, shortcut_reply, reply_markup=reply_markup)
+            await tg_service.send_message(
+                chat_id, shortcut_reply, reply_markup=reply_markup
+            )
         else:
             shortcut_reply = shortcut_result
             await _send_response(chat_id, shortcut_reply)
         try:
-            await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
-            await redis_service.add_message_to_history(chat_id, "assistant", shortcut_reply, project_name=current_project)
+            await redis_service.add_message_to_history(
+                chat_id, "user", prompt, project_name=current_project
+            )
+            await redis_service.add_message_to_history(
+                chat_id, "assistant", shortcut_reply, project_name=current_project
+            )
         except Exception:
             pass
         return
 
     # 1. Normal Message Handling
     try:
-        history = await redis_service.get_chat_history(chat_id, project_name=current_project)
+        history = await redis_service.get_chat_history(
+            chat_id, project_name=current_project
+        )
     except Exception:
         history = []
 
@@ -2419,71 +2700,127 @@ async def _handle_standard_message(message: "Message") -> None:
         "what is next, current project status, roadmap, future plans, milestones, "
         "or what the project will do next, prefer the dedicated GitHub kanban/roadmap tools."
     )
-    messages = [{"role": "system", "content": f"{settings.SYSTEM_PROMPT}\nProject: {current_project}{workflow_instruction}"}] + history + [{"role": "user", "content": prompt}]
+    messages = (
+        [
+            {
+                "role": "system",
+                "content": f"{settings.SYSTEM_PROMPT}\nProject: {current_project}{workflow_instruction}",
+            }
+        ]
+        + history
+        + [{"role": "user", "content": prompt}]
+    )
 
     try:
-        response = await llm_service.get_llm_reply(messages, model=model_pref, tools=GITHUB_TOOLS)
+        response = await llm_service.get_llm_reply(
+            messages, model=model_pref, tools=GITHUB_TOOLS
+        )
         while isinstance(response, dict) and "tool_calls" in response:
             tool_calls = response["tool_calls"]
             for tc in tool_calls:
-                fname = tc["function"]["name"] if hasattr(tc, "__getitem__") else tc.function.name
+                fname = (
+                    tc["function"]["name"]
+                    if hasattr(tc, "__getitem__")
+                    else tc.function.name
+                )
                 if fname in TOOLS_REQUIRING_CONFIRMATION:
                     try:
                         await redis_service.set_pending_tool_call(chat_id, response)
                     except Exception:
                         pass
-                    args = json.loads(tc["function"]["arguments"] if hasattr(tc, "__getitem__") else tc.function.arguments)
-                    await _send_response(chat_id, f"⚠️ *Akasa ต้องการการยืนยัน*\n\nรันคำสั่ง: `{fname}`\nรายละเอียด: `{args}`\n\nพิมพ์ **'ยืนยัน'** เพื่อดำเนินการ")
+                    args = json.loads(
+                        tc["function"]["arguments"]
+                        if hasattr(tc, "__getitem__")
+                        else tc.function.arguments
+                    )
+                    await _send_response(
+                        chat_id,
+                        f"⚠️ *Akasa ต้องการการยืนยัน*\n\nรันคำสั่ง: `{fname}`\nรายละเอียด: `{args}`\n\nพิมพ์ **'ยืนยัน'** เพื่อดำเนินการ",
+                    )
                     try:
-                        await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
-                        await redis_service.add_message_to_history(chat_id, "assistant", response, project_name=current_project)
+                        await redis_service.add_message_to_history(
+                            chat_id, "user", prompt, project_name=current_project
+                        )
+                        await redis_service.add_message_to_history(
+                            chat_id, "assistant", response, project_name=current_project
+                        )
                     except Exception:
                         pass
                     return
             messages.append(response)
             for tc in tool_calls:
                 call_id = tc["id"] if hasattr(tc, "__getitem__") else tc.id
-                fname = tc["function"]["name"] if hasattr(tc, "__getitem__") else tc.function.name
-                args_str = tc["function"]["arguments"] if hasattr(tc, "__getitem__") else tc.function.arguments
+                fname = (
+                    tc["function"]["name"]
+                    if hasattr(tc, "__getitem__")
+                    else tc.function.name
+                )
+                args_str = (
+                    tc["function"]["arguments"]
+                    if hasattr(tc, "__getitem__")
+                    else tc.function.arguments
+                )
                 result = await _execute_tool_call(
                     fname,
                     args_str,
                     chat_id=chat_id,
                     current_project=current_project,
                 )
-                tool_msg = {"role": "tool", "tool_call_id": call_id, "name": fname, "content": str(result)}
+                tool_msg = {
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "name": fname,
+                    "content": str(result),
+                }
                 messages.append(tool_msg)
                 try:
-                    await redis_service.add_message_to_history(chat_id, "tool", tool_msg, project_name=current_project)
+                    await redis_service.add_message_to_history(
+                        chat_id, "tool", tool_msg, project_name=current_project
+                    )
                 except Exception:
                     pass
-            response = await llm_service.get_llm_reply(messages, model=model_pref, tools=GITHUB_TOOLS)
+            response = await llm_service.get_llm_reply(
+                messages, model=model_pref, tools=GITHUB_TOOLS
+            )
 
         reply = response if isinstance(response, str) else "เรียบร้อยครับ"
         await _send_response(chat_id, reply)
         try:
-            await redis_service.add_message_to_history(chat_id, "user", prompt, project_name=current_project)
-            await redis_service.add_message_to_history(chat_id, "assistant", reply, project_name=current_project)
+            await redis_service.add_message_to_history(
+                chat_id, "user", prompt, project_name=current_project
+            )
+            await redis_service.add_message_to_history(
+                chat_id, "assistant", reply, project_name=current_project
+            )
         except Exception:
             pass
 
     except Exception as e:
         if isinstance(e, OpenRouterInsufficientCreditsError):
-            await _send_response(chat_id, "🔴 *ยอดเงินใน OpenRouter ไม่เพียงพอ*\n\nไม่สามารถใช้โมเดลปัจจุบันได้เนื่องจากยอดเงินคงเหลือหมดครับ\n\n💡 *คำแนะนำ:*\n1. เติมเงินใน OpenRouter\n2. สลับไปใช้โมเดลอื่น (เช่น Gemini ผ่าน Google SDK หรือโมเดลฟรี) โดยใช้คำสั่ง `/model`")
+            await _send_response(
+                chat_id,
+                "🔴 *ยอดเงินใน OpenRouter ไม่เพียงพอ*\n\nไม่สามารถใช้โมเดลปัจจุบันได้เนื่องจากยอดเงินคงเหลือหมดครับ\n\n💡 *คำแนะนำ:*\n1. เติมเงินใน OpenRouter\n2. สลับไปใช้โมเดลอื่น (เช่น Gemini ผ่าน Google SDK หรือโมเดลฟรี) โดยใช้คำสั่ง `/model`",
+            )
             return
         if isinstance(e, LLMTimeoutError):
             logger.error(f"LLM timeout: {e}")
-            await _send_response(chat_id, "ขออภัย คำขอใช้เวลานานเกินไป โปรดลองใหม่อีกครั้งในอีกสักครู่ 🙇‍♂️")
+            await _send_response(
+                chat_id, "ขออภัย คำขอใช้เวลานานเกินไป โปรดลองใหม่อีกครั้งในอีกสักครู่ 🙇‍♂️"
+            )
             return
         if isinstance(e, LLMUpstreamError):
             logger.error(f"LLM upstream error: {e}")
-            await _send_response(chat_id, "ขออภัย ระบบ AI ภายนอกขัดข้องชั่วคราว โปรดลองใหม่อีกครั้งในภายหลัง 🙇‍♂️")
+            await _send_response(
+                chat_id, "ขออภัย ระบบ AI ภายนอกขัดข้องชั่วคราว โปรดลองใหม่อีกครั้งในภายหลัง 🙇‍♂️"
+            )
             return
         if isinstance(e, LLMMalformedResponseError):
             logger.error(f"Malformed LLM response: {e}")
-            await _send_response(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบจาก AI ได้ 🙇‍♂️")
+            await _send_response(
+                chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบจาก AI ได้ 🙇‍♂️"
+            )
             return
-        
+
         # Avoid mock related errors
         if "not inherit from BaseException" in str(e):
             raise e
@@ -2496,7 +2833,9 @@ async def _handle_standard_message(message: "Message") -> None:
             await _send_response(chat_id, "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ 🙇‍♂️")
         else:
             logger.exception("Error in standard message")
-            await _send_response(chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง")
+            await _send_response(
+                chat_id, "ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด โปรดลองอีกครั้งในภายหลัง"
+            )
 
 
 async def _handle_current_work_summary_callback(callback: CallbackQuery) -> None:
@@ -2520,7 +2859,7 @@ async def _handle_current_work_summary_callback(callback: CallbackQuery) -> None
             await tg_service.edit_message_text(
                 chat_id=cid,
                 message_id=callback.message.message_id,
-                text=callback.message.text + "\n\n_\u23F3 กำลังสรุป\.\.\._",
+                text=callback.message.text + "\n\n_\u23f3 กำลังสรุป\.\.\._",
                 reply_markup=None,
             )
         except Exception:
@@ -2535,7 +2874,9 @@ async def _handle_current_work_summary_callback(callback: CallbackQuery) -> None
         logger.warning(f"Failed to fetch current_work_ctx: {e}")
 
     if not raw_data:
-        await _send_response(cid, "⚠️ ไม่พบข้อมูล Current Work ใน Cache แล้ว ลองพิมพ์ใหม่อีกครั้งนะครับ")
+        await _send_response(
+            cid, "⚠️ ไม่พบข้อมูล Current Work ใน Cache แล้ว ลองพิมพ์ใหม่อีกครั้งนะครับ"
+        )
         return
 
     # Ask LLM to summarize in plain language
@@ -2588,7 +2929,7 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
 
     request_id = parts[1]
     decision = parts[2]  # allow | session | deny
-    
+
     # 1. ดึงสถานะปัจจุบันจาก Redis
     state = await redis_service.get_action_request(request_id)
     if not state or state.status != "pending":
@@ -2599,7 +2940,7 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
     user_name = callback.from_user.username or callback.from_user.first_name
     state.decided_by = user_name
     state.decided_at = datetime.now(timezone.utc)
-    
+
     status_text = ""
     if decision == "allow":
         state.status = "allowed"
@@ -2616,7 +2957,7 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
 
     # 3. บันทึกกลับลง Redis
     await redis_service.set_action_request(request_id, state)
-    
+
     # 4. อัปเดตข้อความใน Telegram (Edit Message เพื่อเอาปุ่มออก)
     if callback.message:
         chat_id = callback.message.chat.id
@@ -2648,5 +2989,5 @@ async def _handle_callback_query(callback: CallbackQuery) -> None:
             chat_id=chat_id,
             message_id=msg_id,
             text=new_text,
-            reply_markup=None  # เอาปุ่มออก
+            reply_markup=None,  # เอาปุ่มออก
         )

@@ -139,7 +139,9 @@ def _humanize_arg_name(arg_name: str) -> str:
     return " ".join(normalized_words)
 
 
-def _build_prompt_text(command: str, args: Dict[str, Any], execution_cfg: Dict[str, Any]) -> Optional[str]:
+def _build_prompt_text(
+    command: str, args: Dict[str, Any], execution_cfg: Dict[str, Any]
+) -> Optional[str]:
     prompt_parts: List[str] = []
 
     prompt_arg_key = execution_cfg.get("prompt_arg_key")
@@ -233,7 +235,9 @@ def _validate_cwd(execution_cfg: Dict[str, Any], cwd: Optional[str]) -> Optional
     return None
 
 
-def _validate_args(whitelist_entry: Dict[str, Any], args: Dict[str, Any]) -> Optional[str]:
+def _validate_args(
+    whitelist_entry: Dict[str, Any], args: Dict[str, Any]
+) -> Optional[str]:
     allowed_args = whitelist_entry.get("allowed_args", [])
     if not isinstance(allowed_args, list):
         allowed_args = []
@@ -431,7 +435,9 @@ async def _execute_cli(
         return -1, str(exc)
 
 
-def _validate_http_endpoint(endpoint: str, execution_cfg: Dict[str, Any]) -> Optional[str]:
+def _validate_http_endpoint(
+    endpoint: str, execution_cfg: Dict[str, Any]
+) -> Optional[str]:
     parsed = urlparse(endpoint)
     if parsed.scheme not in {"http", "https"}:
         return f"Unsupported endpoint scheme '{parsed.scheme}'"
@@ -519,7 +525,11 @@ async def _execute_http(
                 text = f"HTTP {response.status_code}"
             return 0, text
 
-        except (httpx.TimeoutException, httpx.NetworkError, httpx.TransportError) as exc:
+        except (
+            httpx.TimeoutException,
+            httpx.NetworkError,
+            httpx.TransportError,
+        ) as exc:
             if attempt < retries:
                 await asyncio.sleep(backoff_seconds * (2**attempt))
                 continue
@@ -719,7 +729,9 @@ async def execute_command(
     execution_type = str(execution_cfg.get("type", "cli")).lower()
 
     if execution_type == "http":
-        return await _execute_http(command_id, tool, command, prepared_args, execution_cfg)
+        return await _execute_http(
+            command_id, tool, command, prepared_args, execution_cfg
+        )
 
     if execution_type == "mcp":
         return await _execute_mcp(command, prepared_args, execution_cfg)
@@ -894,10 +906,14 @@ async def main():
     tools_to_poll = list(whitelist.keys())
 
     if not tools_to_poll:
-        logger.warning("No tools configured in whitelist. Daemon will not poll any queues.")
+        logger.warning(
+            "No tools configured in whitelist. Daemon will not poll any queues."
+        )
         return
 
-    logger.info(f"Daemon configured to poll queues for tools: {', '.join(tools_to_poll)}")
+    logger.info(
+        f"Daemon configured to poll queues for tools: {', '.join(tools_to_poll)}"
+    )
 
     polling_tasks = [poll_queue(tool, timeout=1) for tool in tools_to_poll]
     await asyncio.gather(*polling_tasks)

@@ -122,7 +122,7 @@ class TestAgentTaskService:
         mock_redis.set = AsyncMock()
         mock_redis.sadd = AsyncMock()
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             task_log = await agent_task_service.create_task(
                 project="TestProject",
                 task="Test task description",
@@ -146,7 +146,7 @@ class TestAgentTaskService:
         mock_redis.set = AsyncMock()
         mock_redis.sadd = AsyncMock()
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             task_log = await agent_task_service.create_task(
                 project="TestProject",
                 task="Test task",
@@ -171,7 +171,7 @@ class TestAgentTaskService:
         mock_redis.ttl = AsyncMock(return_value=3600)
         mock_redis.srem = AsyncMock()
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             result = await agent_task_service.update_task(
                 task_id="task_update",
                 status="success",
@@ -193,7 +193,7 @@ class TestAgentTaskService:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             result = await agent_task_service.update_task(
                 task_id="nonexistent",
                 status="success",
@@ -214,7 +214,7 @@ class TestAgentTaskService:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=task_log.model_dump_json())
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             result = await agent_task_service.get_task("task_get")
 
             assert result is not None
@@ -226,7 +226,7 @@ class TestAgentTaskService:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             result = await agent_task_service.get_task("nonexistent")
 
             assert result is None
@@ -246,9 +246,7 @@ class TestAgentTaskService:
         )
 
         mock_redis = AsyncMock()
-        mock_redis.smembers = AsyncMock(
-            return_value={"task_active_1", "task_active_2"}
-        )
+        mock_redis.smembers = AsyncMock(return_value={"task_active_1", "task_active_2"})
         mock_redis.get = AsyncMock(
             side_effect=[
                 task1.model_dump_json(),
@@ -256,7 +254,7 @@ class TestAgentTaskService:
             ]
         )
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             result = await agent_task_service.get_active_tasks()
 
             assert len(result) == 2
@@ -285,9 +283,7 @@ class TestAgentTaskService:
         )
 
         mock_redis = AsyncMock()
-        mock_redis.smembers = AsyncMock(
-            return_value={"task_timed_out", "task_active"}
-        )
+        mock_redis.smembers = AsyncMock(return_value={"task_timed_out", "task_active"})
         mock_redis.get = AsyncMock(
             side_effect=[
                 old_task.model_dump_json(),
@@ -295,8 +291,8 @@ class TestAgentTaskService:
             ]
         )
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
-            with patch('app.services.agent_task_service.settings') as mock_settings:
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
+            with patch("app.services.agent_task_service.settings") as mock_settings:
                 mock_settings.AGENT_TIMEOUT_THRESHOLD_MINUTES = 15
                 result = await agent_task_service.find_timed_out_tasks()
 
@@ -313,7 +309,7 @@ class TestAgentTaskService:
         mock_redis.exists = AsyncMock(side_effect=[0, 0])  # Both expired
         mock_redis.srem = AsyncMock()
 
-        with patch.object(agent_task_service, 'redis_pool', mock_redis):
+        with patch.object(agent_task_service, "redis_pool", mock_redis):
             removed = await agent_task_service.cleanup_expired_task_indices()
 
             assert removed == 2

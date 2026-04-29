@@ -54,11 +54,11 @@ def escape_markdown_v2(text: str) -> str:
             # Code block: inside pre and code entities, all '`' and '\' characters must be escaped
             if part.startswith("```") and part.endswith("```"):
                 content = part[3:-3]
-                content = content.replace('\\', '\\\\').replace('`', r'\`')
+                content = content.replace("\\", "\\\\").replace("`", r"\`")
                 escaped_parts.append(f"```{content}```")
             elif part.startswith("`") and part.endswith("`"):
                 content = part[1:-1]
-                content = content.replace('\\', '\\\\').replace('`', r'\`')
+                content = content.replace("\\", "\\\\").replace("`", r"\`")
                 escaped_parts.append(f"`{content}`")
             else:
                 escaped_parts.append(part)
@@ -100,19 +100,21 @@ def split_markdown_message(text: str, max_length: int = 4000) -> list[str]:
 
         # Only look for nice breakpoints in the second half of the max_length
         # to prevent creating tiny, useless chunks early in the text.
-        min_split_idx = max(1, max_length - 1000) if max_length >= 1000 else max(1, max_length // 2)
+        min_split_idx = (
+            max(1, max_length - 1000) if max_length >= 1000 else max(1, max_length // 2)
+        )
 
         # Try to find a good breaking point:
         # 1. Double newline
-        split_idx = text.rfind('\n\n', min_split_idx, max_length)
+        split_idx = text.rfind("\n\n", min_split_idx, max_length)
 
         # 2. Single newline
         if split_idx <= 0:
-            split_idx = text.rfind('\n', min_split_idx, max_length)
+            split_idx = text.rfind("\n", min_split_idx, max_length)
 
         # 3. Space
         if split_idx <= 0:
-            split_idx = text.rfind(' ', min_split_idx, max_length)
+            split_idx = text.rfind(" ", min_split_idx, max_length)
 
         # 4. Force split if no nice break point
         if split_idx <= 0:
@@ -128,7 +130,9 @@ def split_markdown_message(text: str, max_length: int = 4000) -> list[str]:
         if in_code_block:
             chunk += "\n```"
             text = "```\n" + text[split_idx:].lstrip()
-            in_code_block = False  # Reset state since the injected ``` opens the block for `text`
+            in_code_block = (
+                False  # Reset state since the injected ``` opens the block for `text`
+            )
         else:
             text = text[split_idx:].lstrip()
 

@@ -10,6 +10,7 @@ from typing import Optional
 
 class TelegramUser(BaseModel):
     """ผู้ใช้ Telegram"""
+
     id: int
     is_bot: bool = False
     first_name: str = ""
@@ -18,12 +19,14 @@ class TelegramUser(BaseModel):
 
 class Chat(BaseModel):
     """Chat ที่ข้อความถูกส่งมา"""
+
     id: int
     type: str
 
 
 class Message(BaseModel):
     """ข้อความจาก Telegram"""
+
     message_id: int
     chat: Chat
     from_user: Optional[TelegramUser] = Field(None, alias="from")
@@ -33,6 +36,7 @@ class Message(BaseModel):
 
 class CallbackQuery(BaseModel):
     """การกดปุ่ม Inline Keyboard"""
+
     id: str
     from_user: TelegramUser = Field(..., alias="from")
     message: Optional[Message] = None
@@ -41,6 +45,7 @@ class CallbackQuery(BaseModel):
 
 class Update(BaseModel):
     """Telegram Update object — payload หลักที่ส่งมาทาง Webhook"""
+
     update_id: int
     message: Optional[Message] = None
     edited_message: Optional[Message] = None

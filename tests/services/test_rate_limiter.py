@@ -45,7 +45,9 @@ async def test_check_telegram_message_rate_limit_blocks_after_limit(patch_rate_l
 
 
 @pytest.mark.asyncio
-async def test_check_telegram_message_rate_limit_resets_after_window(patch_rate_limiter):
+async def test_check_telegram_message_rate_limit_resets_after_window(
+    patch_rate_limiter,
+):
     from app.services.rate_limiter import check_telegram_message_rate_limit
 
     allowed, _ = await check_telegram_message_rate_limit(
@@ -71,4 +73,3 @@ async def test_check_telegram_message_rate_limit_resets_after_window(patch_rate_
     )
     assert allowed is True
     assert retry_after == 0
-

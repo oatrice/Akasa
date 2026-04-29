@@ -54,13 +54,13 @@ def test_health_check_dependency_failure():
     """
     # จำลอง (Mock) ว่า dependency `check_database` ล้มเหลว
     from app.routers.health import check_database
-    
+
     def override_check_database():
         # จำลองว่าระบบฐานข้อมูลทำงานผิดปกติและส่งค่า False กลับไป
         return False
-        
+
     app.dependency_overrides[check_database] = override_check_database
-    
+
     try:
         response = client.get("/health")
         assert response.status_code == 503
@@ -88,12 +88,11 @@ def test_openapi_schema_validation():
     """
     response = client.get("/openapi.json")
     assert response.status_code == 200
-    
+
     schema = response.json()
     paths = schema.get("paths", {})
     health_path = paths.get("/health", {})
     health_get = health_path.get("get", {})
     tags = health_get.get("tags", [])
-    
-    assert "Monitoring" in tags
 
+    assert "Monitoring" in tags

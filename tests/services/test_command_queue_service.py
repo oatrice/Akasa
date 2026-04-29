@@ -313,9 +313,7 @@ class TestEnqueueCommand:
             with patch("os.path.exists", return_value=True):
                 svc._whitelist_cache = None
 
-                request = CommandQueueRequest(
-                    tool="unknown", command="anything"
-                )
+                request = CommandQueueRequest(tool="unknown", command="anything")
                 with pytest.raises(ValueError, match="Unknown tool"):
                     await svc.enqueue_command(request, user_id=123, chat_id=456)
 
@@ -330,9 +328,7 @@ class TestEnqueueCommand:
             with patch("os.path.exists", return_value=True):
                 svc._whitelist_cache = None
 
-                request = CommandQueueRequest(
-                    tool="gemini", command="delete_all"
-                )
+                request = CommandQueueRequest(tool="gemini", command="delete_all")
                 with pytest.raises(ValueError, match="not in the whitelist"):
                     await svc.enqueue_command(request, user_id=123, chat_id=456)
 
@@ -349,9 +345,7 @@ class TestEnqueueCommand:
             with patch("os.path.exists", return_value=True):
                 svc._whitelist_cache = None
 
-                request = CommandQueueRequest(
-                    tool="gemini", command="run_task"
-                )
+                request = CommandQueueRequest(tool="gemini", command="run_task")
                 with pytest.raises(ConnectionError, match="Redis down"):
                     await svc.enqueue_command(request, user_id=123, chat_id=456)
 
@@ -375,7 +369,9 @@ class TestEnqueueCommand:
         assert call_kwargs.kwargs.get("ex") == 60 or call_kwargs[1].get("ex") == 60
 
     @pytest.mark.asyncio
-    async def test_enqueue_persists_cwd_in_payload_and_status(self, mock_redis, tmp_path):
+    async def test_enqueue_persists_cwd_in_payload_and_status(
+        self, mock_redis, tmp_path
+    ):
         """Explicit cwd should be stored in both queue payload and status tracking."""
         import app.services.command_queue_service as svc
 
@@ -534,18 +530,20 @@ class TestCommandStatus:
         """Known command_id → CommandStatusResponse."""
         import app.services.command_queue_service as svc
 
-        mock_redis.hgetall = AsyncMock(return_value={
-            "command_id": "cmd_abc",
-            "status": "queued",
-            "tool": "gemini",
-            "command": "run_task",
-            "cwd": "/tmp/project",
-            "queued_at": "2026-01-01T00:00:00Z",
-            "picked_up_at": "",
-            "completed_at": "",
-            "result": "",
-            "error": "",
-        })
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                "command_id": "cmd_abc",
+                "status": "queued",
+                "tool": "gemini",
+                "command": "run_task",
+                "cwd": "/tmp/project",
+                "queued_at": "2026-01-01T00:00:00Z",
+                "picked_up_at": "",
+                "completed_at": "",
+                "result": "",
+                "error": "",
+            }
+        )
 
         result = await svc.get_command_status("cmd_abc")
         assert isinstance(result, CommandStatusResponse)

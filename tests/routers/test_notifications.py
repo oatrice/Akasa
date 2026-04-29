@@ -221,7 +221,9 @@ def test_task_complete_success_with_chat_id_in_payload(mock_tg_service):
     assert call_kwargs["chat_id"] == 6346467495
 
 
-def test_task_complete_success_fallback_to_akasa_chat_id(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_success_fallback_to_akasa_chat_id(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """chat_id ไม่ได้ระบุใน payload → fallback ไปใช้ settings.AKASA_CHAT_ID"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -303,7 +305,9 @@ def test_task_complete_invalid_chat_id_format(mock_tg_service, monkeypatch):
     assert "chat_id" in response.json()["detail"].lower()
 
 
-def test_task_complete_failure_status(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_failure_status(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """status='failure' ต้องผ่าน validation และ notify ได้ปกติ"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -321,7 +325,9 @@ def test_task_complete_failure_status(mock_tg_service, mock_get_user_model_prefe
     assert call_kwargs["request"].status == "failure"
 
 
-def test_task_complete_partial_status(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_partial_status(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """status='partial' ต้องผ่าน validation และ notify ได้ปกติ"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -337,7 +343,9 @@ def test_task_complete_partial_status(mock_tg_service, mock_get_user_model_prefe
     assert response.json()["delivered"] is True
 
 
-def test_task_complete_telegram_429_returns_429(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_telegram_429_returns_429(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """Telegram rate limit (429) → router ต้องคืนค่า 429 พร้อม detail ที่เหมาะสม"""
     monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -386,7 +394,9 @@ def test_task_complete_telegram_other_error_returns_delivered_false(
     assert "timestamp" in response.json()
 
 
-def test_task_complete_unexpected_exception_returns_500(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_unexpected_exception_returns_500(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """Unexpected exception → 500 Internal Server Error"""
     monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -426,7 +436,9 @@ def test_task_complete_payload_chat_id_takes_precedence_over_server_default(
     assert call_kwargs["chat_id"] == 1111111111
 
 
-def test_task_complete_status_is_case_insensitive(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_status_is_case_insensitive(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """status field ต้องรองรับตัวพิมพ์ใหญ่ (เช่น 'SUCCESS') ผ่าน validator"""
     app.dependency_overrides[verify_api_key] = lambda: True
     monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
@@ -444,7 +456,9 @@ def test_task_complete_status_is_case_insensitive(mock_tg_service, mock_get_user
 # === Retry Statuses (Issue #61 extension) ===
 
 
-def test_task_complete_retrying_status_with_counts(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_retrying_status_with_counts(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """status='retrying' พร้อม retry_count/max_retries → delivered=True"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -471,7 +485,9 @@ def test_task_complete_retrying_status_with_counts(mock_tg_service, mock_get_use
     assert call_kwargs["request"].max_retries == 3
 
 
-def test_task_complete_retrying_status_without_counts(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_retrying_status_without_counts(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """status='retrying' ไม่มี retry_count/max_retries → delivered=True เช่นกัน"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -494,7 +510,9 @@ def test_task_complete_retrying_status_without_counts(mock_tg_service, mock_get_
     assert call_kwargs["request"].max_retries is None
 
 
-def test_task_complete_limit_reached_status(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_limit_reached_status(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """status='limit_reached' + max_retries → delivered=True"""
     mock_tg_service.send_task_notification = AsyncMock(return_value=None)
     app.dependency_overrides[verify_api_key] = lambda: True
@@ -559,7 +577,9 @@ def test_task_complete_success_after_retries_passes_counts(
     assert call_kwargs["request"].max_retries == 3
 
 
-def test_task_complete_all_valid_statuses_pass_validation(mock_tg_service, mock_get_user_model_preference, monkeypatch):
+def test_task_complete_all_valid_statuses_pass_validation(
+    mock_tg_service, mock_get_user_model_preference, monkeypatch
+):
     """ทุก status ที่ถูกต้องต้องผ่าน validation ทั้งหมด 5 ค่า"""
     app.dependency_overrides[verify_api_key] = lambda: True
     monkeypatch.setattr(settings, "AKASA_CHAT_ID", "6346467495")
