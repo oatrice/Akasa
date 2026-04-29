@@ -1,3 +1,6 @@
+import asyncio
+import httpx
+import os
 import sys
 from pathlib import Path
 
@@ -6,11 +9,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-import asyncio
-import os
-import httpx
-from app.config import settings
-from app.services.telegram_service import TelegramService
+from app.config import settings  # noqa: E402
+from app.services.telegram_service import TelegramService  # noqa: E402
 
 
 async def main():

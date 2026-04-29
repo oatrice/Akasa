@@ -1,25 +1,24 @@
-import sys
-from pathlib import Path
-
-# Add project root to path for imports when running script directly
-_PROJECT_ROOT = Path(__file__).parent.parent
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
 import asyncio
 import json
 import logging
 import shlex
+import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import httpx
 from redis.asyncio import Redis
 
-from app.config import settings
-from app.services.command_queue_service import (
+# Add project root to path for imports when running script directly
+_PROJECT_ROOT = Path(__file__).parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from app.config import settings  # noqa: E402
+from app.services.command_queue_service import (  # noqa: E402
     _load_whitelist,
     get_command_whitelist_entry,
     mark_command_expired,
