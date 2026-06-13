@@ -5,11 +5,13 @@ import logging
 import shlex
 import sys
 import time
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+import fakeredis.aioredis
 import httpx
 from redis.asyncio import Redis
 
@@ -51,10 +53,6 @@ GEMINI_QUOTA_MARKERS = (
     "quota will reset after",
 )
 
-
-import fakeredis.aioredis
-import socket
-from urllib.parse import urlparse
 
 def get_redis() -> Redis:
     use_fake = False
