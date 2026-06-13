@@ -16,4 +16,11 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: REDIS_URL
-        value: ""
+        fromService:
+          type: redis
+          name: akasa-redis
+          property: connectionString
+
+  - type: redis
+    name: akasa-redis
+    ipAllowList: [] # restrict access to internal connections only

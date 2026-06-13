@@ -946,6 +946,28 @@
       "gh_mandays": null,
       "created_at": "2026-04-29T22:00:40.596762",
       "updated_at": "2026-04-29T22:00:40.596763"
+    },
+    "oatricedev/Akasa#95": {
+      "issue_key": "oatricedev/Akasa#95",
+      "issue_number": 95,
+      "issue_title": "Deploy Akasa to Render.com",
+      "issue_url": "https://gitlab.com/oatricedev/Akasa/-/issues/95",
+      "repository": "oatricedev/Akasa",
+      "project_name": "Akasa",
+      "issue_status": null,
+      "estimate_points": 1,
+      "post_story_point": null,
+      "estimated_mandays": 0.5,
+      "start_datetime": "2026-06-13T13:37:19",
+      "actual_mandays": null,
+      "due_date": null,
+      "actual_completion_date": null,
+      "effort_level": "Low",
+      "notes": null,
+      "gh_closed_at": null,
+      "gh_mandays": null,
+      "created_at": "2026-06-13T13:37:19.132962",
+      "updated_at": "2026-06-13T13:37:19.133446"
     }
   }
 }

@@ -127,6 +127,22 @@
 > ⏳ **Action needed:** ต้อง replan due date ใหม่สำหรับ 10 issues ข้างต้น
 
 ## Synced From GitHub
+### Issue #95 - Deploy Akasa to Render.com
+- **GitHub:** [#95](https://gitlab.com/oatricedev/Akasa/-/issues/95)
+- **Status:** 🟢 **Ready**
+
+### Issue #94 - Research alternatives for reliable Akasa local server connectivity
+- **GitHub:** [#94](https://gitlab.com/oatricedev/Akasa/-/issues/94)
+- **Status:** 🟢 **Ready**
+
+### Issue #93 - feat: Add IDE section to Telegram chat notification (alongside Source, Model)
+- **GitHub:** [#93](https://gitlab.com/oatricedev/Akasa/-/issues/93)
+- **Status:** 🟢 **Ready**
+
+### Issue #91 - feat: MCP Auto-Setup — Auto-detect AI agents and inject Akasa MCP config
+- **GitHub:** [#91](https://gitlab.com/oatricedev/Akasa/-/issues/91)
+- **Status:** 🟢 **Ready**
+
 ### Issue #90 - Add model field to TaskNotificationRequest and display in notifications
 - **GitHub:** [#90](https://github.com/oatrice/Akasa/issues/90)
     - ✅ **Done**
