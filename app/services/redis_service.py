@@ -16,8 +16,31 @@ from app.models.notification import ActionRequestState
 
 logger = logging.getLogger(__name__)
 
+import fakeredis.aioredis
+import socket
+from urllib.parse import urlparse
+
+# Fallback to fakeredis if redis connection is unreachable or if MOCK_REDIS is enabled
+_use_fake = os.getenv("MOCK_REDIS") == "1"
+
+if not _use_fake:
+    try:
+        url = urlparse(settings.REDIS_URL)
+        host = url.hostname or "localhost"
+        port = url.port or 6379
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        s.connect((host, port))
+        s.close()
+    except Exception:
+        logger.warning(f"Redis server at {host}:{port} is not reachable. Falling back to fakeredis (in-memory).")
+        _use_fake = True
+
 # Connection pool — reuse connection ตลอด application lifetime
-redis_pool = redis.from_url(settings.REDIS_URL, decode_responses=True)
+if _use_fake:
+    redis_pool = fakeredis.aioredis.FakeRedis(decode_responses=True)
+else:
+    redis_pool = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
 def _get_owner_chat_id() -> int:

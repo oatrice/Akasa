@@ -51,7 +51,26 @@ GEMINI_QUOTA_MARKERS = (
 )
 
 
+import fakeredis.aioredis
+import socket
+from urllib.parse import urlparse
+
 def get_redis() -> Redis:
+    use_fake = False
+    try:
+        url = urlparse(settings.REDIS_URL)
+        host = url.hostname or "localhost"
+        port = url.port or 6379
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        s.connect((host, port))
+        s.close()
+    except Exception:
+        use_fake = True
+
+    if use_fake:
+        # decode_responses=False matches the signature of the original method return
+        return fakeredis.aioredis.FakeRedis(decode_responses=False)
     return Redis.from_url(settings.REDIS_URL, decode_responses=False)
 
 
