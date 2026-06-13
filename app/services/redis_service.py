@@ -32,7 +32,9 @@ if not _use_fake:
         s.connect((host, port))
         s.close()
     except Exception:
-        logger.warning(f"Redis server at {host}:{port} is not reachable. Falling back to fakeredis (in-memory).")
+        logger.warning(
+            f"Redis server at {host}:{port} is not reachable. Falling back to fakeredis (in-memory)."
+        )
         _use_fake = True
 
 # Connection pool — reuse connection ตลอด application lifetime
