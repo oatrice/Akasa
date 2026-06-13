@@ -789,7 +789,8 @@ async def report_result(
     duration_seconds: Optional[float] = None,
     cwd: Optional[str] = None,
 ) -> bool:
-    api_url = f"http://localhost:8000/api/v1/commands/{command_id}/result"
+    base_url = os.getenv("AKASA_API_URL", "http://localhost:8000").rstrip("/")
+    api_url = f"{base_url}/api/v1/commands/{command_id}/result"
     payload: Dict[str, Any] = {
         "status": status,
         "output": output,
