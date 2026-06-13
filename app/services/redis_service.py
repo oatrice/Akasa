@@ -9,16 +9,15 @@ import redis.asyncio as redis
 import json
 import logging
 import os
+import socket
 from typing import Optional, List
+from urllib.parse import urlparse
+import fakeredis.aioredis
 from app.config import settings
 from app.models.agent_state import AgentState
 from app.models.notification import ActionRequestState
 
 logger = logging.getLogger(__name__)
-
-import fakeredis.aioredis
-import socket
-from urllib.parse import urlparse
 
 # Fallback to fakeredis if redis connection is unreachable or if MOCK_REDIS is enabled
 _use_fake = os.getenv("MOCK_REDIS") == "1"
@@ -33,7 +32,9 @@ if not _use_fake:
         s.connect((host, port))
         s.close()
     except Exception:
-        logger.warning(f"Redis server at {host}:{port} is not reachable. Falling back to fakeredis (in-memory).")
+        logger.warning(
+            f"Redis server at {host}:{port} is not reachable. Falling back to fakeredis (in-memory)."
+        )
         _use_fake = True
 
 # Connection pool — reuse connection ตลอด application lifetime

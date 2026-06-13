@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.24.0] - 2026-06-13
+
+### Added
+- **Render.com Deployment**: เพิ่มการรองรับการ deploy ระบบ Akasa Backend ไปยัง Render.com แบบ One-click ผ่าน Blueprint (`render.yaml`) โดยมาพร้อมกับระบบฐานข้อมูล Redis (Key Value) บนคลาวด์ฟรีในตัว ([#95](https://gitlab.com/oatricedev/Akasa/-/issues/95))
+- **Documentation**: เพิ่มเอกสารขั้นตอนและคู่มือการพัฒนาสำหรับนักพัฒนาในการตั้งค่าและทดสอบ Render.com (ประกอบไปด้วย `implementation_plan.md`, `task.md`, `walkthrough.md`, และ `manual_verify.md`)
+
+### Fixed
+- **Daemon Connectivity**: แก้ไขปัญหา `local_tool_daemon.py` ในเครื่องนักพัฒนาให้สามารถดึงข้อมูลและรายงานผลการทำงานแบบรีโมตกลับไปที่ Render Backend ได้สำเร็จผ่านตัวแปร `AKASA_API_URL` และนำโมดูล `os` ที่ตกหล่นกลับมานำเข้าใช้งานอย่างถูกต้อง
+
 ## [0.23.0] - 2026-04-29
 
 ### Added

@@ -1,14 +1,17 @@
 import asyncio
+import os
 import json
 import logging
 import shlex
 import sys
 import time
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+import fakeredis.aioredis
 import httpx
 from redis.asyncio import Redis
 
@@ -50,10 +53,6 @@ GEMINI_QUOTA_MARKERS = (
     "quota will reset after",
 )
 
-
-import fakeredis.aioredis
-import socket
-from urllib.parse import urlparse
 
 def get_redis() -> Redis:
     use_fake = False
@@ -789,7 +788,8 @@ async def report_result(
     duration_seconds: Optional[float] = None,
     cwd: Optional[str] = None,
 ) -> bool:
-    api_url = f"http://localhost:8000/api/v1/commands/{command_id}/result"
+    base_url = os.getenv("AKASA_API_URL", "http://localhost:8000").rstrip("/")
+    api_url = f"{base_url}/api/v1/commands/{command_id}/result"
     payload: Dict[str, Any] = {
         "status": status,
         "output": output,
