@@ -129,7 +129,7 @@
 ## Synced From GitHub
 ### Issue #95 - Deploy Akasa to Render.com
 - **GitHub:** [#95](https://gitlab.com/oatricedev/Akasa/-/issues/95)
-- **Status:** 🟢 **Ready**
+    - ✅ **Done**
 
 ### Issue #94 - Research alternatives for reliable Akasa local server connectivity
 - **GitHub:** [#94](https://gitlab.com/oatricedev/Akasa/-/issues/94)
