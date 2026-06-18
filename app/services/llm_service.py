@@ -7,7 +7,8 @@ LLM Service — ส่ง messages ไปยัง OpenRouter API และร�
 import httpx
 import logging
 import asyncio
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from typing import Optional, Any
 from app.config import settings
 from app.exceptions import LLMTimeoutError, LLMUpstreamError, LLMMalformedResponseError
@@ -46,7 +47,7 @@ async def get_llm_reply(
 async def _get_google_gemini_reply(messages: list[dict], model: str) -> str:
     """เรียกใช้ Google Generative AI SDK โดยตรง"""
     logger.info(f"Using Google SDK for model: {model}")
-    genai.configure(api_key=settings.GEMINI_API_KEY)
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
     # แปลงรูปแบบ messages ให้เข้ากับ Gemini SDK (user/model)
     gemini_history = []
@@ -60,27 +61,26 @@ async def _get_google_gemini_reply(messages: list[dict], model: str) -> str:
         if role == "system":
             system_instruction = content
         elif role == "user":
-            gemini_history.append({"role": "user", "parts": [content]})
+            gemini_history.append({"role": "user", "parts": [{"text": content}]})
         elif role == "assistant":
-            gemini_history.append({"role": "model", "parts": [content]})
+            gemini_history.append({"role": "model", "parts": [{"text": content}]})
 
-    # ดึงข้อความล่าสุดออกมาเป็น prompt
     if not gemini_history:
         return "No user message found."
 
-    last_msg = gemini_history.pop()
-    prompt = last_msg["parts"][0]
-
-    # สร้าง model พร้อม system instruction (ถ้ามี)
     # ตัด 'google/' ออกจากชื่อโมเดลถ้ามี เพราะ SDK ใช้แค่ชื่อรุ่น (เช่น gemini-1.5-pro)
     sdk_model_name = model.replace("google/", "")
-    generative_model = genai.GenerativeModel(
-        model_name=sdk_model_name, system_instruction=system_instruction
-    )
+    
+    config = types.GenerateContentConfig()
+    if system_instruction:
+        config.system_instruction = system_instruction
 
-    # เริ่มแชทด้วยประวัติที่เหลือ
-    chat = generative_model.start_chat(history=gemini_history)
-    response = await chat.send_message_async(prompt)
+    # ส่งประวัติทั้งหมดไปยังโมเดล
+    response = await client.aio.models.generate_content(
+        model=sdk_model_name,
+        contents=gemini_history,
+        config=config
+    )
 
     return response.text
 

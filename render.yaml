@@ -9,7 +9,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: PYTHON_VERSION
-        value: 3.9.6
+        value: 3.11.9
       - key: AKASA_API_KEY
         generateValue: true
       - key: WEBHOOK_SECRET_TOKEN
