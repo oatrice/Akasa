@@ -70,16 +70,14 @@ async def _get_google_gemini_reply(messages: list[dict], model: str) -> str:
 
     # ตัด 'google/' ออกจากชื่อโมเดลถ้ามี เพราะ SDK ใช้แค่ชื่อรุ่น (เช่น gemini-1.5-pro)
     sdk_model_name = model.replace("google/", "")
-    
+
     config = types.GenerateContentConfig()
     if system_instruction:
         config.system_instruction = system_instruction
 
     # ส่งประวัติทั้งหมดไปยังโมเดล
     response = await client.aio.models.generate_content(
-        model=sdk_model_name,
-        contents=gemini_history,
-        config=config
+        model=sdk_model_name, contents=gemini_history, config=config
     )
 
     return response.text
