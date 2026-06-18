@@ -127,6 +127,18 @@
 > ⏳ **Action needed:** ต้อง replan due date ใหม่สำหรับ 10 issues ข้างต้น
 
 ## Synced From GitHub
+### Issue #98 - Missing Webhook Endpoint (404 Not Found)
+- **GitHub:** [#98](https://gitlab.com/oatricedev/Akasa/-/issues/98)
+- **Status:** 🟢 **Ready**
+
+### Issue #97 - Deprecated Gemini SDK Migration
+- **GitHub:** [#97](https://gitlab.com/oatricedev/Akasa/-/issues/97)
+- **Status:** 🟢 **Ready**
+
+### Issue #96 - Python Version Upgrade (EOL Warning)
+- **GitHub:** [#96](https://gitlab.com/oatricedev/Akasa/-/issues/96)
+- **Status:** 🟢 **Ready**
+
 ### Issue #95 - Deploy Akasa to Render.com
 - **GitHub:** [#95](https://gitlab.com/oatricedev/Akasa/-/issues/95)
     - ✅ **Done**
