@@ -2,6 +2,9 @@
 
 ## [0.25.0] - 2026-06-18
 
+### Added
+- **Webhook Endpoint**: เพิ่ม Endpoint `/notify_task_complete` และ alias `/api/notify_task_complete` สำหรับรับการแจ้งเตือน Task Completion จากระบบ Agent/IDE ภายนอก พร้อมระบบตรวจสอบความปลอดภัยด้วย API Key (Issue #98)
+
 ### Changed
 - **Roadmap**: อัปเดตแผนงาน (Roadmap) ของโปรเจ็กต์ โดยระบุ milestones ปัจจุบันและการจัดลำดับความสำคัญของงานให้เป็นปัจจุบันยิ่งขึ้น
 
