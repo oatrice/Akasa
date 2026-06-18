@@ -12,6 +12,8 @@ venv/
 # Luma CLI generated files
 prompt_*.txt
 .luma_state.json
+.luma/prompts/*.response.md
+.luma/prompts/*.md.response.md
 
 # Error Logs
 error.log
