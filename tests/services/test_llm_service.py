@@ -127,23 +127,25 @@ async def test_get_llm_reply_with_custom_model(respx_mock):
 async def test_get_llm_reply_uses_google_sdk_when_gemini_and_key_provided(monkeypatch):
     """ทดสอบว่าถ้าเป็นโมเดล gemini และมี GEMINI_API_KEY ให้ใช้ Google SDK โดยตรง"""
     from unittest.mock import AsyncMock, MagicMock
-    import google.generativeai as genai
+    from google import genai
 
     # Mock settings
     monkeypatch.setattr(settings, "GEMINI_API_KEY", "google_test_key")
 
-    # Mock genai
-    mock_chat = MagicMock()
     mock_response = MagicMock()
     mock_response.text = "Google AI reply"
-    # send_message_async เป็น coroutine
-    mock_chat.send_message_async = AsyncMock(return_value=mock_response)
 
-    mock_model = MagicMock()
-    mock_model.start_chat = MagicMock(return_value=mock_chat)
+    mock_aio_models = MagicMock()
+    mock_aio_models.generate_content = AsyncMock(return_value=mock_response)
 
-    monkeypatch.setattr(genai, "GenerativeModel", MagicMock(return_value=mock_model))
-    monkeypatch.setattr(genai, "configure", MagicMock())
+    mock_aio = MagicMock()
+    mock_aio.models = mock_aio_models
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.aio = mock_aio
+
+    mock_client_class = MagicMock(return_value=mock_client_instance)
+    monkeypatch.setattr(genai, "Client", mock_client_class)
 
     messages = [{"role": "user", "content": "Hello Google"}]
     # ชื่อโมเดลที่มีคำว่า 'gemini'
@@ -152,11 +154,10 @@ async def test_get_llm_reply_uses_google_sdk_when_gemini_and_key_provided(monkey
     reply = await get_llm_reply(messages, model=model)
 
     assert reply == "Google AI reply"
-    # ตรวจสอบว่าเรียก genai.configure ด้วย key ที่ถูกต้อง
-    genai.configure.assert_called_with(api_key="google_test_key")
-    # ตรวจสอบว่ามีการเรียก start_chat และ send_message_async
-    mock_model.start_chat.assert_called_once()
-    mock_chat.send_message_async.assert_called_once_with("Hello Google")
+    # ตรวจสอบว่าเรียก Client ด้วย key ที่ถูกต้อง
+    mock_client_class.assert_called_with(api_key="google_test_key")
+    # ตรวจสอบว่ามีการเรียก generate_content
+    mock_aio_models.generate_content.assert_called_once()
 
 
 @pytest.mark.asyncio
