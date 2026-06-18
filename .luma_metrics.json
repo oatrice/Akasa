@@ -954,20 +954,20 @@
       "issue_url": "https://gitlab.com/oatricedev/Akasa/-/issues/95",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "✅ Done",
       "estimate_points": 1,
       "post_story_point": 2.0,
       "estimated_mandays": 0.5,
-      "start_datetime": "2026-06-13T13:37:19",
-      "actual_mandays": 0.0,
+      "start_datetime": "2026-06-12T20:58:36",
+      "actual_mandays": 0.5,
       "due_date": "2026-06-13T23:59:59",
-      "actual_completion_date": null,
+      "actual_completion_date": "2026-06-13T08:58:36",
       "effort_level": "Low",
       "notes": null,
-      "gh_closed_at": null,
-      "gh_mandays": null,
+      "gh_closed_at": "2026-06-13T08:58:36.726Z",
+      "gh_mandays": 0.5,
       "created_at": "2026-06-13T06:05:15.666Z",
-      "updated_at": "2026-06-13T15:45:34.751722"
+      "updated_at": "2026-06-18T20:57:56.189593"
     },
     "oatricedev/Akasa#1": {
       "issue_key": "oatricedev/Akasa#1",
@@ -989,7 +989,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:09Z",
-      "updated_at": "2026-06-13T15:46:30.118648"
+      "updated_at": "2026-06-18T20:57:56.876981"
     },
     "oatricedev/Akasa#2": {
       "issue_key": "oatricedev/Akasa#2",
@@ -1011,7 +1011,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:21Z",
-      "updated_at": "2026-06-13T15:46:29.868744"
+      "updated_at": "2026-06-18T20:57:57.562303"
     },
     "oatricedev/Akasa#3": {
       "issue_key": "oatricedev/Akasa#3",
@@ -1033,7 +1033,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:26Z",
-      "updated_at": "2026-06-13T15:46:29.584875"
+      "updated_at": "2026-06-18T20:57:58.206957"
     },
     "oatricedev/Akasa#4": {
       "issue_key": "oatricedev/Akasa#4",
@@ -1055,7 +1055,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:31Z",
-      "updated_at": "2026-06-13T15:46:29.022525"
+      "updated_at": "2026-06-18T20:57:58.820168"
     },
     "oatricedev/Akasa#5": {
       "issue_key": "oatricedev/Akasa#5",
@@ -1077,7 +1077,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:36Z",
-      "updated_at": "2026-06-13T15:45:37.398200"
+      "updated_at": "2026-06-18T20:57:59.471217"
     },
     "oatricedev/Akasa#6": {
       "issue_key": "oatricedev/Akasa#6",
@@ -1099,7 +1099,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:46Z",
-      "updated_at": "2026-06-13T15:46:28.748919"
+      "updated_at": "2026-06-18T20:58:00.128290"
     },
     "oatricedev/Akasa#7": {
       "issue_key": "oatricedev/Akasa#7",
@@ -1121,7 +1121,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:51Z",
-      "updated_at": "2026-06-13T15:46:28.239520"
+      "updated_at": "2026-06-18T20:58:00.873331"
     },
     "oatricedev/Akasa#8": {
       "issue_key": "oatricedev/Akasa#8",
@@ -1143,7 +1143,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:27:56Z",
-      "updated_at": "2026-06-13T15:46:27.953600"
+      "updated_at": "2026-06-18T20:58:01.702340"
     },
     "oatricedev/Akasa#13": {
       "issue_key": "oatricedev/Akasa#13",
@@ -1165,7 +1165,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:35Z",
-      "updated_at": "2026-06-13T15:46:27.690995"
+      "updated_at": "2026-06-18T20:58:05.540383"
     },
     "oatricedev/Akasa#53": {
       "issue_key": "oatricedev/Akasa#53",
@@ -1187,7 +1187,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-10T04:22:40Z",
-      "updated_at": "2026-06-13T15:46:27.413671"
+      "updated_at": "2026-06-18T20:58:06.209742"
     },
     "oatricedev/Akasa#71": {
       "issue_key": "oatricedev/Akasa#71",
@@ -1209,7 +1209,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-16T08:19:14Z",
-      "updated_at": "2026-06-13T15:46:26.884791"
+      "updated_at": "2026-06-18T20:58:06.812667"
     },
     "oatricedev/Akasa#25": {
       "issue_key": "oatricedev/Akasa#25",
@@ -1231,7 +1231,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-07T21:46:09Z",
-      "updated_at": "2026-06-13T15:46:26.586639"
+      "updated_at": "2026-06-18T20:58:07.415158"
     },
     "oatricedev/Akasa#9": {
       "issue_key": "oatricedev/Akasa#9",
@@ -1253,7 +1253,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:01Z",
-      "updated_at": "2026-06-13T15:45:41.585529"
+      "updated_at": "2026-06-18T20:58:08.068703"
     },
     "oatricedev/Akasa#10": {
       "issue_key": "oatricedev/Akasa#10",
@@ -1275,7 +1275,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:19Z",
-      "updated_at": "2026-06-13T15:46:26.335665"
+      "updated_at": "2026-06-18T20:58:08.721709"
     },
     "oatricedev/Akasa#17": {
       "issue_key": "oatricedev/Akasa#17",
@@ -1319,7 +1319,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T09:02:50Z",
-      "updated_at": "2026-06-13T15:46:25.536506"
+      "updated_at": "2026-06-18T20:58:10.059868"
     },
     "oatricedev/Akasa#29": {
       "issue_key": "oatricedev/Akasa#29",
@@ -1341,7 +1341,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:15:42Z",
-      "updated_at": "2026-06-13T15:46:25.243654"
+      "updated_at": "2026-06-18T20:58:10.662264"
     },
     "oatricedev/Akasa#30": {
       "issue_key": "oatricedev/Akasa#30",
@@ -1363,7 +1363,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:15:55Z",
-      "updated_at": "2026-06-13T15:46:24.993600"
+      "updated_at": "2026-06-18T20:58:11.296060"
     },
     "oatricedev/Akasa#31": {
       "issue_key": "oatricedev/Akasa#31",
@@ -1385,7 +1385,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:16:12Z",
-      "updated_at": "2026-06-13T15:46:24.680428"
+      "updated_at": "2026-06-18T20:58:11.931981"
     },
     "oatricedev/Akasa#32": {
       "issue_key": "oatricedev/Akasa#32",
@@ -1407,7 +1407,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:16:25Z",
-      "updated_at": "2026-06-13T15:46:24.407847"
+      "updated_at": "2026-06-18T20:58:12.644045"
     },
     "oatricedev/Akasa#49": {
       "issue_key": "oatricedev/Akasa#49",
@@ -1429,7 +1429,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-10T02:49:27Z",
-      "updated_at": "2026-06-13T15:46:23.817919"
+      "updated_at": "2026-06-18T20:58:13.336185"
     },
     "oatricedev/Akasa#58": {
       "issue_key": "oatricedev/Akasa#58",
@@ -1451,7 +1451,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-13T06:09:46Z",
-      "updated_at": "2026-06-13T15:46:23.381586"
+      "updated_at": "2026-06-18T20:58:14.027320"
     },
     "oatricedev/Akasa#61": {
       "issue_key": "oatricedev/Akasa#61",
@@ -1473,7 +1473,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-13T10:15:28Z",
-      "updated_at": "2026-06-13T15:46:23.102560"
+      "updated_at": "2026-06-18T20:58:14.792923"
     },
     "oatricedev/Akasa#33": {
       "issue_key": "oatricedev/Akasa#33",
@@ -1495,7 +1495,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:16:43Z",
-      "updated_at": "2026-06-13T15:46:22.569827"
+      "updated_at": "2026-06-18T20:58:15.487623"
     },
     "oatricedev/Akasa#34": {
       "issue_key": "oatricedev/Akasa#34",
@@ -1539,7 +1539,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-14T15:05:04Z",
-      "updated_at": "2026-06-13T15:46:21.711787"
+      "updated_at": "2026-06-18T20:58:16.855710"
     },
     "oatricedev/Akasa#66": {
       "issue_key": "oatricedev/Akasa#66",
@@ -1561,7 +1561,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-14T06:29:38Z",
-      "updated_at": "2026-06-13T15:46:21.214825"
+      "updated_at": "2026-06-18T20:58:17.560414"
     },
     "oatricedev/Akasa#68": {
       "issue_key": "oatricedev/Akasa#68",
@@ -1583,7 +1583,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-14T15:53:15Z",
-      "updated_at": "2026-06-13T15:46:20.622882"
+      "updated_at": "2026-06-18T20:58:18.276368"
     },
     "oatricedev/Akasa#83": {
       "issue_key": "oatricedev/Akasa#83",
@@ -1605,7 +1605,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-21T05:39:59Z",
-      "updated_at": "2026-06-13T15:45:49.770989"
+      "updated_at": "2026-06-18T20:58:18.904221"
     },
     "oatricedev/Akasa#35": {
       "issue_key": "oatricedev/Akasa#35",
@@ -1627,7 +1627,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:17:12Z",
-      "updated_at": "2026-06-13T15:45:50.257033"
+      "updated_at": "2026-06-18T20:58:19.530300"
     },
     "oatricedev/Akasa#36": {
       "issue_key": "oatricedev/Akasa#36",
@@ -1649,7 +1649,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:17:25Z",
-      "updated_at": "2026-06-13T15:45:50.807120"
+      "updated_at": "2026-06-18T20:58:20.193713"
     },
     "oatricedev/Akasa#37": {
       "issue_key": "oatricedev/Akasa#37",
@@ -1671,7 +1671,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T08:54:11Z",
-      "updated_at": "2026-06-13T15:46:20.126213"
+      "updated_at": "2026-06-18T20:58:20.811200"
     },
     "oatricedev/Akasa#28": {
       "issue_key": "oatricedev/Akasa#28",
@@ -1693,7 +1693,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-08T03:25:49Z",
-      "updated_at": "2026-06-13T15:45:51.890379"
+      "updated_at": "2026-06-18T20:58:21.651492"
     },
     "oatricedev/Akasa#11": {
       "issue_key": "oatricedev/Akasa#11",
@@ -1715,7 +1715,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:25Z",
-      "updated_at": "2026-06-13T15:45:52.373898"
+      "updated_at": "2026-06-18T20:58:22.254769"
     },
     "oatricedev/Akasa#12": {
       "issue_key": "oatricedev/Akasa#12",
@@ -1737,7 +1737,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:30Z",
-      "updated_at": "2026-06-13T15:45:52.944739"
+      "updated_at": "2026-06-18T20:58:22.914300"
     },
     "oatricedev/Akasa#16": {
       "issue_key": "oatricedev/Akasa#16",
@@ -1759,7 +1759,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:57Z",
-      "updated_at": "2026-06-13T15:45:53.452731"
+      "updated_at": "2026-06-18T20:58:24.586885"
     },
     "oatricedev/Akasa#14": {
       "issue_key": "oatricedev/Akasa#14",
@@ -1781,7 +1781,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:47Z",
-      "updated_at": "2026-06-13T15:45:54.084260"
+      "updated_at": "2026-06-18T20:58:25.194416"
     },
     "oatricedev/Akasa#15": {
       "issue_key": "oatricedev/Akasa#15",
@@ -1803,7 +1803,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-06T16:28:51Z",
-      "updated_at": "2026-06-13T15:45:54.582051"
+      "updated_at": "2026-06-18T20:58:25.822572"
     },
     "oatricedev/Akasa#94": {
       "issue_key": "oatricedev/Akasa#94",
@@ -1825,7 +1825,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-06-08T05:11:09.425Z",
-      "updated_at": "2026-06-13T15:45:55.106904"
+      "updated_at": "2026-06-18T20:58:26.463118"
     },
     "oatricedev/Akasa#93": {
       "issue_key": "oatricedev/Akasa#93",
@@ -1847,7 +1847,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-05-12T14:07:48.975Z",
-      "updated_at": "2026-06-13T15:45:55.599680"
+      "updated_at": "2026-06-18T20:58:27.181927"
     },
     "oatricedev/Akasa#91": {
       "issue_key": "oatricedev/Akasa#91",
@@ -1856,7 +1856,7 @@
       "issue_url": "https://gitlab.com/oatricedev/Akasa/-/issues/91",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "🟢 Ready",
       "estimate_points": 1,
       "post_story_point": null,
       "estimated_mandays": 0.5,
@@ -1869,7 +1869,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-05-12T13:51:42.797Z",
-      "updated_at": "2026-06-13T15:45:56.100392"
+      "updated_at": "2026-06-18T20:58:27.897505"
     },
     "oatricedev/Akasa#90": {
       "issue_key": "oatricedev/Akasa#90",
@@ -1900,7 +1900,7 @@
       "issue_url": "https://github.com/oatrice/Akasa/issues/87",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "🔵 Todo",
       "estimate_points": 2,
       "post_story_point": null,
       "estimated_mandays": 1.0,
@@ -1913,7 +1913,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-29T14:08:27Z",
-      "updated_at": "2026-06-13T15:45:57.163837"
+      "updated_at": "2026-06-18T20:58:29.333212"
     },
     "oatricedev/Akasa#76": {
       "issue_key": "oatricedev/Akasa#76",
@@ -1922,7 +1922,7 @@
       "issue_url": "https://github.com/oatrice/Akasa/issues/76",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "🔵 Todo",
       "estimate_points": 2,
       "post_story_point": null,
       "estimated_mandays": 1.0,
@@ -1935,7 +1935,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-18T06:54:58Z",
-      "updated_at": "2026-06-13T15:45:57.668420"
+      "updated_at": "2026-06-18T20:58:30.052846"
     },
     "oatricedev/Akasa#77": {
       "issue_key": "oatricedev/Akasa#77",
@@ -1944,7 +1944,7 @@
       "issue_url": "https://github.com/oatrice/Akasa/issues/77",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "🔵 Todo",
       "estimate_points": 2,
       "post_story_point": null,
       "estimated_mandays": 1.0,
@@ -1957,7 +1957,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-18T07:03:24Z",
-      "updated_at": "2026-06-13T15:45:58.175983"
+      "updated_at": "2026-06-18T20:58:30.655872"
     },
     "oatricedev/Akasa#78": {
       "issue_key": "oatricedev/Akasa#78",
@@ -1966,7 +1966,7 @@
       "issue_url": "https://github.com/oatrice/Akasa/issues/78",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "🔵 Todo",
       "estimate_points": 1,
       "post_story_point": null,
       "estimated_mandays": 0.5,
@@ -1979,7 +1979,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-19T10:08:48Z",
-      "updated_at": "2026-06-13T15:45:58.716336"
+      "updated_at": "2026-06-18T20:58:31.381798"
     },
     "oatricedev/Akasa#79": {
       "issue_key": "oatricedev/Akasa#79",
@@ -1988,7 +1988,7 @@
       "issue_url": "https://github.com/oatrice/Akasa/issues/79",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "🟡 In Progress",
+      "issue_status": "🔵 Todo",
       "estimate_points": 1,
       "post_story_point": null,
       "estimated_mandays": 0.5,
@@ -2001,7 +2001,7 @@
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-19T10:09:00Z",
-      "updated_at": "2026-06-13T15:45:59.305434"
+      "updated_at": "2026-06-18T20:58:32.108684"
     },
     "oatricedev/Akasa#82": {
       "issue_key": "oatricedev/Akasa#82",
@@ -2010,86 +2010,86 @@
       "issue_url": "https://github.com/oatrice/Akasa/issues/82",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "✅ Complete",
+      "issue_status": "✅ Done",
       "estimate_points": 2,
       "post_story_point": 2.0,
       "estimated_mandays": 1.0,
       "start_datetime": null,
       "actual_mandays": 0.0,
       "due_date": "2026-04-29T23:59:59",
-      "actual_completion_date": null,
+      "actual_completion_date": "2026-03-25T00:53:41",
       "effort_level": "Low",
       "notes": null,
       "gh_closed_at": null,
       "gh_mandays": null,
       "created_at": "2026-03-19T12:08:26Z",
-      "updated_at": "2026-06-13T15:46:18.456231"
+      "updated_at": "2026-06-18T20:58:32.818037"
     },
     "oatricedev/Akasa#96": {
       "issue_key": "oatricedev/Akasa#96",
       "issue_number": 96,
       "issue_title": "Python Version Upgrade (EOL Warning)",
-      "issue_url": "",
+      "issue_url": "https://gitlab.com/oatricedev/Akasa/-/issues/96",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "✅ Complete",
-      "estimate_points": null,
+      "issue_status": "🟡 In Progress",
+      "estimate_points": 1,
       "post_story_point": 2.0,
-      "estimated_mandays": null,
+      "estimated_mandays": 0.5,
       "start_datetime": null,
-      "actual_mandays": null,
-      "due_date": null,
-      "actual_completion_date": null,
-      "effort_level": null,
+      "actual_mandays": 0.0,
+      "due_date": "2026-06-18T23:59:59",
+      "actual_completion_date": "2026-06-18T21:00:18",
+      "effort_level": "Low",
       "notes": null,
       "gh_closed_at": null,
       "gh_mandays": null,
-      "created_at": "2026-06-18T20:55:35.480675",
-      "updated_at": "2026-06-18T20:55:36.960327"
+      "created_at": "2026-06-17T13:31:37.882Z",
+      "updated_at": "2026-06-18T21:00:18.780432"
     },
     "oatricedev/Akasa#97": {
       "issue_key": "oatricedev/Akasa#97",
       "issue_number": 97,
       "issue_title": "Deprecated Gemini SDK Migration",
-      "issue_url": "",
+      "issue_url": "https://gitlab.com/oatricedev/Akasa/-/issues/97",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "✅ Complete",
-      "estimate_points": null,
+      "issue_status": "🟡 In Progress",
+      "estimate_points": 2,
       "post_story_point": 2.0,
-      "estimated_mandays": null,
+      "estimated_mandays": 1.0,
       "start_datetime": null,
-      "actual_mandays": null,
-      "due_date": null,
-      "actual_completion_date": null,
-      "effort_level": null,
+      "actual_mandays": 0.0,
+      "due_date": "2026-06-18T23:59:59",
+      "actual_completion_date": "2026-06-18T21:00:18",
+      "effort_level": "Low",
       "notes": null,
       "gh_closed_at": null,
       "gh_mandays": null,
-      "created_at": "2026-06-18T20:55:35.481976",
-      "updated_at": "2026-06-18T20:55:37.394292"
+      "created_at": "2026-06-17T13:31:39.742Z",
+      "updated_at": "2026-06-18T21:00:18.783052"
     },
     "oatricedev/Akasa#98": {
       "issue_key": "oatricedev/Akasa#98",
       "issue_number": 98,
       "issue_title": "Missing Webhook Endpoint (404 Not Found)",
-      "issue_url": "",
+      "issue_url": "https://gitlab.com/oatricedev/Akasa/-/issues/98",
       "repository": "oatricedev/Akasa",
       "project_name": "Akasa",
-      "issue_status": "✅ Complete",
-      "estimate_points": null,
+      "issue_status": "🟡 In Progress",
+      "estimate_points": 2,
       "post_story_point": 3.0,
-      "estimated_mandays": null,
+      "estimated_mandays": 1.0,
       "start_datetime": null,
-      "actual_mandays": null,
-      "due_date": null,
-      "actual_completion_date": null,
-      "effort_level": null,
+      "actual_mandays": 0.0,
+      "due_date": "2026-03-08T23:59:59",
+      "actual_completion_date": "2026-06-18T21:00:18",
+      "effort_level": "Low",
       "notes": null,
       "gh_closed_at": null,
       "gh_mandays": null,
-      "created_at": "2026-06-18T20:55:35.482724",
-      "updated_at": "2026-06-18T20:55:37.801119"
+      "created_at": "2026-06-17T13:31:41.843Z",
+      "updated_at": "2026-06-18T21:00:18.785211"
     }
   }
 }
