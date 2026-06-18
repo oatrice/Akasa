@@ -56,9 +56,6 @@ async def request_remote_approval(
     Returns:
         dict: {"status": "allowed" | "denied" | "timeout", "request_id": str}
     """
-    if not AKASA_CHAT_ID:
-        raise ValueError("AKASA_CHAT_ID environment variable is not set")
-
     request_id = str(uuid.uuid4())
 
     # 1. Format message สำหรับ Telegram
@@ -90,7 +87,7 @@ async def request_remote_approval(
             f"{AKASA_API_URL}/api/v1/actions/request",
             json=payload,
             headers=headers,
-            timeout=10.0,
+            timeout=30.0,
         )
         response.raise_for_status()
         data = response.json()
@@ -140,9 +137,6 @@ async def notify_pending_review(
     Returns:
         dict: {"delivered": bool, "timestamp": str}
     """
-    if not AKASA_CHAT_ID:
-        raise ValueError("AKASA_CHAT_ID environment variable is not set")
-
     payload: dict = {
         "project": project,
         "task": task,
@@ -160,7 +154,7 @@ async def notify_pending_review(
             f"{AKASA_API_URL}/api/v1/notifications/review-ready",
             json=payload,
             headers=headers,
-            timeout=10.0,
+            timeout=30.0,
         )
         response.raise_for_status()
         return response.json()
@@ -198,9 +192,6 @@ async def notify_task_complete(
     Returns:
         dict: {"delivered": bool, "timestamp": str}
     """
-    if not AKASA_CHAT_ID:
-        raise ValueError("AKASA_CHAT_ID environment variable is not set")
-
     payload: dict = {
         "project": project,
         "task": task,
@@ -228,7 +219,7 @@ async def notify_task_complete(
             f"{AKASA_API_URL}/api/v1/notifications/task-complete",
             json=payload,
             headers=headers,
-            timeout=10.0,
+            timeout=30.0,
         )
         response.raise_for_status()
         return response.json()
@@ -384,7 +375,7 @@ async def handle_rpc(request: dict) -> Optional[str]:
         return make_response(
             req_id,
             {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "akasa-remote-approval", "version": "1.0.0"},
             },
@@ -392,6 +383,9 @@ async def handle_rpc(request: dict) -> Optional[str]:
 
     elif method == "notifications/initialized":
         return None  # No response needed for notifications
+
+    elif method.startswith("notifications/"):
+        return None  # Ignore all other notifications (roots/list_changed, etc.)
 
     elif method == "tools/list":
         return make_response(req_id, {"tools": TOOL_DEFINITIONS})
@@ -504,6 +498,8 @@ async def handle_rpc(request: dict) -> Optional[str]:
 
 async def main():
     """Main loop: read JSON-RPC from stdin, respond via stdout (non-blocking)"""
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     logger.info("Akasa MCP Server started (stdio mode)")
 
     loop = asyncio.get_event_loop()
@@ -522,6 +518,7 @@ async def main():
 
         try:
             request = json.loads(line)
+            req_id = request.get("id")
             response = await handle_rpc(request)
             if response:
                 print(response, flush=True)
@@ -530,7 +527,7 @@ async def main():
             print(error, flush=True)
         except Exception as e:
             logger.error(f"Error handling request: {e}")
-            error = make_error(None, -32603, str(e))
+            error = make_error(locals().get("req_id"), -32603, str(e))
             print(error, flush=True)
 
 
