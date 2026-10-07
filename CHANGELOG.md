@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.23.0](https://github.com/oatrice/Akasa/compare/v0.22.0...v0.23.0) (2026-10-07)
+
+
+### Features
+
+* Add model field to TaskNotificationRequest and dis... ([3a8fc78](https://github.com/oatrice/Akasa/commit/3a8fc780958e59bce10e0f83fdf2f302589bef23))
+* Add model field to TaskNotificationRequest and dis... ([7e78fd5](https://github.com/oatrice/Akasa/commit/7e78fd55f011336caea45aac1b6a7146d0eab48f))
+* add render.yaml blueprint and support dynamic fakeredis fallback ([5aa5bb2](https://github.com/oatrice/Akasa/commit/5aa5bb227e98e3a9802f071dcad81494790d0ce2))
+* **ci:** enhance telegram notification formatting ([16b9f57](https://github.com/oatrice/Akasa/commit/16b9f57c5d7679530686aba889aecba867ad9c8b))
+* Deploy Akasa to Render.com... ([125e9f1](https://github.com/oatrice/Akasa/commit/125e9f13abcab9334dc9b77bb20b0050cfcd4bfd))
+* Deploy Akasa to Render.com([#95](https://github.com/oatrice/Akasa/issues/95)) ([a2ccfdd](https://github.com/oatrice/Akasa/commit/a2ccfdddeb8b0aad582dd434e75ff59529597073))
+* **deploy:** configure Redis service in render.yaml and link to backend ([c6c2237](https://github.com/oatrice/Akasa/commit/c6c223713dc5fb8a37e94a2d1bbd658b237e315f))
+* **deploy:** explicitly set plan to free for all blueprint services ([3ea16cf](https://github.com/oatrice/Akasa/commit/3ea16cf3f9e4fa45c0ecdf19c47f36100dfa85b1))
+* **dev:** add local development documentation and timestamped logging ([c32d264](https://github.com/oatrice/Akasa/commit/c32d2643adc4fc38c7556e95503981d76125d49e))
+* **mcp:** timeouts, notification fallthrough, utf-8 stdout, req_id in errors ([#98](https://github.com/oatrice/Akasa/issues/98)) ([25d14c6](https://github.com/oatrice/Akasa/commit/25d14c68e93bd1431c61da6f6c7dd4b6f684d74b))
+* **notifications:** add support for AI model field in task notifications ([7b33742](https://github.com/oatrice/Akasa/commit/7b33742376bfa8c4c4a35ae5f16d546183fb1c90))
+* **notifications:** authenticated GET /ping health probe ([#94](https://github.com/oatrice/Akasa/issues/94)) ([18169c2](https://github.com/oatrice/Akasa/commit/18169c22993a703b4b5280884acd7bb4a323007f))
+* **notifications:** implement multi-project chat history and task field updates ([f097b81](https://github.com/oatrice/Akasa/commit/f097b81b1d4d75058776640f439a2252a1e59d6b))
+* **notifications:** include AI model in task notifications ([e500b58](https://github.com/oatrice/Akasa/commit/e500b5887d8e85657529ef272edd8e83b7a07c41))
+* **notifications:** POST /notify_task_complete aliases ([#98](https://github.com/oatrice/Akasa/issues/98)) ([#99](https://github.com/oatrice/Akasa/issues/99)) ([2ec49fc](https://github.com/oatrice/Akasa/commit/2ec49fcad9d82eb5994091ba95ccb73d9e205468))
+* **telegram:** enhance error handling and update test configuration ([05973fb](https://github.com/oatrice/Akasa/commit/05973fb99177ae1699dd3d9a27e902b0171d5615))
+* **workflows:** add workflows for Cerebro issue management and sync ([770c567](https://github.com/oatrice/Akasa/commit/770c567d61d02bb0f499c96c3adc81c60fe4d3b7))
+
+
+### Bug Fixes
+
+* **ci:** refactor integration test curl command syntax ([fc51341](https://github.com/oatrice/Akasa/commit/fc513416bd58b2b90640a52fcc8123cd98c95702))
+* **daemon:** import missing 'os' module ([3cffa0b](https://github.com/oatrice/Akasa/commit/3cffa0b497806876b412cdf25c69c98fd10c3f95))
+* **daemon:** read API base URL from AKASA_API_URL instead of hardcoding localhost ([27573d4](https://github.com/oatrice/Akasa/commit/27573d4d30b2f6bb187e7557fd97c74e9c5918be))
+* **lint:** move module level imports to top of file to satisfy Ruff E402 and F811 ([bc19437](https://github.com/oatrice/Akasa/commit/bc1943790978df9cb4b98124a18f2fbc06be5926))
+* **tech-debt:** upgrade Python to 3.11.9 and migrate to google-genai SDK (Issue [#96](https://github.com/oatrice/Akasa/issues/96), [#97](https://github.com/oatrice/Akasa/issues/97)) ([2a6e7c5](https://github.com/oatrice/Akasa/commit/2a6e7c57b385d9c018098507e0418c6b96d3dd3c))
+* **tests:** use fakeredis.FakeServer (moved out of fakeredis.aioredis) ([#96](https://github.com/oatrice/Akasa/issues/96)) ([6bef9ba](https://github.com/oatrice/Akasa/commit/6bef9ba727e739f239ad8b27734c9ea89cac2000))
+
 ## [0.25.0] - 2026-06-18
 
 ### Added
