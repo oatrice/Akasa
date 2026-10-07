@@ -90,7 +90,7 @@ async def request_remote_approval(
             f"{AKASA_API_URL}/api/v1/actions/request",
             json=payload,
             headers=headers,
-            timeout=10.0,
+            timeout=30.0,
         )
         response.raise_for_status()
         data = response.json()
@@ -160,7 +160,7 @@ async def notify_pending_review(
             f"{AKASA_API_URL}/api/v1/notifications/review-ready",
             json=payload,
             headers=headers,
-            timeout=10.0,
+            timeout=30.0,
         )
         response.raise_for_status()
         return response.json()
@@ -228,7 +228,7 @@ async def notify_task_complete(
             f"{AKASA_API_URL}/api/v1/notifications/task-complete",
             json=payload,
             headers=headers,
-            timeout=10.0,
+            timeout=30.0,
         )
         response.raise_for_status()
         return response.json()
@@ -393,6 +393,9 @@ async def handle_rpc(request: dict) -> Optional[str]:
     elif method == "notifications/initialized":
         return None  # No response needed for notifications
 
+    elif method.startswith("notifications/"):
+        return None  # Ignore other notifications (e.g. roots/list_changed); no response
+
     elif method == "tools/list":
         return make_response(req_id, {"tools": TOOL_DEFINITIONS})
 
@@ -504,6 +507,8 @@ async def handle_rpc(request: dict) -> Optional[str]:
 
 async def main():
     """Main loop: read JSON-RPC from stdin, respond via stdout (non-blocking)"""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     logger.info("Akasa MCP Server started (stdio mode)")
 
     loop = asyncio.get_event_loop()
@@ -522,6 +527,7 @@ async def main():
 
         try:
             request = json.loads(line)
+            req_id = request.get("id")
             response = await handle_rpc(request)
             if response:
                 print(response, flush=True)
@@ -530,7 +536,7 @@ async def main():
             print(error, flush=True)
         except Exception as e:
             logger.error(f"Error handling request: {e}")
-            error = make_error(None, -32603, str(e))
+            error = make_error(locals().get("req_id"), -32603, str(e))
             print(error, flush=True)
 
 
