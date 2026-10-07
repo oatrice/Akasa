@@ -3,3 +3,10 @@ asyncio_mode = "auto"
 markers = [
 "integration: integration tests ที่ต้องใช้ Redis จริง",
 ]
+
+[tool.ruff.lint]
+# Pin the rule selection explicitly. Ruff's *default* set expanded over time
+# (0.16.x defaults now include I/SIM/BLE/G/RUF/C, flagging long-standing code),
+# which turned a previously-green CI red without any code change. Keep the
+# classic E4/E7/E9/F set so CI is deterministic; add rules deliberately.
+select = ["E4", "E7", "E9", "F"]
