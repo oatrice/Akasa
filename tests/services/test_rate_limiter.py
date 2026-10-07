@@ -7,7 +7,7 @@ import pytest_asyncio
 
 @pytest_asyncio.fixture
 async def fake_redis():
-    server = fakeredis.aioredis.FakeServer()
+    server = fakeredis.FakeServer()
     client = fakeredis.aioredis.FakeRedis(server=server, decode_responses=True)
     yield client
     await client.flushall()
