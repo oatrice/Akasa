@@ -45,6 +45,17 @@ async def verify_api_key(x_akasa_api_key: str = Header(None)):
     raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
+@router.get("/ping")
+async def ping(authenticated: bool = Depends(verify_api_key)):
+    """Lightweight authenticated probe for CI health checks.
+
+    Returns 200 for a valid API key and 401 otherwise, with no side effects
+    (creates no task log and sends no Telegram message). Used by the
+    FonTokMai-Android scheduled notification health check (#35).
+    """
+    return {"status": "ok"}
+
+
 @router.post("/send", response_model=NotificationResponse)
 async def send_notification(
     payload: NotificationPayload, authenticated: bool = Depends(verify_api_key)
