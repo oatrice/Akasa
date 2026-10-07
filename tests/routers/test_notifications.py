@@ -595,3 +595,47 @@ def test_task_complete_all_valid_statuses_pass_validation(
         assert response.status_code == 200, (
             f"Expected 200 for status='{status}', got {response.status_code}"
         )
+
+
+# === Issue #98: top-level webhook aliases ===
+# External agent/IDE systems call these aliases; both must behave like
+# /api/v1/notifications/task-complete (same auth + handler).
+
+NOTIFY_TASK_COMPLETE_ALIASES = ["/notify_task_complete", "/api/notify_task_complete"]
+
+
+@pytest.mark.parametrize("url", NOTIFY_TASK_COMPLETE_ALIASES)
+def test_notify_task_complete_alias_unauthorized(mock_tg_service, url):
+    """ต้องคืนค่า 401 เมื่อไม่มี/ผิด API Key"""
+    response = client.post(url, json=VALID_TASK_PAYLOAD)
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or missing API key"
+
+
+@pytest.mark.parametrize("url", NOTIFY_TASK_COMPLETE_ALIASES)
+def test_notify_task_complete_alias_success(mock_tg_service, url):
+    """Happy path: alias ส่ง notification และคืน delivered=True"""
+    mock_tg_service.send_task_notification = AsyncMock(return_value=None)
+    app.dependency_overrides[verify_api_key] = lambda: True
+
+    payload = {**VALID_TASK_PAYLOAD, "chat_id": "6346467495"}
+    # Use a fresh context-managed client so the anyio portal/event loop is
+    # created and torn down per test (avoids a stale closed loop shared by the
+    # module-level client across the suite).
+    with TestClient(app) as c:
+        response = c.post(url, json=payload, headers={"X-Akasa-API-Key": "valid-key"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivered"] is True
+    mock_tg_service.send_task_notification.assert_called_once()
+
+
+@pytest.mark.parametrize("url", NOTIFY_TASK_COMPLETE_ALIASES)
+def test_notify_task_complete_alias_invalid_payload(mock_tg_service, url):
+    """ต้องคืนค่า 422 เมื่อ payload ขาด field บังคับ"""
+    app.dependency_overrides[verify_api_key] = lambda: True
+    response = client.post(
+        url, json={"project": "Akasa"}, headers={"X-Akasa-API-Key": "any-key"}
+    )
+    assert response.status_code == 422
